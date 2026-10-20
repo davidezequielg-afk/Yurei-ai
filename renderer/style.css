@@ -108,7 +108,15 @@ button.ghost:hover, .ctrl button:hover, #gear:hover { color: var(--ink); }
 .mTitle.marquee { text-align: left; }
 .mTitle.marquee span { animation: marq 9s ease-in-out infinite alternate; }
 @keyframes marq { 0%, 15% { transform: translateX(0); } 85%, 100% { transform: translateX(calc(-1 * var(--over))); } }
-.widget.media .sub { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.widget.media .sub { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; text-align: left; }
+.mHead { display: flex; align-items: center; gap: 8px; min-width: 0; }
+.mText { flex: 1; min-width: 0; }
+.mHead .mTitle { text-align: left; }
+.cover { flex: none; width: 34px; height: 34px; border-radius: 8px; overflow: hidden; display: grid; place-items: center; background: var(--track); color: var(--mute); }
+.cover img { width: 100%; height: 100%; object-fit: cover; animation: fadein .4s; }
+@keyframes fadein { from { opacity: 0; } }
+.times { display: flex; justify-content: space-between; margin-top: -4px; font-size: 9.5px; color: var(--mute); font-variant-numeric: tabular-nums; }
+.widget.media .gauge.thin { margin: 6px 0 4px; }
 .ctrl { display: flex; justify-content: space-between; align-items: center; margin-top: 2px; }
 .ctrl button { padding: 3px 5px; }
 .ctrl button:nth-child(3) { color: var(--ink); }

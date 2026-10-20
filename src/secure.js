@@ -118,4 +118,14 @@ const validateSlot = (v) => {
   return v;
 };
 
-module.exports = { isTrustedUrl, validateAudio, validateAskPayload, validateSettingsPatch, validateMediaAction, validateSlot, MASK, MAX_AUDIO_B64 };
+// Tapa del disco que entrega Windows: solo PNG/JPEG/BMP pequeños y que de verdad lo sean (se miran los primeros bytes).
+const IMAGE_MAGIC = [['image/png', [0x89, 0x50, 0x4e, 0x47]], ['image/jpeg', [0xff, 0xd8, 0xff]], ['image/bmp', [0x42, 0x4d]]];
+function coverDataUrl(cover, maxBytes = 716800) {
+  if (!cover || typeof cover.b64 !== 'string' || cover.b64.length > Math.ceil(maxBytes / 3) * 4 + 4) return null;
+  const buf = Buffer.from(cover.b64, 'base64');
+  if (!buf.length || buf.length > maxBytes) return null;
+  const hit = IMAGE_MAGIC.find(([, sig]) => sig.every((b, i) => buf[i] === b));
+  return hit ? `data:${hit[0]};base64,${buf.toString('base64')}` : null;
+}
+
+module.exports = { coverDataUrl, isTrustedUrl, validateAudio, validateAskPayload, validateSettingsPatch, validateMediaAction, validateSlot, MASK, MAX_AUDIO_B64 };

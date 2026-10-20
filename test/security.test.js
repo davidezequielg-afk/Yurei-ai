@@ -200,3 +200,13 @@ test('una orden maliciosa no puede disparar decenas de acciones ni colgar la pet
   const hang = (_u, init) => new Promise((_r, rej) => init.signal.addEventListener('abort', () => rej(Object.assign(new Error('x'), { name: 'AbortError' }))));
   await assert.rejects(generate({ apiKey: 'k', model: 'm', body: {}, fetchImpl: hang, timeoutMs: 50 }), /tardó demasiado/);
 });
+
+test('tapa del disco: solo imágenes reales y pequeñas', () => {
+  const { coverDataUrl } = require('../src/secure');
+  const png = Buffer.concat([Buffer.from([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a]), Buffer.alloc(100)]);
+  assert.match(coverDataUrl({ b64: png.toString('base64') }), /^data:image\/png;base64,/);
+  assert.match(coverDataUrl({ b64: Buffer.from([0xff, 0xd8, 0xff, 0xe0, 1, 2]).toString('base64') }), /^data:image\/jpeg/);
+  assert.equal(coverDataUrl({ b64: Buffer.from('<svg onload=alert(1)>').toString('base64') }), null); // SVG/HTML no
+  assert.equal(coverDataUrl({ b64: Buffer.concat([png, Buffer.alloc(800000)]).toString('base64') }), null); // demasiado grande
+  assert.equal(coverDataUrl(null), null);
+});

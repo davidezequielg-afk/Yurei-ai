@@ -19,7 +19,8 @@ const ICONS = {
   rain: '<path d="M6.5 14.5h10a4 4 0 0 0 .6-7.95A5.5 5.5 0 0 0 6.6 5.2a4.7 4.7 0 0 0-.1 9.3z"/><path d="M8 17.5l-1 3M12 17.5l-1 3M16 17.5l-1 3"/>',
   snow: '<path d="M6.5 14.5h10a4 4 0 0 0 .6-7.95A5.5 5.5 0 0 0 6.6 5.2a4.7 4.7 0 0 0-.1 9.3z"/><circle cx="8" cy="18.5" r=".7" fill="currentColor"/><circle cx="12" cy="20" r=".7" fill="currentColor"/><circle cx="16" cy="18.5" r=".7" fill="currentColor"/>',
   storm: '<path d="M6.5 14.5h10a4 4 0 0 0 .6-7.95A5.5 5.5 0 0 0 6.6 5.2a4.7 4.7 0 0 0-.1 9.3z"/><path d="M12.5 15.5L10 19h3l-2 3.5"/>',
-  fog: '<path d="M4 8h16M6 12h12M4 16h16M7 20h10"/>'
+  fog: '<path d="M4 8h16M6 12h12M4 16h16M7 20h10"/>',
+  music: '<path d="M9 17.5V6l10-2v11.5"/><circle cx="6.5" cy="17.5" r="2.5"/><circle cx="16.5" cy="15.5" r="2.5"/>'
 };
 
 function icon(name, size = 16) {

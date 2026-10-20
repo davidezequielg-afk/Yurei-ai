@@ -374,6 +374,10 @@ function start() {
     if (name === 'weather') return weather.get(store.get('settings').city);
     if (name === 'stats') return system.stats();
     if (name === 'media') return system.mediaInfo();
+    if (name === 'cover') {
+      const r = await system.mediaCover();
+      return { url: S.coverDataUrl(r?.cover), title: r?.title || '', artist: r?.artist || '' };
+    }
     if (name === 'volume') return system.getVolume();
     if (name === 'schedule') return nextSchedule({ tasks: store.get('tasks'), routines: store.get('routines') }, new Date());
     throw new Error('Widget desconocido');

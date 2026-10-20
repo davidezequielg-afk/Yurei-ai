@@ -113,6 +113,7 @@ function createSystem({ shell, clipboard, dataDir = os.tmpdir(), confirm = async
     changeVolume: (delta) => win().request('vol.step', delta),
     setMute: (muted) => win().request('vol.mute', muted ? 'true' : 'false'),
     mediaInfo: () => win().request('media.get'),
+    mediaCover: () => win().request('media.cover'),
     // action: play | pause | toggle | next | prev | seek (arg = segundos, negativo para retroceder)
     media: (action, arg = '') => win().request('media.cmd', arg === '' ? action : `${action}:${arg}`),
     shutdown: () => helper?.stop(),

@@ -198,18 +198,20 @@ const WIDGETS = {
   },
 
   media: {
-    every: 2,
+    every: 1,
     build(c) {
       c.classList.add('media');
+      const cover = el('div', { className: 'cover' }, window.icon('music', 18));
       const titleText = el('span');
       const title = el('div', { className: 'mTitle' }, titleText);
       const artist = el('div', { className: 'sub dim' });
       const bar = el('div', { className: 'gauge thin' }, el('i'));
-      const act = (action, arg) => () => { window.yurei.widgetAction('media', { action, arg }).then(() => setTimeout(() => this.update(refs), 500)); };
+      const times = el('div', { className: 'times' }, el('span'), el('span'));
+      const act = (action, arg) => () => { window.yurei.widgetAction('media', { action, arg }).then(() => setTimeout(() => this.update(refs, true), 400)); };
       const btn = (title, name, onclick, size = 15) => el('button', { title, onclick }, window.icon(name, size));
       const toggle = btn('Pausar / reanudar', 'play', act('toggle'), 17);
-      const refs = { title, titleText, artist, bar, toggle };
-      c.append(title, artist, bar, el('div', { className: 'ctrl' },
+      const refs = { cover, title, titleText, artist, bar, times, toggle, key: '', m: null, at: 0, n: 0 };
+      c.append(el('div', { className: 'mHead' }, cover, el('div', { className: 'mText' }, title, artist)), bar, times, el('div', { className: 'ctrl' },
         btn('Anterior', 'prev', act('prev')),
         btn('Retroceder 10 s', 'rewind', act('seek', -10)),
         toggle,
@@ -217,9 +219,15 @@ const WIDGETS = {
         btn('Siguiente', 'next', act('next'))));
       return refs;
     },
-    async update(r) {
-      const res = await window.yurei.widgetData('media');
-      const m = res.ok ? res.data : { available: false };
+    // Cada segundo avanza la barra por su cuenta; a Windows se le pregunta cada 3 s (o al tocar un botón).
+    async update(r, force) {
+      r.n++;
+      if (force || !r.m || r.n % 3 === 1) {
+        const res = await window.yurei.widgetData('media');
+        r.m = res.ok ? res.data : { available: false, error: res.error };
+        r.at = Date.now();
+      }
+      const m = r.m;
       r.toggle.replaceChildren(window.icon(m.available && m.status === 'Playing' ? 'pause' : 'play', 17));
       const setTitle = (text) => {
         if (r.titleText.textContent === text) return;
@@ -229,14 +237,29 @@ const WIDGETS = {
         if (over > 0) r.title.style.setProperty('--over', `${over}px`);
       };
       if (!m.available) {
-        setTitle(res.ok ? 'Nada reproduciéndose' : res.error);
+        setTitle(m.error || 'Nada reproduciéndose');
         r.artist.textContent = '';
         r.bar.firstChild.style.width = '0%';
+        r.times.hidden = true;
+        if (r.key) { r.key = ''; r.cover.replaceChildren(window.icon('music', 18)); }
         return;
       }
       setTitle(m.title || m.app || 'Reproduciendo');
       r.artist.textContent = m.artist || '';
-      r.bar.firstChild.style.width = m.duration > 0 ? `${Math.min(100, Math.round((m.position / m.duration) * 100))}%` : '0%';
+      const pos = Math.min(m.duration || 0, m.position + (m.status === 'Playing' ? (Date.now() - r.at) / 1000 : 0));
+      r.bar.firstChild.style.width = m.duration > 0 ? `${Math.min(100, (pos / m.duration) * 100)}%` : '0%';
+      r.times.hidden = !(m.duration > 0);
+      r.times.firstChild.textContent = fmtLeft(pos * 1000);
+      r.times.lastChild.textContent = fmtLeft(m.duration * 1000);
+      // Tapa del disco: se pide una vez por canción.
+      const key = `${m.title}|${m.artist}|${m.app}`;
+      if (key !== r.key) {
+        r.key = key;
+        window.yurei.widgetData('cover').then((c) => {
+          if (r.key !== key) return;
+          r.cover.replaceChildren(c.ok && c.data.url ? el('img', { src: c.data.url, alt: '' }) : window.icon('music', 18));
+        });
+      }
     }
   },
 

@@ -141,6 +141,24 @@ function Get-Media {
   }
 }
 
+# Tapa del disco / miniatura de lo que suena (la entrega el propio reproductor a Windows).
+function Get-Cover {
+  $s = Get-Session
+  if ($null -eq $s) { return @{ cover = $null } }
+  $propsType = [Windows.Media.Control.GlobalSystemMediaTransportControlsSessionMediaProperties]
+  $p = Await ($s.TryGetMediaPropertiesAsync()) $propsType
+  if ($null -eq $p -or $null -eq $p.Thumbnail) { return @{ cover = $null } }
+  $streamType = [Windows.Storage.Streams.IRandomAccessStreamWithContentType, Windows.Storage.Streams, ContentType = WindowsRuntime]
+  $st = Await ($p.Thumbnail.OpenReadAsync()) $streamType
+  try {
+    if ($st.Size -le 0 -or $st.Size -gt 716800) { return @{ cover = $null } }
+    $src = [System.IO.WindowsRuntimeStreamExtensions]::AsStreamForRead($st)
+    $ms = New-Object System.IO.MemoryStream
+    $src.CopyTo($ms)
+    return @{ cover = @{ mime = [string]$st.ContentType; b64 = [Convert]::ToBase64String($ms.ToArray()) }; title = [string]$p.Title; artist = [string]$p.Artist }
+  } finally { $st.Dispose() }
+}
+
 function Invoke-Media($action, $arg) {
   $s = Get-Session
   if ($null -ne $s) {
@@ -233,6 +251,7 @@ while ($true) {
       'vol.mute'  { $data = Set-Mute ($arg -eq 'true') }
       'diag'      { $v = Get-Vol; $data = @{ powershell = $PSVersionTable.PSVersion.ToString(); audioExacto = [bool]('YureiAudio' -as [type]); teclas = [bool]('YureiKeys' -as [type]); reproductores = $script:smtc; erroresAlIniciar = @($script:initErrors); volumen = $v; ultimoErrorDeAudio = $script:audioError } }
       'media.get' { $data = Get-Media }
+      'media.cover' { $data = Get-Cover }
       'media.cmd' { $a = $arg -split ':', 2; $data = Invoke-Media $a[0] $(if ($a.Count -gt 1) { $a[1] } else { '' }) }
       default     { throw "Comando desconocido: $cmd" }
     }
