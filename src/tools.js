@@ -56,6 +56,7 @@ const declarations = [
   { name: 'cancel_timer', description: 'Cancela el temporizador o el pomodoro en curso.', parameters: { type: 'OBJECT', properties: {} } },
   { name: 'timer_status', description: 'Dice cuánto le falta al temporizador o pomodoro en curso.', parameters: { type: 'OBJECT', properties: {} } },
   { name: 'set_dnd', description: 'Activa o desactiva el modo no molestar de Yurei: deja de escuchar el saludo, no muestra avisos ni notificaciones (los temporizadores siguen avisando).', parameters: { type: 'OBJECT', properties: { on: { type: 'BOOLEAN', description: 'true para activar' } }, required: ['on'] } },
+  { name: 'run_mode', description: 'Activa un modo del usuario por su nombre (p. ej. "modo gamer", "modo estudio"): abre sus apps, ajusta el volumen, la música, el pomodoro y el no molestar. name="normal" vuelve a la normalidad (quita el no molestar y el pomodoro).', parameters: { type: 'OBJECT', properties: { name: str('Nombre del modo') }, required: ['name'] } },
   { name: 'list_memories', description: 'Lista lo que recuerdas del usuario.', parameters: { type: 'OBJECT', properties: {} } }
 ];
 
@@ -264,6 +265,27 @@ function createTools({ store, system, focus = null, now = () => new Date() }) {
       return { active: true, label: t.label, kind: t.kind, phase: t.phase, cycle: t.cycle, cycles: t.cycles, minutesLeft: +(t.left / 60000).toFixed(1) };
     },
     set_dnd: ({ on }) => { store.updateSettings({ dnd: on === true }); return { dnd: on === true }; },
+    run_mode: async ({ name }) => {
+      const n = String(name || '').toLowerCase().replace(/^modo\s+/, '').trim();
+      if (n === 'normal') {
+        store.updateSettings({ dnd: false });
+        focus?.cancel();
+        return { mode: 'normal' };
+      }
+      const modes = store.get('settings').modes || [];
+      const mode = modes.find((m) => m.name === n) || modes.find((m) => m.name.includes(n) || n.includes(m.name));
+      if (!mode) throw new Error(`No tengo un modo "${name}". Modos: ${modes.map((m) => m.name).join(', ') || 'ninguno'}`);
+      const done = [];
+      const failed = [];
+      const step = async (label, fn) => { try { await fn(); done.push(label); } catch (e) { failed.push(`${label}: ${e.message}`); } };
+      for (const app of mode.apps) await step(`abrir ${app}`, () => system.launchApp(app));
+      if (mode.volume !== null) await step(`volumen ${mode.volume}`, () => system.setVolume(mode.volume));
+      if (mode.media) await step(mode.media === 'play' ? 'música' : 'pausar música', () => system.media(mode.media));
+      if (mode.pomodoro > 0 && focus) await step(`pomodoro ${mode.pomodoro} min`, () => focus.pomodoro({ focus: mode.pomodoro }));
+      store.updateSettings({ dnd: mode.dnd });
+      if (mode.dnd) done.push('no molestar');
+      return { mode: mode.name, done, failed };
+    },
     set_translator: ({ language }) => {
       const lang = String(language || '').replace(/[^\p{L} -]/gu, '').trim().slice(0, 30); // solo letras: va dentro del prompt
       const off = !lang || /^(off|no|ninguno|apagar|apagado|stop)$/i.test(lang);

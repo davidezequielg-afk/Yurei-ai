@@ -217,3 +217,24 @@ test('ánimo: la etiqueta no se lee y llega como estado de la carita', () => {
   assert.equal(splitMood('[contenta] Hola').text, 'Hola'); // una etiqueta inventada tampoco se lee
   assert.match(buildSystemPrompt({ soul: 'Y', personality: 'x' }), /\[feliz\]/);
 });
+
+test('modos: abre sus apps, ajusta volumen, pomodoro y no molestar; "normal" lo deshace', async () => {
+  const { createTools } = require('../src/tools');
+  const { validateModes } = require('../src/secure');
+  const calls = [];
+  const settings = { modes: validateModes([{ name: 'Gamer!!', apps: ['Discord', 'Steam'], volume: 60 }, { name: 'estudio', volume: 25, media: 'pause', pomodoro: 25, dnd: true }, { name: 'gamer' }]) };
+  assert.deepEqual(settings.modes.map((m) => m.name), ['gamer', 'estudio']); // limpia el nombre y no repite
+  const store = { get: () => settings, updateSettings: (p) => Object.assign(settings, p) };
+  const system = { launchApp: async (a) => { if (a === 'Steam') throw new Error('no instalada'); calls.push(`open:${a}`); }, setVolume: async (v) => calls.push(`vol:${v}`), media: async (a) => calls.push(`media:${a}`) };
+  const focus = { pomodoro: ({ focus: f }) => calls.push(`pomo:${f}`), cancel: () => calls.push('cancel') };
+  const tools = createTools({ store, system, focus });
+  const g = await tools.execute('run_mode', { name: 'modo gamer' });
+  assert.deepEqual(g.failed, ['abrir Steam: no instalada']); // una app que falta no frena el resto
+  assert.ok(calls.includes('open:Discord') && calls.includes('vol:60'));
+  await tools.execute('run_mode', { name: 'estudio' });
+  assert.ok(calls.includes('media:pause') && calls.includes('pomo:25') && settings.dnd === true);
+  await tools.execute('run_mode', { name: 'normal' });
+  assert.equal(settings.dnd, false);
+  assert.ok(calls.includes('cancel'));
+  await assert.rejects(tools.execute('run_mode', { name: 'fiesta' }), /gamer, estudio/);
+});

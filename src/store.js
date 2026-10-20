@@ -25,7 +25,17 @@ const DEFAULTS = {
     city: '',
     conversationSeconds: 20,
     dnd: false,
-    accessory: 'none'
+    accessory: 'none',
+    bargeIn: true, // interrumpirla hablándole encima
+    autoUpdate: true, // buscar versiones nuevas en GitHub
+    onboarded: false, // ya vio la bienvenida
+    language: 'auto', // idioma de la interfaz: auto | es | en
+    // Modos con nombre: "modo gamer" abre sus apps, ajusta el volumen, etc.
+    modes: [
+      { name: 'gamer', apps: ['Discord', 'Steam'], volume: 60, media: null, pomodoro: 0, dnd: false },
+      { name: 'estudio', apps: [], volume: 25, media: 'pause', pomodoro: 25, dnd: true },
+      { name: 'cine', apps: [], volume: 80, media: null, pomodoro: 0, dnd: true }
+    ]
   },
   todos: [],
   tasks: [],

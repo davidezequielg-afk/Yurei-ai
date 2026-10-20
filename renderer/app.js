@@ -663,7 +663,13 @@ function armConversationTimeout() {
 async function ensureListening() {
   if (Listener.running) return true;
   try {
-    await Listener.start({ onUtterance: handleUtterance, onSpeechStart: () => { if (conv.active) clearTimeout(conv.timer); } });
+    await Listener.start({
+      onUtterance: handleUtterance,
+      onSpeechStart: () => { if (conv.active) clearTimeout(conv.timer); },
+      // Interrumpirla: si le hablas encima mientras responde, se calla y te escucha.
+      canBarge: () => state.bargeIn !== false && conv.active && island.dataset.phase === 'speaking',
+      onBargeIn: () => { stopSpeaking(); setPhase('listening', listenLabel()); clearTimeout(conv.timer); }
+    });
     return true;
   } catch (e) {
     showReply(`No pude acceder al micrófono: ${e.message}`);
@@ -681,9 +687,11 @@ async function enterConversation() {
   armConversationTimeout();
 }
 
-async function handleUtterance({ b64, seconds }) {
-  if (conv.busy) return;
+async function handleUtterance(utt) {
+  // Si llega mientras termina el turno anterior (p. ej. tras interrumpirla), espera su turno en vez de perderse.
+  if (conv.busy) { conv.queued = utt; return; }
   conv.busy = true;
+  const { b64, seconds } = utt;
   try {
     if (conv.active) {
       clearTimeout(conv.timer);
@@ -708,6 +716,9 @@ async function handleUtterance({ b64, seconds }) {
     }
   } finally {
     conv.busy = false;
+    const next = conv.queued;
+    conv.queued = null;
+    if (next && conv.active) handleUtterance(next);
   }
 }
 
@@ -899,6 +910,32 @@ window.yurei.on('timer-done', async ({ finished, next }) => {
 });
 window.yurei.timerGet().then((r) => r.ok && setTimerState(r.data));
 
+/* ---------- actualizaciones ---------- */
+
+let announcedUpdate = null;
+function showUpdate(u) {
+  const b = $('upd');
+  b.hidden = !['available', 'downloading', 'installing'].includes(u.status);
+  b.disabled = u.status !== 'available';
+  if (u.status === 'available') b.textContent = `Actualizar a ${u.version}`;
+  if (u.status === 'downloading') b.textContent = `Bajando… ${Math.round((u.progress || 0) * 100)}%`;
+  if (u.status === 'installing') b.textContent = 'Instalando…';
+  b.title = u.error ? `⚠ ${u.error}` : 'Baja la versión nueva desde GitHub, verifica su huella y la instala';
+  // Se avisa una sola vez por versión, sin interrumpir.
+  if (u.status === 'available' && announcedUpdate !== u.version && !state.dnd) {
+    announcedUpdate = u.version;
+    showReply(`✨ Hay una versión nueva (${u.version}). Abre el panel para instalarla.`);
+    if (state.mode === 'idle') { setMode('status'); setTimeout(() => { if (state.mode === 'status') setMode('idle'); }, 8000); }
+  }
+}
+$('upd').onclick = async (e) => {
+  e.stopPropagation();
+  const r = await window.yurei.updateInstall();
+  if (!r.ok) showReply(`⚠ ${r.error}`);
+};
+window.yurei.on('update', showUpdate);
+window.yurei.updateGet().then((r) => r.ok && showUpdate(r.data));
+
 function applySettings(cfg) {
   const voiceChanged = cfg.voice !== state.voiceName || JSON.stringify(cfg.fillerPhrases || []) !== JSON.stringify(state.fillerPhrases || []);
   state.voiceName = cfg.voice;
@@ -909,6 +946,7 @@ function applySettings(cfg) {
   if (voiceChanged) { fillerAudio.clear(); setTimeout(prefetchFillers, 3000); }
   state.wakeWord = cfg.wakeWord;
   state.conversationSeconds = cfg.conversationSeconds;
+  state.bargeIn = cfg.bargeIn !== false;
   state.soul = cfg.soul || 'Yurei';
   const wn = $('wName');
   if (wn) wn.textContent = state.soul;
@@ -929,7 +967,7 @@ window.yurei.on('settings-changed', applySettings);
 window.yurei.getSettings().then((r) => {
   if (!r.ok) return;
   applySettings(r.data);
-  if (!r.data.apiKey) window.yurei.openSettings(); // primer arranque: pedir la API key
+  if (!r.data.apiKey || !r.data.onboarded) window.yurei.openSettings(); // primer arranque: bienvenida paso a paso
 });
 setMode('idle');
 armSleep();

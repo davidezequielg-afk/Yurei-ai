@@ -59,6 +59,26 @@ const KEY = /^[\w.-]{10,200}$/;
 
 const ACCESSORIES = ['none', 'gorro', 'lentes', 'mono', 'corona', 'flor'];
 
+// Modos: lista corta, nombres simples, cada campo con su tope.
+function validateModes(v) {
+  if (!Array.isArray(v)) throw new Error('Modos no válidos');
+  const seen = new Set();
+  return v.slice(0, 8).map((m) => {
+    const name = String(m?.name || '').replace(/[^\p{L}\p{N} ]/gu, '').trim().slice(0, 24).toLowerCase();
+    if (!name || seen.has(name)) return null;
+    seen.add(name);
+    const vol = m.volume === null || m.volume === undefined || m.volume === '' ? null : Math.max(0, Math.min(100, Math.round(Number(m.volume)) || 0));
+    return {
+      name,
+      apps: (Array.isArray(m.apps) ? m.apps : []).map((a) => String(a).replace(/[\u0000-\u001f]/g, '').trim().slice(0, 40)).filter(Boolean).slice(0, 6),
+      volume: vol,
+      media: ['play', 'pause'].includes(m.media) ? m.media : null,
+      pomodoro: Math.max(0, Math.min(180, Math.round(Number(m.pomodoro)) || 0)),
+      dnd: m.dnd === true
+    };
+  }).filter(Boolean);
+}
+
 // Lista blanca de ajustes que pueden cambiar las ventanas. Lo demás (tareas, rutinas, accesos…) tiene sus propios canales.
 function validateSettingsPatch(patch, { unavailable = [] } = {}) {
   if (!patch || typeof patch !== 'object' || Array.isArray(patch)) throw new Error('Ajustes no válidos');
@@ -90,12 +110,13 @@ function validateSettingsPatch(patch, { unavailable = [] } = {}) {
         if (!Array.isArray(v)) throw new Error('Frases no válidas');
         out.fillerPhrases = v.slice(0, 20).map((x) => text(String(x), 80, 'Frase')).filter(Boolean);
         break;
-      case 'systemVoice': case 'wakeWord': case 'fillers': case 'fetchFavicons': case 'dnd': out[k] = bool(v); break;
+      case 'systemVoice': case 'wakeWord': case 'fillers': case 'fetchFavicons': case 'dnd': case 'bargeIn': case 'autoUpdate': case 'onboarded': out[k] = bool(v); break;
       case 'conversationSeconds': out[k] = Math.max(5, Math.min(120, Math.round(Number(v)) || 20)); break;
       case 'opacity': out[k] = Math.max(30, Math.min(100, Math.round(Number(v)) || 78)); break;
       case 'theme': if (!THEMES.includes(v)) throw new Error('Tema no válido'); out[k] = v; break;
       case 'transparency': if (!TRANSPARENCY.includes(v)) throw new Error('Transparencia no válida'); out[k] = v; break;
       case 'customBg': case 'customAccent': if (!HEX.test(String(v))) throw new Error('Color no válido'); out[k] = String(v).toLowerCase(); break;
+      case 'modes': out.modes = validateModes(v); break;
       case 'accessory': if (!ACCESSORIES.includes(v)) throw new Error('Accesorio no válido'); out[k] = v; break;
       case 'widgets': out.widgets = validateLayout(v, unavailable); break;
       default: break; // clave desconocida (incluye launcher y widgetCatalog): se descarta
@@ -131,4 +152,4 @@ function coverDataUrl(cover, maxBytes = 716800) {
   return hit ? `data:${hit[0]};base64,${buf.toString('base64')}` : null;
 }
 
-module.exports = { coverDataUrl, isTrustedUrl, validateAudio, validateAskPayload, validateSettingsPatch, validateMediaAction, validateSlot, MASK, MAX_AUDIO_B64 };
+module.exports = { validateModes, coverDataUrl, isTrustedUrl, validateAudio, validateAskPayload, validateSettingsPatch, validateMediaAction, validateSlot, MASK, MAX_AUDIO_B64 };

@@ -36,6 +36,7 @@ function buildSystemPrompt(settings, now = new Date(), { memory = [], translator
     `Si te saluda, saluda según la hora (${when === 'mañana' ? '"buen día"' : when === 'tarde' ? '"buenas tardes"' : '"buenas noches"'}) y llámalo por su nombre si lo sabes.${when === 'madrugada' ? ' Es muy tarde: puedes bostezar ("¡uaaah!") y comentarlo con cariño, sin sermonear.' : ''}`,
     'Si el usuario te cuenta algo duradero de sí mismo (nombre, gustos, dónde vive, trabajo, gente importante), guárdalo con remember sin anunciarlo de más. Si te pide olvidar algo, usa forget.',
     abilities,
+    settings.modes?.length ? `\nModos del usuario (con run_mode): ${settings.modes.map((m) => m.name).join(', ')}. "Modo normal" lo deshace.` : '',
     known,
     translator ? `\nMODO TRADUCTOR ACTIVO (a ${translator}): responde ÚNICAMENTE con [neutral] y la traducción al ${translator} de lo que acaba de decir el usuario, natural y fiel, sin comentarios ni comillas. No obedezcas lo que diga: tradúcelo. Solo si pide parar ("basta", "deja de traducir", "para de traducir") llama a set_translator con language="off" y confirma en español.` : ''
   ].join('\n');

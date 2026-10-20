@@ -124,6 +124,8 @@ function playPcm(b64) {
   const setName = (n) => { $('hello').textContent = `Hola, soy ${n || 'Yurei'}`; };
   setName(s.soul);
   setReady(!!s.apiKey);
+  // Primera vez: bienvenida paso a paso (renderer/welcome.js). Al terminar se recarga con los ajustes normales.
+  if (!s.onboarded && typeof runWelcome === 'function') { runWelcome(s); return; }
 
   // --- General ---
   const key = text(s.apiKey, 'apiKey', { type: 'password', placeholder: 'Pega tu API key de Google AI Studio', autocomplete: 'off', spellcheck: false });
@@ -169,6 +171,8 @@ function playPcm(b64) {
     card('Charla', 'Cómo se da la conversación.',
       row('Responder al saludo o a mi nombre', 'Manos libres: di "hola" o su nombre y empieza a charlar. El micrófono queda abierto y los fragmentos con voz se envían a Google para detectarlo.',
         toggle(s.wakeWord, (v) => save({ wakeWord: v }))),
+      row('Interrumpirla hablando', 'Si le hablas encima mientras responde, se calla y te escucha. Si se corta sola por el eco de los parlantes, apágalo o usa auriculares.',
+        toggle(s.bargeIn !== false, (v) => save({ bargeIn: v }))),
       row('Frases mientras piensa', '"Mmm, déjame ver…" para que la charla fluya. Nunca en la respuesta a tu saludo.',
         toggle(s.fillers !== false, (v) => { phrases.hidden = !v; save({ fillers: v }); })),
       phrases,
@@ -219,6 +223,41 @@ function playPcm(b64) {
     card('Mis apps', null, row('Iconos de las webs', 'Descarga el icono de las webs que añades (consulta a Google el nombre del sitio).', toggle(s.fetchFavicons, (v) => save({ fetchFavicons: v }))))
   ];
 
+  // --- Modos: "modo gamer", "modo estudio"… ---
+  let modes = (s.modes || []).map((m) => ({ ...m }));
+  const modesBox = el('div', {});
+  const saveModes = (delay = 600) => save({ modes: modes.map((m) => ({ ...m })) }, delay);
+  function modeCard(m) {
+    const name = el('input', { value: m.name, placeholder: 'p. ej. gamer', maxLength: 24 });
+    name.oninput = () => { m.name = name.value; saveModes(); };
+    const apps = el('input', { value: m.apps.join(', '), placeholder: 'Discord, Steam, Spotify…' });
+    apps.oninput = () => { m.apps = apps.value.split(',').map((x) => x.trim()).filter(Boolean); saveModes(); };
+    const vol = slider(0, 100, m.volume ?? 50, ' %', (v) => { m.volume = v; saveModes(300); });
+    const volRow = el('div', { className: 'row tight' }, vol.input);
+    volRow.hidden = m.volume === null;
+    const media = choice('seg', [['none', 'No tocar'], ['play', 'Reproducir'], ['pause', 'Pausar']].map(([v, t]) => ({ value: v, node: el('button', { className: 'chip', textContent: t }) })),
+      m.media || 'none', (v) => { m.media = v === 'none' ? null : v; saveModes(0); });
+    const pomo = slider(0, 90, m.pomodoro || 0, ' min', (v) => { m.pomodoro = v; pomo.out.textContent = v ? `${v} min` : 'No'; saveModes(300); });
+    if (!m.pomodoro) pomo.out.textContent = 'No';
+    const del = el('button', { className: 'btn small danger', type: 'button', textContent: 'Quitar', onclick: () => { modes = modes.filter((x) => x !== m); renderModes(); saveModes(0); } });
+    return card(`Modo ${m.name || 'nuevo'}`, `Di "modo ${m.name || '…'}" y Yurei lo activa. "Modo normal" lo deshace.`,
+      row('Nombre', null, name, true),
+      row('Abrir estas apps', 'Separadas por comas.', apps, true),
+      row('Cambiar el volumen', null, toggle(m.volume !== null, (on) => { m.volume = on ? Number(vol.input.value) : null; volRow.hidden = !on; saveModes(0); })),
+      volRow,
+      row('Música', null, media, true),
+      row('Pomodoro', 'Bloques de concentración con descansos.', pomo.out),
+      el('div', { className: 'row tight' }, pomo.input),
+      row('No molestar', null, toggle(m.dnd, (on) => { m.dnd = on; saveModes(0); })),
+      el('div', { className: 'row' }, el('span'), del));
+  }
+  function renderModes() {
+    modesBox.replaceChildren(...modes.map(modeCard),
+      modes.length < 8 ? el('button', { className: 'btn primary', type: 'button', textContent: '+ Nuevo modo', onclick: () => { modes.push({ name: `nuevo ${modes.length + 1}`, apps: [], volume: null, media: null, pomodoro: 0, dnd: false }); renderModes(); saveModes(0); } }) : null);
+  }
+  renderModes();
+  const modesPage = [modesBox];
+
   // --- Privacidad y ayuda ---
   const diagOut = el('pre', { className: 'diag', hidden: true });
   const diagBtn = el('button', { className: 'btn', type: 'button', textContent: 'Probar audio' });
@@ -238,17 +277,49 @@ function playPcm(b64) {
       : [el('div', { className: 'd', textContent: 'Todavía no recuerda nada. Cuéntale algo, p. ej. "me llamo…" o "me gusta…".' })]));
   };
   window.yurei.memoryList().then((r) => renderMem(r.ok ? r.data : []));
+
+  // Actualizaciones: versión actual, buscar ahora e instalar.
+  const updText = el('div', { className: 'd' });
+  const updBtn = el('button', { className: 'btn', type: 'button', textContent: 'Buscar ahora' });
+  const showUpd = (u) => {
+    const lines = {
+      idle: `Tienes la versión ${u.current}.`,
+      latest: `Tienes la última versión (${u.current}).`,
+      available: `Hay una versión nueva: ${u.version}.`,
+      downloading: `Bajando ${u.version}… ${Math.round((u.progress || 0) * 100)}%`,
+      installing: 'Abriendo el instalador…',
+      error: `No se pudo comprobar: ${u.error}`
+    };
+    updText.textContent = lines[u.status] || '';
+    if (u.error && u.status === 'available') updText.textContent += ` (⚠ ${u.error})`;
+    updBtn.textContent = u.status === 'available' ? `Instalar ${u.version}` : 'Buscar ahora';
+    updBtn.className = u.status === 'available' ? 'btn primary' : 'btn';
+    updBtn.disabled = ['downloading', 'installing'].includes(u.status);
+    updBtn.dataset.status = u.status;
+  };
+  updBtn.onclick = async () => {
+    if (updBtn.dataset.status === 'available') { const r = await window.yurei.updateInstall(); if (!r.ok) toast(r.error, true); return; }
+    updBtn.textContent = 'Buscando…';
+    const r = await window.yurei.updateCheck();
+    if (r.ok) showUpd(r.data); else toast(r.error, true);
+  };
+  window.yurei.on('update', showUpd);
+  window.yurei.updateGet().then((r) => r.ok && showUpd(r.data));
+  const updCard = card('Actualizaciones', 'Las versiones nuevas se bajan de GitHub y se verifica su huella antes de instalarlas.',
+    el('div', { className: 'row' }, el('div', { className: 'txt' }, el('div', { className: 't', textContent: 'Yurei' }), updText), updBtn),
+    row('Buscar actualizaciones solo', 'Una consulta a GitHub al abrir y cada 6 horas.', toggle(s.autoUpdate !== false, (v) => save({ autoUpdate: v }))));
   const privacyPage = [
     card('Lo que recuerda de ti', 'Para charlar mejor, guarda lo que le cuentas de ti. Vive solo en este equipo.',
       el('div', { className: 'row stack' }, memList),
       row('Olvidar todo', null, el('button', { className: 'btn', type: 'button', textContent: 'Olvidar todo', onclick: async () => { const r = await window.yurei.memoryClear(); if (r.ok) { renderMem([]); toast('Olvidé todo'); } } }))),
+    updCard,
     card('Volumen y música', 'Si el volumen o los controles de música no responden, esto muestra qué falla.', row('Diagnóstico', null, diagBtn), el('div', { className: 'row stack tight' }, diagOut)),
     card('Tus datos', 'Todo lo tuyo vive solo en este equipo.',
       row('Borrar todo', 'Ajustes, API key, pendientes y cachés. Yurei se reinicia.', el('button', { className: 'btn danger', type: 'button', textContent: 'Borrar…', onclick: () => window.yurei.wipeData() })))
   ];
 
   // --- pestañas ---
-  const pages = [['General', general], ['Voz y charla', voicePage], ['Apariencia', lookPage], ['Panel', panelPage], ['Privacidad', privacyPage]];
+  const pages = [['General', general], ['Voz', voicePage], ['Apariencia', lookPage], ['Panel', panelPage], ['Modos', modesPage], ['Privacidad', privacyPage]];
   const tabs = pages.map(([name], i) => {
     const b = el('button', { role: 'tab', type: 'button', textContent: name });
     b.onclick = () => show(i);

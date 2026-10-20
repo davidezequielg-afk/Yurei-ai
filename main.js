@@ -7,6 +7,9 @@ const { createTools } = require('./src/tools');
 const { createAssistant } = require('./src/assistant');
 const { createScheduler } = require('./src/scheduler');
 const { createFocus } = require('./src/focus');
+const { createUpdater } = require('./src/updater');
+const { generate } = require('./src/gemini');
+const { spawn } = require('child_process');
 const { createTtsCache } = require('./src/ttscache');
 const { resolveAppearance } = require('./src/theme');
 const L = require('./src/launcher');
@@ -350,6 +353,22 @@ function start() {
     return settingsView();
   });
   handle('settings:open', () => openSettings());
+  // Bienvenida: comprobar la API key con una petición mínima (y guardarla si funciona) y abrir la página para crearla.
+  handle('key:test', async (_e, key) => {
+    const { apiKey } = S.validateSettingsPatch({ apiKey: key });
+    if (!apiKey) throw new Error('Pega la clave primero');
+    try {
+      await generate({ apiKey, model: store.get('settings').model, body: { contents: [{ role: 'user', parts: [{ text: 'Responde solo: ok' }] }] }, timeoutMs: 20000 });
+    } catch (e) {
+      if (/API_KEY_INVALID|API key not valid|\b(400|401|403)\b/.test(e.message)) throw new Error('Esa clave no funciona. Revisa que la copiaste completa.');
+      if (/\b429\b/.test(e.message)) throw new Error('La clave funciona, pero llegaste al límite gratis por ahora. Prueba en un rato.');
+      throw new Error(`No pude comprobarla: ${e.message}`);
+    }
+    store.updateSettings({ apiKey });
+    win?.webContents.send('settings-changed', settingsView());
+    return true;
+  });
+  handle('key:page', () => shell.openExternal('https://aistudio.google.com/apikey'));
   handle('data:wipe', async () => {
     const r = await dialog.showMessageBox({ type: 'warning', buttons: ['Cancelar', 'Borrar todo'], defaultId: 0, cancelId: 0, noLink: true, title: 'Yurei', message: '¿Borrar todos tus datos de Yurei?', detail: 'Se eliminan los ajustes, la API key, los pendientes, las tareas, las rutinas y las cachés de este equipo. Yurei se reiniciará.' });
     if (r.response !== 1) return false;
@@ -361,6 +380,45 @@ function start() {
     return true;
   });
   handle('diag:audio', () => system.diagnose());
+
+  // --- actualizaciones (GitHub) ---
+  const updater = createUpdater({ current: app.getVersion(), dir: path.join(app.getPath('temp'), 'yurei-update'), spawnImpl: process.platform === 'win32' ? spawn : null });
+  let update = { status: 'idle', current: app.getVersion() };
+  const setUpdate = (patch) => {
+    update = { ...update, ...patch };
+    for (const w of BrowserWindow.getAllWindows()) if (!w.isDestroyed()) w.webContents.send('update', update);
+  };
+  const checkUpdate = async (manual = false) => {
+    if (['downloading', 'installing'].includes(update.status)) return update;
+    try {
+      const r = await updater.check();
+      setUpdate(r.available ? { status: 'available', version: r.version, notes: r.notes, error: null } : { status: 'latest', version: r.latest, error: null });
+    } catch (e) {
+      if (manual) setUpdate({ status: 'error', error: e.message }); // en segundo plano, un fallo de red no molesta
+    }
+    return update;
+  };
+  if (store.get('settings').autoUpdate !== false) {
+    setTimeout(() => checkUpdate(), 30 * 1000);
+    setInterval(() => { if (store.get('settings').autoUpdate !== false) checkUpdate(); }, 6 * 3600 * 1000);
+  }
+  handle('update:get', () => update);
+  handle('update:check', () => checkUpdate(true));
+  handle('update:install', async () => {
+    if (update.status !== 'available') throw new Error('No hay ninguna actualización lista');
+    setUpdate({ status: 'downloading', progress: 0 });
+    try {
+      let last = 0;
+      const file = await updater.download((p) => { if (p - last >= 0.05 || p === 1) { last = p; setUpdate({ progress: p }); } });
+      setUpdate({ status: 'installing' });
+      updater.install(file);
+      setTimeout(() => app.quit(), 800); // el instalador reemplaza esta versión
+      return true;
+    } catch (e) {
+      setUpdate({ status: 'available', error: e.message });
+      throw e;
+    }
+  });
   // --- memoria: lo que Yurei recuerda de ti (se ve y se borra desde Ajustes) ---
   handle('memory:list', () => store.get('memory') || []);
   handle('memory:remove', (_e, id) => {

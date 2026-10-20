@@ -44,6 +44,8 @@ button { font: inherit; color: inherit; }
 button.ghost, .ctrl button, #gear { background: none; border: 0; cursor: pointer; color: var(--mute); border-radius: 8px; }
 button.ghost:hover, .ctrl button:hover, #gear:hover { color: var(--ink); }
 #gear { position: absolute; top: -19px; right: 12px; padding: 2px; }
+.upd { position: absolute; top: -19px; right: 34px; height: 16px; padding: 0 8px; border: 0; border-radius: 8px; background: var(--accent); color: var(--bg-solid); font-size: 10px; font-weight: 600; cursor: pointer; }
+.upd:disabled { opacity: .8; cursor: default; }
 
 /* tipografía común */
 .big { font-size: 28px; font-weight: 350; letter-spacing: -.01em; line-height: 1; }
