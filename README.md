@@ -8,7 +8,8 @@ Asistente de voz de escritorio de **código abierto** (MIT), inspirado en la cat
 
 | Función | Cómo se usa |
 |---|---|
-| **Hablar con el asistente** | `Ctrl+Shift+Espacio` para empezar a grabar, otra vez para enviar |
+| **Conversación manos libres** | `Ctrl+Shift+Espacio` abre la charla: habla, y al hacer una pausa (~1,3 s) Yurei te entiende y responde. La charla sigue abierta unos segundos (20 por defecto) sin repetir el nombre; vuelve a pulsar el atajo para cerrarla |
+| **Palabra de activación** | Opcional (Alma → *Escuchar siempre mi nombre*): di "Yurei, abre YouTube" sin tocar el teclado. El nombre es el de la pestaña *Alma* |
 | **Dictado** | `Ctrl+Alt+D` para empezar, otra vez para terminar; el texto limpio (sin muletillas, con autocorrecciones) se pega en la ventana activa |
 | **Circle to Ask** | `Ctrl+Shift+C`, rodea algo en pantalla y pregunta en voz alta |
 | **To-do por voz** | "Añade comprar leche", "marca leche como hecha" (pestaña *Hoy*) |
@@ -73,7 +74,8 @@ renderer/          UI de la isla, grabación WAV 16 kHz, overlay de Circle to As
 
 ## Limitaciones conocidas
 
-- Mantener pulsado (push-to-talk) requiere hooks nativos; aquí los atajos alternan iniciar/detener.
+- La palabra de activación no es local: con el micrófono abierto, cada fragmento con voz se envía a Gemini para comprobar si dijiste el nombre. Consume cuota y envía a Google lo que se hable cerca; por eso está desactivada por defecto.
+- La detección de fin de frase es por volumen: en un sitio ruidoso puede cortar tarde o pronto.
 - El control del volumen usa teclas multimedia (pasos de 2 %).
 - Sin pestañas de clima, calendario, velocidad de red, música ni fondos de pantalla todavía: contribuciones bienvenidas.
 - No se ha probado el flujo de Electron en una máquina Windows real desde el entorno de desarrollo; se validó la lógica con tests.

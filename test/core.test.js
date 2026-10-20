@@ -113,3 +113,23 @@ test('errores de API y falta de key', async () => {
   const fetchImpl = async () => ({ ok: false, status: 429, text: async () => 'quota' });
   await assert.rejects(transcribe({ apiKey: 'k', model: 'm', audioB64: '', fetchImpl }), /429/);
 });
+
+test('parseWake extrae la orden tras el nombre', () => {
+  const { parseWake } = require('../src/assistant');
+  assert.deepEqual(parseWake('WAKE: abre youtube'), { woke: true, command: 'abre youtube' });
+  assert.deepEqual(parseWake('WAKE:'), { woke: true, command: '' });
+  assert.deepEqual(parseWake('NONE'), { woke: false, command: '' });
+  assert.deepEqual(parseWake(''), { woke: false, command: '' });
+});
+
+test('assistant.wake llama a Gemini con el nombre configurado', async () => {
+  const { createAssistant } = require('../src/assistant');
+  const { store } = setup();
+  store.updateSettings({ apiKey: 'k', soul: 'Kitsune' });
+  let sent;
+  const fetchImpl = async (_u, init) => { sent = JSON.parse(init.body); return { ok: true, json: async () => ({ candidates: [{ content: { parts: [{ text: 'WAKE: hola' }] } }] }) }; };
+  const out = await createAssistant({ store, tools: {}, fetchImpl }).wake('AAAA');
+  assert.deepEqual(out, { woke: true, command: 'hola' });
+  assert.match(sent.contents[0].parts[0].text, /Kitsune/);
+  assert.equal(sent.contents[0].parts[1].inlineData.mimeType, 'audio/wav');
+});

@@ -8,7 +8,9 @@ const DEFAULTS = {
     soul: 'Yurei',
     personality: 'Amable, directo y breve. Responde en el idioma del usuario.',
     voice: '',
-    abilities: []
+    abilities: [],
+    wakeWord: false,
+    conversationSeconds: 20
   },
   todos: [],
   tasks: [],

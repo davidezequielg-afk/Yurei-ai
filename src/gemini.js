@@ -58,22 +58,18 @@ async function runAgent({ apiKey, model, system, userParts, history = [], declar
   return { text: 'Me quedé sin pasos para terminar la tarea.', actions };
 }
 
-async function transcribe({ apiKey, model, audioB64, mimeType = 'audio/wav', fetchImpl }) {
+async function askAudio({ apiKey, model, audioB64, prompt, mimeType = 'audio/wav', fetchImpl }) {
   const data = await generate({
     apiKey,
     model,
     fetchImpl,
-    body: {
-      contents: [{
-        role: 'user',
-        parts: [
-          { text: 'Transcribe este audio a texto limpio. Elimina muletillas y arranques en falso, y aplica las autocorrecciones del hablante (si dice "no, quise decir X", deja solo X). Devuelve únicamente el texto final, sin comillas ni comentarios. Si no hay voz, devuelve una cadena vacía.' },
-          { inlineData: { mimeType, data: audioB64 } }
-        ]
-      }]
-    }
+    body: { contents: [{ role: 'user', parts: [{ text: prompt }, { inlineData: { mimeType, data: audioB64 } }] }] }
   });
   return textOf(data.candidates?.[0]?.content?.parts || []);
 }
 
-module.exports = { runAgent, transcribe, generate };
+const TRANSCRIBE_PROMPT = 'Transcribe este audio a texto limpio. Elimina muletillas y arranques en falso, y aplica las autocorrecciones del hablante (si dice "no, quise decir X", deja solo X). Devuelve únicamente el texto final, sin comillas ni comentarios. Si no hay voz, devuelve una cadena vacía.';
+
+const transcribe = (opts) => askAudio({ ...opts, prompt: TRANSCRIBE_PROMPT });
+
+module.exports = { runAgent, transcribe, askAudio, generate };

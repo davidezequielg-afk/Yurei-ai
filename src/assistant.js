@@ -1,4 +1,4 @@
-const { runAgent, transcribe } = require('./gemini');
+const { runAgent, transcribe, askAudio } = require('./gemini');
 
 function buildSystemPrompt(settings, now = new Date()) {
   const abilities = settings.abilities?.length ? `\nHabilidades extra del usuario:\n- ${settings.abilities.join('\n- ')}` : '';
@@ -11,6 +11,15 @@ function buildSystemPrompt(settings, now = new Date()) {
     `Fecha y hora local: ${now.toLocaleString('sv-SE').replace(' ', 'T').slice(0, 16)} (${Intl.DateTimeFormat().resolvedOptions().timeZone}).`,
     abilities
   ].join('\n');
+}
+
+function wakePrompt(name) {
+  return `Escucha el audio. Si la persona llama a un asistente que se llama "${name}" (o algo que suene muy parecido, p. ej. "Shurei", "Yurey", "Jurei"), responde exactamente "WAKE: <lo que pidió después del nombre>", dejando vacío lo que sigue si solo dijo el nombre. Si no se dirige a ese asistente, responde exactamente "NONE". No escribas nada más.`;
+}
+
+function parseWake(out = '') {
+  const m = /^\s*WAKE:?\s*([\s\S]*)$/i.exec(out);
+  return m ? { woke: true, command: m[1].trim() } : { woke: false, command: '' };
 }
 
 function createAssistant({ store, tools, fetchImpl }) {
@@ -46,8 +55,14 @@ function createAssistant({ store, tools, fetchImpl }) {
       return transcribe({ apiKey: s.apiKey, model: s.model, audioB64, fetchImpl });
     },
 
+    async wake(audioB64) {
+      const s = store.get('settings');
+      const out = await askAudio({ apiKey: s.apiKey, model: s.model, audioB64, prompt: wakePrompt(s.soul), fetchImpl });
+      return parseWake(out);
+    },
+
     reset() { history = []; }
   };
 }
 
-module.exports = { createAssistant, buildSystemPrompt };
+module.exports = { createAssistant, buildSystemPrompt, parseWake, wakePrompt };

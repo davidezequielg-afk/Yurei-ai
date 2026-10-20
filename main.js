@@ -114,10 +114,13 @@ app.whenReady().then(() => {
     if (text) { win.blur(); await system.pasteText(text); }
     return text;
   }));
+  ipcMain.handle('wake', safe((_e, audioB64) => assistant.wake(audioB64)));
   ipcMain.handle('settings:get', safe(() => settingsView()));
   ipcMain.handle('settings:save', safe((_e, patch) => {
     const clean = { ...patch };
     if (clean.apiKey === '••••••••') delete clean.apiKey;
+    if ('wakeWord' in clean) clean.wakeWord = clean.wakeWord === true;
+    if ('conversationSeconds' in clean) clean.conversationSeconds = Math.max(5, Math.min(120, Number(clean.conversationSeconds) || 20));
     store.updateSettings(clean);
     return settingsView();
   }));

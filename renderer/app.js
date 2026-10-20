@@ -23,13 +23,20 @@ function setPhase(phase, label) {
   if (label) $('status').textContent = label;
 }
 
+// Habla y resuelve al terminar (con tope de seguridad) para no escucharse a sí mismo.
 function say(text) {
-  if (!text) return;
-  const u = new SpeechSynthesisUtterance(text);
-  const voice = speechSynthesis.getVoices().find((v) => v.name === state.voice);
-  if (voice) u.voice = voice;
-  speechSynthesis.cancel();
-  speechSynthesis.speak(u);
+  return new Promise((resolve) => {
+    if (!text) return resolve();
+    const u = new SpeechSynthesisUtterance(text);
+    const voice = speechSynthesis.getVoices().find((v) => v.name === state.voice);
+    if (voice) u.voice = voice;
+    const done = () => { clearTimeout(guard); resolve(); };
+    const guard = setTimeout(done, 30000);
+    u.onend = done;
+    u.onerror = done;
+    speechSynthesis.cancel();
+    speechSynthesis.speak(u);
+  });
 }
 
 function log(kind, text) {
@@ -42,50 +49,122 @@ function showReply(text) {
   if (state.mode === 'idle') setMode('status');
 }
 
-async function handleAsk(payload, userLabel) {
-  setPhase('thinking', 'Pensando…');
-  log('user', userLabel);
-  const r = await window.yurei.ask(payload);
+/* ---------- conversación manos libres ---------- */
+
+const conv = { active: false, timer: null, busy: false };
+
+function wakeIdle() {
+  conv.active = false;
+  clearTimeout(conv.timer);
   setPhase('', 'Yurei');
-  if (!r.ok) { log('bot', `⚠ ${r.error}`); showReply(`⚠ ${r.error}`); return; }
-  r.data.actions.forEach((a) => log('act', `⚙ ${a.name}${a.result?.error ? ` — ${a.result.error}` : ''}`));
-  log('bot', r.data.reply);
-  showReply(r.data.reply);
-  say(r.data.reply);
-  setTimeout(() => { if (state.mode === 'status' && !state.recording) setMode('idle'); }, 12000);
+  if (state.mode === 'status') setMode('idle');
+  if (!state.wakeWord) Listener.stop();
 }
 
-async function toggleRecording(kind) {
-  if (state.recording) {
-    clearTimeout(state.autoStop);
-    const mode = state.recording;
-    state.recording = null;
-    const { b64, seconds } = await Recorder.stop();
-    if (seconds < 0.4) { setPhase('', 'Yurei'); setMode('idle'); return; }
-    if (mode === 'dictate') {
-      setPhase('thinking', 'Transcribiendo…');
-      const r = await window.yurei.dictate(b64);
-      setPhase('', r.ok ? 'Yurei' : `⚠ ${r.error}`);
-      setTimeout(() => setMode('idle'), 2500);
-    } else {
+function armConversationTimeout() {
+  clearTimeout(conv.timer);
+  conv.timer = setTimeout(wakeIdle, (state.conversationSeconds || 20) * 1000);
+}
+
+async function ensureListening() {
+  if (Listener.running) return true;
+  try {
+    await Listener.start({ onUtterance: handleUtterance, onSpeechStart: () => { if (conv.active) clearTimeout(conv.timer); } });
+    return true;
+  } catch (e) {
+    showReply(`No pude acceder al micrófono: ${e.message}`);
+    return false;
+  }
+}
+
+async function enterConversation() {
+  if (!(await ensureListening())) return;
+  speechSynthesis.cancel();
+  conv.active = true;
+  setMode('status');
+  $('reply').textContent = 'Te escucho… (habla y haré una pausa para responder)';
+  setPhase('listening', 'Te escucho');
+  armConversationTimeout();
+}
+
+async function handleUtterance({ b64 }) {
+  if (conv.busy) return;
+  conv.busy = true;
+  try {
+    if (conv.active) {
+      clearTimeout(conv.timer);
       const image = state.pendingImage;
       state.pendingImage = null;
       await handleAsk({ audioB64: b64, imageB64: image || undefined }, image ? '🎤 (voz + captura)' : '🎤 (voz)');
+      if (conv.active) {
+        setPhase('listening', 'Te escucho');
+        armConversationTimeout();
+      }
+      return;
     }
+    // Escucha pasiva: ¿dijeron el nombre?
+    setPhase('thinking', '…');
+    const r = await window.yurei.wake(b64);
+    if (!r.ok || !r.data.woke) { setPhase('', 'Yurei'); return; }
+    await enterConversation();
+    if (r.data.command) {
+      clearTimeout(conv.timer);
+      await handleAsk({ text: r.data.command }, r.data.command);
+      if (conv.active) { setPhase('listening', 'Te escucho'); armConversationTimeout(); }
+    }
+  } finally {
+    conv.busy = false;
+  }
+}
+
+async function handleAsk(payload, userLabel) {
+  Listener.pause();
+  setPhase('thinking', 'Pensando…');
+  log('user', userLabel);
+  const r = await window.yurei.ask(payload);
+  setPhase(conv.active ? 'listening' : '', conv.active ? 'Te escucho' : 'Yurei');
+  if (!r.ok) {
+    log('bot', `⚠ ${r.error}`);
+    showReply(`⚠ ${r.error}`);
+  } else {
+    r.data.actions.forEach((a) => log('act', `⚙ ${a.name}${a.result?.error ? ` — ${a.result.error}` : ''}`));
+    log('bot', r.data.reply);
+    showReply(r.data.reply);
+    await say(r.data.reply);
+  }
+  Listener.resume();
+  if (!conv.active) setTimeout(() => { if (state.mode === 'status' && !conv.active) setMode('idle'); }, 8000);
+}
+
+/* ---------- dictado (manual: pausas largas permitidas) ---------- */
+
+async function toggleDictation() {
+  if (state.recording) {
+    clearTimeout(state.autoStop);
+    state.recording = null;
+    const { b64, seconds } = await Recorder.stop();
+    Listener.resume();
+    if (seconds < 0.4) { setPhase('', 'Yurei'); setMode('idle'); return; }
+    setPhase('thinking', 'Transcribiendo…');
+    const r = await window.yurei.dictate(b64);
+    setPhase('', r.ok ? 'Yurei' : `⚠ ${r.error}`);
+    setTimeout(() => setMode('idle'), 2500);
     return;
   }
   try {
+    Listener.pause();
     await Recorder.start();
   } catch (e) {
+    Listener.resume();
     showReply(`No pude acceder al micrófono: ${e.message}`);
     return;
   }
   speechSynthesis.cancel();
-  state.recording = kind;
+  state.recording = 'dictate';
   setMode('status');
-  $('reply').textContent = kind === 'dictate' ? 'Dictando… pulsa Ctrl+Alt+D para terminar.' : 'Escuchando… pulsa Ctrl+Shift+Espacio para enviar.';
-  setPhase('listening', kind === 'dictate' ? 'Dictado' : 'Escuchando');
-  state.autoStop = setTimeout(() => toggleRecording(kind), 60000);
+  $('reply').textContent = 'Dictando… pulsa Ctrl+Alt+D para terminar.';
+  setPhase('listening', 'Dictado');
+  state.autoStop = setTimeout(toggleDictation, 120000);
 }
 
 /* ---------- pestañas ---------- */
@@ -158,16 +237,18 @@ const views = {
     const soul = el('input', { value: s.soul });
     const pers = el('textarea', { rows: 2, value: s.personality });
     const voice = el('select', {}, el('option', { value: '', textContent: 'Predeterminada' }), ...voices.map((v) => el('option', { value: v.name, textContent: v.name, selected: v.name === s.voice })));
+    const wake = el('input', { type: 'checkbox', checked: !!s.wakeWord, style: 'width:auto' });
+    const convSecs = el('input', { type: 'number', min: 5, max: 120, value: s.conversationSeconds || 20 });
     const abil = el('textarea', { rows: 3, value: (s.abilities || []).join('\n'), placeholder: 'Una instrucción por línea, p. ej. "Cuando diga \'modo cine\' baja el volumen a 20"' });
     const save = el('button', {
       textContent: 'Guardar',
       onclick: async () => {
-        const r = await window.yurei.saveSettings({ apiKey: key.value, model: model.value.trim(), soul: soul.value.trim() || 'Yurei', personality: pers.value, voice: voice.value, abilities: abil.value.split('\n').map((x) => x.trim()).filter(Boolean) });
-        state.voice = voice.value;
+        const r = await window.yurei.saveSettings({ apiKey: key.value, model: model.value.trim(), soul: soul.value.trim() || 'Yurei', personality: pers.value, voice: voice.value, wakeWord: wake.checked, conversationSeconds: Number(convSecs.value) || 20, abilities: abil.value.split('\n').map((x) => x.trim()).filter(Boolean) });
+        if (r.ok) applySettings(r.data);
         save.textContent = r.ok ? 'Guardado ✓' : `Error: ${r.error}`;
       }
     });
-    $('soul').replaceChildren(...field('API key de Gemini (se guarda solo en este PC)', key), ...field('Modelo', model), ...field('Alma (nombre)', soul), ...field('Personalidad', pers), ...field('Voz', voice), ...field('Habilidades', abil), el('p', {}, save));
+    $('soul').replaceChildren(...field('API key de Gemini (se guarda solo en este PC)', key), ...field('Modelo', model), ...field('Alma (nombre)', soul), ...field('Personalidad', pers), ...field('Voz', voice), el('label', {}, wake, ' Escuchar siempre mi nombre (manos libres). El micrófono queda abierto y los fragmentos con voz se envían a Google para detectar el nombre.'), ...field('Segundos de conversación abierta', convSecs), ...field('Habilidades', abil), el('p', {}, save));
   },
 
   power() {
@@ -210,15 +291,26 @@ $('chatForm').onsubmit = (e) => {
 };
 window.addEventListener('keydown', (e) => { if (e.key === 'Escape') setMode('idle'); });
 
-window.yurei.on('hotkey', (name) => toggleRecording(name === 'dictate' ? 'dictate' : 'talk'));
+window.yurei.on('hotkey', (name) => {
+  if (name === 'dictate') toggleDictation();
+  else if (conv.active) wakeIdle();
+  else enterConversation();
+});
 window.yurei.on('circle-image', (b64) => {
   state.pendingImage = b64;
-  toggleRecording('talk');
+  enterConversation();
 });
 window.yurei.on('report', ({ label, results }) => {
   log('act', `⏰ ${label}: ${results.join(', ')}`);
   showReply(`⏰ ${label} — ${results.join(', ')}`);
 });
 
-window.yurei.getSettings().then((r) => { if (r.ok) state.voice = r.data.voice; });
+function applySettings(cfg) {
+  state.voice = cfg.voice;
+  state.wakeWord = cfg.wakeWord;
+  state.conversationSeconds = cfg.conversationSeconds;
+  if (cfg.wakeWord) ensureListening();
+  else if (!conv.active) Listener.stop();
+}
+window.yurei.getSettings().then((r) => { if (r.ok) applySettings(r.data); });
 setMode('idle');

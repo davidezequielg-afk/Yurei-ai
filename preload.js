@@ -5,6 +5,7 @@ const invoke = (channel) => (...args) => ipcRenderer.invoke(channel, ...args);
 contextBridge.exposeInMainWorld('yurei', {
   ask: invoke('ask'),
   dictate: invoke('dictate'),
+  wake: invoke('wake'),
   getSettings: invoke('settings:get'),
   saveSettings: invoke('settings:save'),
   todos: invoke('todos'),
