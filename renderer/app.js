@@ -383,11 +383,13 @@ function animateBars() {
       bars.forEach((b) => { b.style.transform = ''; });
       const o = $('orb');
       if (o) o.style.transform = '';
+      $('eye').style.removeProperty('--talk');
       return;
     }
     const lvl = Math.min(1, currentLevel(phase) * 5);
     const o = $('orb');
     if (o) o.style.transform = `scale(${1 + lvl * 0.3})`;
+    if (phase === 'speaking') $('eye').style.setProperty('--talk', lvl.toFixed(2)); // la boquita se mueve con la voz
     bars.forEach((b, i) => {
       const wave = 0.55 + 0.45 * Math.sin(t / 110 + i * 1.3);
       b.style.transform = `scaleY(${Math.max(0.15, Math.min(1, lvl * wave * 1.4 + 0.12 * wave))})`;
