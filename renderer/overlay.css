@@ -1,0 +1,4 @@
+html, body { margin: 0; height: 100%; overflow: hidden; cursor: crosshair; background: #000; }
+    img { position: fixed; inset: 0; width: 100%; height: 100%; filter: brightness(.55); }
+    #box { position: fixed; border: 2px solid #6cf; border-radius: 12px; background: rgba(102,204,255,.12); box-shadow: 0 0 0 9999px rgba(0,0,0,.35); display: none; }
+    p { position: fixed; top: 16px; left: 50%; transform: translateX(-50%); margin: 0; padding: 6px 14px; background: #000c; color: #fff; font: 14px "Segoe UI", sans-serif; border-radius: 14px; }

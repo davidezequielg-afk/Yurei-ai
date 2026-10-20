@@ -49,6 +49,7 @@ function brandIcon(slug, size = 26) {
   const span = document.createElement('span');
   span.className = 'brand';
   span.title = b.title;
-  span.innerHTML = `<svg viewBox="0 0 24 24" width="${size}" height="${size}" role="img" aria-label="${b.title}"><path d="${b.path}" fill="${fill}"/></svg>`;
+  const safe = (v) => String(v).replace(/[^A-Za-z0-9 .,'+-]/g, ''); // los datos son propios, pero nunca se inserta nada sin limpiar
+  span.innerHTML = `<svg viewBox="0 0 24 24" width="${size}" height="${size}" role="img" aria-label="${safe(b.title)}"><path d="${String(b.path).replace(/[^A-Za-z0-9 .,-]/g, '')}" fill="${/^#[0-9a-f]{6}$/i.test(fill) || fill === 'var(--ink)' ? fill : '#888'}"/></svg>`;
   return span;
 }

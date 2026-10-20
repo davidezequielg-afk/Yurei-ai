@@ -10,6 +10,7 @@ contextBridge.exposeInMainWorld('yurei', {
   getSettings: invoke('settings:get'),
   saveSettings: invoke('settings:save'),
   openSettings: invoke('settings:open'),
+  wipeData: invoke('data:wipe'),
   getAppearance: invoke('appearance:get'),
   todos: invoke('todos'),
   widgetData: invoke('widget:data'),
@@ -28,8 +29,3 @@ contextBridge.exposeInMainWorld('yurei', {
   }
 });
 
-contextBridge.exposeInMainWorld('yureiOverlay', {
-  onImage: (cb) => ipcRenderer.on('overlay:image', (_e, dataUrl) => cb(dataUrl)),
-  select: (rect) => ipcRenderer.send('overlay:select', rect),
-  cancel: () => ipcRenderer.send('overlay:cancel')
-});

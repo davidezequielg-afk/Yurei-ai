@@ -15,3 +15,6 @@ input[type=range] { padding: 0; accent-color: var(--accent); }
 input[type=color] { width: 34px; }
 button { margin-top: 18px; background: var(--accent); color: var(--bg-solid); border: 0; border-radius: 8px; padding: 8px 16px; font: inherit; font-weight: 500; cursor: pointer; }
 button:hover { filter: brightness(1.1); }
+.note { margin-top: 6px; color: var(--mute); font-size: 12px; line-height: 1.4; }
+button.danger { background: none; color: #e5736f; border: 1px solid #5a2b2b; }
+button.danger:hover { background: #2a1717; filter: none; }

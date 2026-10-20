@@ -16,8 +16,9 @@ const MASK = '••••••••';
 function isTrustedUrl(url, root) {
   try {
     if (typeof url !== 'string' || !url.startsWith('file:')) return false;
-    const file = path.resolve(fileURLToPath(url));
-    const base = path.resolve(root);
+    const fold = (v) => (process.platform === 'win32' ? v.toLowerCase() : v); // c:\ y C:\ son la misma ruta en Windows
+    const file = fold(path.resolve(fileURLToPath(url)));
+    const base = fold(path.resolve(root));
     return file === base || file.startsWith(base + path.sep);
   } catch {
     return false;

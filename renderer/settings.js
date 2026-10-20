@@ -16,6 +16,7 @@ const el = (tag, props = {}, ...kids) => {
   const voiceSel = el('select', {}, ...GEMINI_VOICES.map((v) => el('option', { value: v, textContent: v, selected: v === (s.voice || 'Kore') })));
   const sysVoice = el('input', { type: 'checkbox', checked: !!s.systemVoice });
   const wake = el('input', { type: 'checkbox', checked: !!s.wakeWord });
+  const favicons = el('input', { type: 'checkbox', checked: !!s.fetchFavicons });
   const convSecs = el('input', { type: 'number', min: 5, max: 120, value: s.conversationSeconds || 20 });
   const fillers = el('input', { type: 'checkbox', checked: s.fillers !== false });
   const fillerPhrases = el('textarea', { rows: 3, value: (s.fillerPhrases || []).join('\n'), placeholder: 'Una frase por línea. Vacío = las de por defecto ("A ver…", "Un segundo…")' });
@@ -49,7 +50,7 @@ const el = (tag, props = {}, ...kids) => {
     onclick: async () => {
       const r = await window.yurei.saveSettings({
         apiKey: key.value, model: model.value.trim(), soul: soul.value.trim() || 'Yurei', personality: pers.value,
-        voice: voiceSel.value, fillers: fillers.checked, fillerPhrases: fillerPhrases.value.split('\n'), systemVoice: sysVoice.checked, wakeWord: wake.checked,
+        voice: voiceSel.value, fetchFavicons: favicons.checked, fillers: fillers.checked, fillerPhrases: fillerPhrases.value.split('\n'), systemVoice: sysVoice.checked, wakeWord: wake.checked,
         conversationSeconds: Number(convSecs.value) || 20,
         theme: theme.value, customBg: customBg.value, customAccent: customAccent.value, transparency: transp.value, opacity: Number(opacity.value),
         widgets: slotSel.map((x) => x.value), city: city.value,
@@ -62,7 +63,8 @@ const el = (tag, props = {}, ...kids) => {
     el('h2', { textContent: 'Apariencia' }),
     ...field('Tema', theme), colors,
     ...field('Transparencia', transp), opacityBox,
-    ...field('API key de Gemini (se guarda solo en este PC)', key),
+    ...field('API key de Gemini', key),
+    el('div', { className: 'note', textContent: s.keyEncrypted ? 'Se guarda cifrada con el almacén seguro de Windows: solo tu usuario, en este equipo, puede leerla.' : 'Aviso: este sistema no ofrece almacén seguro, así que la clave se guarda en un archivo sin cifrar.' }),
     ...field('Modelo', model),
     ...field('Alma (nombre y palabra de activación)', soul),
     ...field('Personalidad', pers),
@@ -71,11 +73,15 @@ const el = (tag, props = {}, ...kids) => {
     el('label', { className: 'check' }, wake, 'Escuchar siempre mi nombre (manos libres). El micrófono queda abierto y los fragmentos con voz se envían a Google para detectar el nombre.'),
     el('label', { className: 'check' }, fillers, 'Decir frases mientras pienso ("mmm, déjame ver…") para que la charla fluya'),
     ...field('Frases de relleno propias', fillerPhrases),
+    el('label', { className: 'check' }, favicons, 'Descargar el icono de las webs que añado a Mis apps (se consulta a Google el nombre del sitio; por defecto no)'),
     ...field('Segundos de conversación abierta', convSecs),
     el('h2', { textContent: 'Widgets del panel' }),
     ...field('Lugar izquierdo', slotSel[0]), ...field('Lugar central', slotSel[1]), ...field('Lugar derecho', slotSel[2]),
     ...field('Ciudad (clima)', city),
     ...field('Habilidades', abil),
-    save
+    save,
+    el('h2', { textContent: 'Tus datos' }),
+    el('div', { className: 'note', textContent: 'Todo lo tuyo vive solo en este equipo. Puedes borrarlo por completo en cualquier momento.' }),
+    el('button', { className: 'danger', textContent: 'Borrar todos mis datos…', onclick: () => window.yurei.wipeData() })
   );
 })();

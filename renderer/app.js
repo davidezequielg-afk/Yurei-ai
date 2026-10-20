@@ -578,6 +578,7 @@ const conv = { active: false, timer: null, busy: false };
 
 function wakeIdle() {
   conv.active = false;
+  state.pendingImage = null; // una captura de pantalla vieja no debe viajar con una pregunta posterior
   
   clearTimeout(conv.timer);
   setPhase('', 'Yurei');
