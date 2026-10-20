@@ -184,7 +184,7 @@ function start() {
   system = createSystem({ shell, clipboard, dataDir: userData, confirm: confirmPower });
   const tools = createTools({ store, system });
   const assistant = createAssistant({ store, tools });
-  const weather = createWeather();
+  const weather = createWeather({ persist: { load: () => store.get('weatherCache'), save: (c) => store.set('weatherCache', c) } });
   const ttsCache = createTtsCache(path.join(userData, 'tts-cache'), { maxEntries: 60 }); // solo frases de relleno, nunca lo que dices
   const iconCache = createTtsCache(path.join(userData, 'icon-cache'), { maxEntries: 300 });
   const scheduler = createScheduler({

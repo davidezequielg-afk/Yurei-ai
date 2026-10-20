@@ -116,11 +116,23 @@ function weatherError(e) {
   return 'El servicio del clima no responde; reintento en un minuto';
 }
 
-// Clima con dos servicios sin API key (Open-Meteo y, si falla, wttr.in), un reintento ante fallos pasajeros,
-// el último dato bueno si ambos fallan, y espera de un minuto antes de volver a molestar a un servicio caído.
-function createWeather({ fetchImpl = fetch, now = () => Date.now(), ttlMs = 10 * 60 * 1000, retryMs = 60 * 1000, staleMaxMs = 6 * 3600 * 1000, timeoutMs = 8000, sleep = (ms) => new Promise((r) => setTimeout(r, ms)) } = {}) {
+// Clima con dos servicios sin API key (Open-Meteo y, si falla, wttr.in), un reintento ante fallos pasajeros
+// y el último dato bueno si ambos fallan. Se actualiza cada 30 minutos; entretanto se sigue viendo lo último.
+// `persist` (opcional) guarda ese último dato para que siga visible al volver a abrir la app.
+function createWeather({
+  fetchImpl = fetch, now = () => Date.now(), sleep = (ms) => new Promise((r) => setTimeout(r, ms)), persist = null,
+  ttlMs = 30 * 60 * 1000, // cada cuánto se actualiza
+  retryMs = 60 * 1000, // tras un fallo sin nada que mostrar, se reintenta al minuto…
+  retryStaleMs = 5 * 60 * 1000, // …y si hay un dato anterior a la vista, a los 5 minutos
+  staleMaxMs = 24 * 3600 * 1000, // un dato de más de un día ya no se muestra
+  timeoutMs = 8000
+} = {}) {
   const places = new Map();
   let cache = null;
+  try {
+    const saved = persist?.load();
+    if (saved && typeof saved.city === 'string' && Number.isFinite(saved.at) && saved.data) cache = saved;
+  } catch { /* sin dato guardado */ }
   let failedAt = null; // instante del último fallo total (null = ninguno)
   let lastError = null;
 
@@ -200,12 +212,14 @@ function createWeather({ fetchImpl = fetch, now = () => Date.now(), ttlMs = 10 *
       const c = String(city || '').trim();
       if (!c) throw new Error('Dile a Yurei tu ciudad o ponla en Ajustes');
       if (cache && cache.city === c && now() - cache.at < ttlMs) return cache.data;
-      if (failedAt !== null && now() - failedAt < retryMs) return fallback(c); // servicio caído hace poco: no insistir
+      const wait = cache && cache.city === c ? retryStaleMs : retryMs;
+      if (failedAt !== null && now() - failedAt < wait) return fallback(c); // servicio caído hace poco: no insistir
       let notFound = null;
       for (const provider of [openMeteo, wttr]) {
         try {
           const data = await provider(c);
           cache = { city: c, at: now(), data };
+          try { persist?.save(cache); } catch { /* si no se puede guardar, sigue en memoria */ }
           failedAt = null;
           return data;
         } catch (e) {

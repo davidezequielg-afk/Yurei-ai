@@ -50,10 +50,10 @@ test('si los DOS servicios fallan, se muestra el último dato bueno indicando su
   const weather = createWeather(opts(net, clock));
   await weather.get('Isidro Casanova');
   plan['api.open-meteo.com'] = [503]; plan['wttr.in'] = [503];
-  clock.t = 25 * 60 * 1000; // la caché de 10 minutos ya venció
+  clock.t = 40 * 60 * 1000; // pasó la media hora: toca actualizar, pero los dos servicios fallan
   const w = await weather.get('Isidro Casanova');
   assert.equal(w.stale, true);
-  assert.equal(w.ageMin, 25);
+  assert.equal(w.ageMin, 40);
   assert.equal(w.temp, 12);
 });
 
@@ -92,4 +92,54 @@ test('los códigos del respaldo se traducen a los iconos de la app', () => {
   assert.equal(describeWwo(389).icon, 'storm');
   assert.equal(describeWwo(338).icon, 'snow');
   assert.equal(describeWwo(9999).icon, 'cloud');
+});
+
+test('se actualiza cada media hora: antes no consulta, después sí', async () => {
+  const net = fakeNet({ 'geocoding-api.open-meteo.com': [GEO], 'api.open-meteo.com': [FC], 'wttr.in': [WTTR] });
+  const clock = { t: 0 };
+  const weather = createWeather(opts(net, clock));
+  await weather.get('Isidro Casanova');
+  const n = net.calls.length;
+  for (const min of [1, 10, 20, 29]) {
+    clock.t = min * 60 * 1000;
+    assert.equal((await weather.get('Isidro Casanova')).temp, 12);
+  }
+  assert.equal(net.calls.length, n, 'en los primeros 30 minutos no hace ninguna consulta');
+  clock.t = 31 * 60 * 1000;
+  await weather.get('Isidro Casanova');
+  assert.equal(net.calls.length, n + 1, 'pasada la media hora, actualiza (solo el pronóstico)');
+});
+
+test('el último dato se guarda y sigue a la vista al volver a abrir la app', async () => {
+  let disk = null;
+  const persist = { load: () => disk, save: (c) => { disk = JSON.parse(JSON.stringify(c)); } };
+  const clock = { t: 0 };
+  const first = fakeNet({ 'geocoding-api.open-meteo.com': [GEO], 'api.open-meteo.com': [FC], 'wttr.in': [WTTR] });
+  await createWeather({ ...opts(first, clock), persist }).get('Isidro Casanova');
+  // "se cierra y se vuelve a abrir" 10 minutos después, sin internet: se ve el dato guardado sin consultar
+  clock.t = 10 * 60 * 1000;
+  const offline = fakeNet({ 'geocoding-api.open-meteo.com': ['timeout'], 'api.open-meteo.com': ['timeout'], 'wttr.in': ['timeout'] });
+  const again = createWeather({ ...opts(offline, clock), persist });
+  assert.equal((await again.get('Isidro Casanova')).temp, 12);
+  assert.equal(offline.calls.length, 0);
+  // un dato guardado roto no rompe nada
+  assert.equal((await createWeather({ ...opts(first, clock), persist: { load: () => ({ basura: 1 }), save() {} } }).get('Isidro Casanova')).temp, 12);
+});
+
+test('con un dato a la vista y el servicio caído, reintenta cada 5 minutos (no cada minuto)', async () => {
+  const plan = { 'geocoding-api.open-meteo.com': [GEO], 'api.open-meteo.com': [FC], 'wttr.in': [WTTR] };
+  const net = fakeNet(plan);
+  const clock = { t: 0 };
+  const weather = createWeather(opts(net, clock));
+  await weather.get('Isidro Casanova');
+  plan['api.open-meteo.com'] = [503]; plan['wttr.in'] = [503];
+  clock.t = 31 * 60 * 1000;
+  await weather.get('Isidro Casanova'); // falla: muestra el anterior
+  const n = net.calls.length;
+  clock.t = 33 * 60 * 1000;
+  assert.equal((await weather.get('Isidro Casanova')).stale, true);
+  assert.equal(net.calls.length, n, 'a los 2 minutos no insiste');
+  clock.t = 37 * 60 * 1000;
+  await weather.get('Isidro Casanova');
+  assert.ok(net.calls.length > n, 'a los 5 minutos vuelve a intentarlo');
 });

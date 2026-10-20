@@ -40,9 +40,9 @@ test('clima: geocodifica, consulta y cachea', async () => {
   assert.deepEqual(w, { city: 'Buenos Aires', temp: 22, min: 15, max: 24, desc: 'Nublado', icon: 'cloud' });
   await weather.get('buenos aires');
   assert.equal(urls.length, 2); // el segundo llamado sale de la caché
-  clock.t = 11 * 60 * 1000;
+  clock.t = 31 * 60 * 1000;
   await weather.get('buenos aires');
-  assert.equal(urls.length, 3); // venció: solo repite el pronóstico, no la geocodificación
+  assert.equal(urls.length, 3); // pasó la media hora: solo repite el pronóstico, no la geocodificación
   await assert.rejects(weather.get(''), /ciudad/);
   const none = createWeather({ fetchImpl: async () => ({ ok: true, json: async () => ({}) }) });
   await assert.rejects(none.get('Zzzz'), /No encontré/);

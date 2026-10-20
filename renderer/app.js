@@ -110,7 +110,7 @@ const WIDGETS = {
   },
 
   weather: {
-    every: 600,
+    every: 1800, // cada media hora (el proceso principal guarda el último dato, así que se sigue viendo)
     build(c) {
       const icon = el('div', { className: 'icon' });
       const temp = el('div', { className: 'big' });
@@ -122,8 +122,8 @@ const WIDGETS = {
     async update(r) {
       clearTimeout(r.retry);
       const res = await window.yurei.widgetData('weather');
-      // Si falla o el dato es viejo, se vuelve a probar en un minuto (no a los 10).
-      if (!res.ok || res.data.stale) r.retry = setTimeout(() => this.update(r), 60000);
+      // Si falla sin nada que mostrar, se reintenta al minuto; si se ve un dato anterior, a los 5 minutos.
+      if (!res.ok || res.data.stale) r.retry = setTimeout(() => this.update(r), res.ok ? 300000 : 60000);
       if (!res.ok) {
         r.icon.replaceChildren(window.icon('cloud', 28));
         r.temp.textContent = '';
