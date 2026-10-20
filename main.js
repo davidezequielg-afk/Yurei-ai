@@ -6,7 +6,7 @@ const { createTools } = require('./src/tools');
 const { createAssistant } = require('./src/assistant');
 const { createScheduler } = require('./src/scheduler');
 
-const MODES = { idle: [120, 22], status: [260, 60], peek: [426, 132], full: [520, 244] };
+const MODES = { idle: [120, 22], status: [260, 60], peek: [567, 132], full: [640, 244] };
 const HOTKEYS = { talk: 'Control+Shift+Space', dictate: 'Control+Alt+D', circle: 'Control+Shift+C' };
 
 let win = null;
