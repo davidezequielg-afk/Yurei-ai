@@ -20,7 +20,7 @@ const el = (tag, props = {}, ...kids) => {
   const abil = el('textarea', { rows: 3, value: (s.abilities || []).join('\n'), placeholder: 'Una instrucción por línea, p. ej. "Cuando diga \'modo cine\' baja el volumen a 20"' });
   const catalog = s.widgetCatalog || [];
   const layout = s.widgets || ['yurei', 'clock', 'todos'];
-  const slotSel = ['Izquierda', 'Centro', 'Derecha'].map((_, i) => el('select', {}, ...catalog.map((w) => el('option', { value: w.id, textContent: w.name, selected: w.id === layout[i] }))));
+  const slotSel = ['Izquierda', 'Centro', 'Derecha'].map((_, i) => el('select', {}, ...catalog.map((w) => el('option', { value: w.id, textContent: w.disabled ? `${w.name} — ${w.reason || 'no disponible'}` : w.name, disabled: !!w.disabled, selected: w.id === layout[i] }))));
   const city = el('input', { value: s.city || '', placeholder: 'p. ej. Buenos Aires (para el widget del clima)' });
   const save = el('button', {
     textContent: 'Guardar',

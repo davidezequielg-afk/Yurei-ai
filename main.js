@@ -5,7 +5,7 @@ const { createSystem } = require('./src/system');
 const { createTools } = require('./src/tools');
 const { createAssistant } = require('./src/assistant');
 const { createScheduler } = require('./src/scheduler');
-const { CATALOG, validateLayout, createWeather, nextSchedule } = require('./src/widgets');
+const { validateLayout, createWeather, nextSchedule, unavailableWidgets, sanitizeLayout, catalogFor } = require('./src/widgets');
 
 const MODES = { idle: [120, 22], status: [260, 60], peek: [567, 132] };
 const HOTKEYS = { talk: 'Control+Shift+Space', dictate: 'Control+Alt+D', circle: 'Control+Shift+C' };
@@ -93,6 +93,14 @@ app.whenReady().then(() => {
   createWindow();
   scheduler.start();
 
+  // Detectar si hay batería; si no (PC de escritorio), sacar ese widget del panel.
+  system.detectBattery().then(() => {
+    const current = store.get('settings').widgets;
+    const fixed = sanitizeLayout(current, unavailable());
+    if (fixed.join() !== current.join()) store.updateSettings({ widgets: fixed });
+    win?.webContents.send('settings-changed', settingsView());
+  });
+
   for (const [name, accel] of Object.entries(HOTKEYS)) {
     if (!globalShortcut.register(accel, () => (name === 'circle' ? startCircle() : win.webContents.send('hotkey', name)))) {
       console.warn(`No se pudo registrar el atajo ${accel}`);
@@ -102,7 +110,8 @@ app.whenReady().then(() => {
   const safe = (fn) => async (...a) => {
     try { return { ok: true, data: await fn(...a) }; } catch (e) { return { ok: false, error: e.message }; }
   };
-  const settingsView = () => ({ ...store.get('settings'), apiKey: store.get('settings').apiKey ? '••••••••' : '', widgetCatalog: CATALOG });
+  const unavailable = () => unavailableWidgets({ hasBattery: system.hasBattery() });
+  const settingsView = () => ({ ...store.get('settings'), apiKey: store.get('settings').apiKey ? '••••••••' : '', widgets: sanitizeLayout(store.get('settings').widgets, unavailable()), widgetCatalog: catalogFor(unavailable()) });
 
   ipcMain.handle('ask', safe(async (_e, payload) => {
     const out = await assistant.ask(payload);
@@ -121,7 +130,7 @@ app.whenReady().then(() => {
     const clean = { ...patch };
     if (clean.apiKey === '••••••••') delete clean.apiKey;
     delete clean.widgetCatalog;
-    if ('widgets' in clean) clean.widgets = validateLayout(clean.widgets);
+    if ('widgets' in clean) clean.widgets = validateLayout(clean.widgets, unavailable());
     if ('city' in clean) clean.city = String(clean.city || '').trim().slice(0, 80);
     if ('wakeWord' in clean) clean.wakeWord = clean.wakeWord === true;
     if ('conversationSeconds' in clean) clean.conversationSeconds = Math.max(5, Math.min(120, Number(clean.conversationSeconds) || 20));

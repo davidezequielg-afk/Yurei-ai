@@ -5,7 +5,7 @@ const os = require('os');
 const path = require('path');
 const { createStore } = require('../src/store');
 const { createTools } = require('../src/tools');
-const { DEFAULT_LAYOUT, setWidget, validateLayout, slotIndex, createWeather, nextSchedule, describeWeather } = require('../src/widgets');
+const { DEFAULT_LAYOUT, setWidget, validateLayout, slotIndex, createWeather, nextSchedule, describeWeather, unavailableWidgets, sanitizeLayout, catalogFor } = require('../src/widgets');
 
 test('setWidget cambia un lugar, intercambia si ya estaba y protege a Yurei', () => {
   assert.deepEqual(setWidget(DEFAULT_LAYOUT, 'derecha', 'weather'), ['yurei', 'clock', 'weather']);
@@ -68,4 +68,31 @@ test('tools set_widget y set_city guardan en los ajustes', async () => {
   await assert.rejects(tools.execute('set_widget', { slot: 'izquierda', widget: 'stats' }), /no se puede quitar/);
   assert.deepEqual(await tools.execute('set_city', { city: ' Rosario ' }), { city: 'Rosario' });
   await assert.rejects(tools.execute('set_city', { city: '  ' }), /ciudad/);
+});
+
+test('sin batería (PC de escritorio) el widget de batería no está disponible', async () => {
+  const none = unavailableWidgets({ hasBattery: false });
+  assert.deepEqual(none, ['battery']);
+  assert.deepEqual(unavailableWidgets({ hasBattery: true }), []);
+  assert.deepEqual(unavailableWidgets({ hasBattery: null }), []); // desconocido: no se bloquea
+  assert.throws(() => setWidget(DEFAULT_LAYOUT, 'derecha', 'battery', none), /no tiene batería/);
+  assert.throws(() => validateLayout(['yurei', 'clock', 'battery'], none), /no tiene batería/);
+  assert.deepEqual(setWidget(DEFAULT_LAYOUT, 'derecha', 'battery', []), ['yurei', 'clock', 'battery']);
+  // si ya estaba puesto, se reemplaza por el primer widget libre
+  assert.deepEqual(sanitizeLayout(['yurei', 'clock', 'battery'], none), ['yurei', 'clock', 'todos']);
+  assert.deepEqual(sanitizeLayout(['battery', 'clock', 'todos'], none), ['calendar', 'clock', 'todos']);
+  assert.deepEqual(sanitizeLayout(['yurei', 'clock', 'todos'], none), ['yurei', 'clock', 'todos']);
+  const cat = catalogFor(none);
+  assert.equal(cat.find((w) => w.id === 'battery').disabled, true);
+  assert.equal(cat.find((w) => w.id === 'clock').disabled, undefined);
+});
+
+test('la herramienta set_widget respeta la falta de batería', async () => {
+  const file = path.join(fs.mkdtempSync(path.join(os.tmpdir(), 'yurei-')), 's.json');
+  const store = createStore(file);
+  const desktop = createTools({ store, system: { hasBattery: () => false } });
+  await assert.rejects(desktop.execute('set_widget', { slot: 'derecha', widget: 'battery' }), /no tiene batería/);
+  assert.deepEqual(store.get('settings').widgets, ['yurei', 'clock', 'todos']);
+  const laptop = createTools({ store, system: { hasBattery: () => true } });
+  assert.deepEqual((await laptop.execute('set_widget', { slot: 'derecha', widget: 'battery' })).widgets, ['yurei', 'clock', 'battery']);
 });

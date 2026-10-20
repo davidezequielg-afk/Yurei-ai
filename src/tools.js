@@ -1,6 +1,6 @@
 // Herramientas que Gemini puede invocar. `system` abstrae todo lo que toca el SO.
 
-const { CATALOG, setWidget, DEFAULT_LAYOUT } = require('./widgets');
+const { CATALOG, setWidget, DEFAULT_LAYOUT, unavailableWidgets } = require('./widgets');
 
 const SITES = {
   youtube: 'https://www.youtube.com/results?search_query=%s',
@@ -162,7 +162,7 @@ function createTools({ store, system, now = () => new Date() }) {
     },
     set_widget: ({ slot, widget }) => {
       const current = store.get('settings').widgets || DEFAULT_LAYOUT;
-      const widgets = setWidget(current, slot, widget);
+      const widgets = setWidget(current, slot, widget, unavailableWidgets({ hasBattery: system.hasBattery?.() }));
       store.updateSettings({ widgets });
       return { widgets };
     },

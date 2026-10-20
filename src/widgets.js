@@ -15,6 +15,32 @@ const DEFAULT_LAYOUT = ['yurei', 'clock', 'todos'];
 const SLOT_NAMES = { izquierda: 0, centro: 1, derecha: 2 };
 const IDS = CATALOG.map((w) => w.id);
 
+// Widgets que dependen del hardware: si el PC no los soporta, no se pueden elegir.
+const UNAVAILABLE_REASON = { battery: 'Este PC no tiene batería' };
+const FALLBACKS = ['clock', 'todos', 'calendar', 'weather', 'schedule', 'stats'];
+
+function unavailableWidgets({ hasBattery } = {}) {
+  return hasBattery === false ? ['battery'] : [];
+}
+
+function checkAvailable(id, unavailable) {
+  if (unavailable.includes(id)) throw new Error(`${UNAVAILABLE_REASON[id] || 'No disponible'}, así que el widget "${id}" no está disponible`);
+}
+
+// Reemplaza los widgets no disponibles por el primer reemplazo libre.
+function sanitizeLayout(layout, unavailable = []) {
+  const next = [...layout];
+  next.forEach((id, i) => {
+    if (!unavailable.includes(id)) return;
+    next[i] = FALLBACKS.find((f) => !next.includes(f) && !unavailable.includes(f));
+  });
+  return next;
+}
+
+function catalogFor(unavailable = []) {
+  return CATALOG.map((w) => (unavailable.includes(w.id) ? { ...w, disabled: true, reason: UNAVAILABLE_REASON[w.id] } : w));
+}
+
 function slotIndex(slot) {
   const s = String(slot).trim().toLowerCase();
   if (s in SLOT_NAMES) return SLOT_NAMES[s];
@@ -23,17 +49,21 @@ function slotIndex(slot) {
   throw new Error('Lugar no válido: usa izquierda, centro o derecha');
 }
 
-function validateLayout(layout) {
+function validateLayout(layout, unavailable = []) {
   if (!Array.isArray(layout) || layout.length !== 3) throw new Error('Son exactamente 3 lugares');
-  for (const id of layout) if (!IDS.includes(id)) throw new Error(`Widget desconocido: ${id}`);
+  for (const id of layout) {
+    if (!IDS.includes(id)) throw new Error(`Widget desconocido: ${id}`);
+    checkAvailable(id, unavailable);
+  }
   if (new Set(layout).size !== 3) throw new Error('No se puede repetir un widget');
   if (!layout.includes('yurei')) throw new Error('El icono de Yurei tiene que quedarse en algún lugar');
   return [...layout];
 }
 
 // Pone `id` en el lugar `slot`. Si ya estaba en otro, intercambian lugares.
-function setWidget(layout, slot, id) {
+function setWidget(layout, slot, id, unavailable = []) {
   if (!IDS.includes(id)) throw new Error(`Widget desconocido: ${id}. Opciones: ${IDS.join(', ')}`);
+  checkAvailable(id, unavailable);
   const i = slotIndex(slot);
   const next = [...layout];
   const from = next.indexOf(id);
@@ -126,4 +156,4 @@ function nextSchedule({ tasks = [], routines = [] }, now = new Date(), limit = 2
   return items.sort((a, b) => a.when - b.when).slice(0, limit).map((i) => ({ ...i, when: i.when.toISOString() }));
 }
 
-module.exports = { CATALOG, DEFAULT_LAYOUT, slotIndex, validateLayout, setWidget, describeWeather, createWeather, nextSchedule };
+module.exports = { CATALOG, DEFAULT_LAYOUT, unavailableWidgets, sanitizeLayout, catalogFor, slotIndex, validateLayout, setWidget, describeWeather, createWeather, nextSchedule };

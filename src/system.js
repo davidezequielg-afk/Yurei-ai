@@ -1,5 +1,6 @@
 // Integración con el SO (pensada para Windows; en otros sistemas degrada con gracia).
 const { spawn, execFile } = require('child_process');
+const fs = require('fs');
 const os = require('os');
 
 const isWin = process.platform === 'win32';
@@ -12,7 +13,25 @@ function ps(script) {
 }
 
 function createSystem({ shell, clipboard }) {
+  let battery = null; // null = todavía no se sabe
+
   return {
+    // ¿Este equipo tiene batería? (portátil) o no (PC de escritorio)
+    async detectBattery() {
+      try {
+        if (isWin) {
+          const out = await ps('(Get-CimInstance -ClassName Win32_Battery | Measure-Object).Count');
+          battery = Number(out.trim()) > 0;
+        } else if (process.platform === 'linux') {
+          battery = fs.readdirSync('/sys/class/power_supply').some((n) => n.startsWith('BAT'));
+        }
+      } catch {
+        battery = null; // si no se puede saber, no se bloquea el widget
+      }
+      return battery;
+    },
+    hasBattery: () => battery,
+
     openUrl: (url) => shell.openExternal(url),
 
     async launchApp(name) {
