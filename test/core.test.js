@@ -238,3 +238,37 @@ test('modos: abre sus apps, ajusta volumen, pomodoro y no molestar; "normal" lo 
   assert.ok(calls.includes('cancel'));
   await assert.rejects(tools.execute('run_mode', { name: 'fiesta' }), /gamer, estudio/);
 });
+
+test('las herramientas cumplen las reglas de esquema de Gemini (un error aquí da 400 en TODAS las preguntas)', () => {
+  const { declarations } = require('../src/tools');
+  const problems = [];
+  const walk = (o, where) => {
+    if (!o || typeof o !== 'object') return;
+    if (!['OBJECT', 'STRING', 'NUMBER', 'INTEGER', 'BOOLEAN', 'ARRAY'].includes(o.type)) problems.push(`${where}: tipo ${o.type}`);
+    if (Array.isArray(o.enum) && (o.type !== 'STRING' || !o.enum.length || o.enum.some((v) => typeof v !== 'string' || !v.trim()))) problems.push(`${where}: enum no válido`);
+    if (o.type === 'ARRAY' && !o.items) problems.push(`${where}: array sin items`);
+    if (o.type === 'OBJECT') {
+      for (const r of o.required || []) if (!o.properties?.[r]) problems.push(`${where}: requerido ${r} sin definir`);
+      for (const [k, v] of Object.entries(o.properties || {})) walk(v, `${where}.${k}`);
+    }
+    if (o.items) walk(o.items, `${where}[]`);
+  };
+  const names = new Set();
+  for (const d of declarations) {
+    if (!/^[a-zA-Z_][a-zA-Z0-9_]{0,63}$/.test(d.name)) problems.push(`${d.name}: nombre no válido`);
+    if (names.has(d.name)) problems.push(`${d.name}: repetida`);
+    names.add(d.name);
+    if (!d.description) problems.push(`${d.name}: sin descripción`);
+    walk(d.parameters, d.name);
+  }
+  assert.deepEqual(problems, []);
+});
+
+test('los errores de Gemini se muestran legibles', () => {
+  const { friendlyError } = require('../src/gemini');
+  const body = JSON.stringify({ error: { code: 400, message: '* GenerateContentRequest.tools[0].function_declarations[30].parameters.properties[kind].enum[0]: cannot be empty\n', status: 'INVALID_ARGUMENT' } });
+  assert.match(friendlyError(400, body), /^Gemini 400: \* GenerateContentRequest.*cannot be empty$/);
+  assert.match(friendlyError(400, JSON.stringify({ error: { message: 'API key not valid. Please pass a valid API key.' } })), /no es válida/);
+  assert.match(friendlyError(503, 'boom'), /falló/);
+  assert.match(friendlyError(429, '{}'), /límite/);
+});

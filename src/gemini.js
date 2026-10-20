@@ -16,13 +16,25 @@ async function generate({ apiKey, model, body, fetchImpl = fetch, timeoutMs = TI
       body: JSON.stringify(body),
       signal: ctl.signal
     });
-    if (!res.ok) throw new Error(`Gemini ${res.status}: ${(await res.text()).slice(0, 300).replace(apiKey, '***')}`);
+    if (!res.ok) throw new Error(friendlyError(res.status, (await res.text()).replace(apiKey, '***')));
     return await res.json();
   } catch (e) {
     throw new Error(e.name === 'AbortError' ? 'Gemini tardó demasiado en responder' : e.message);
   } finally {
     clearTimeout(timer);
   }
+}
+
+// Convierte la respuesta de error de Google en un mensaje legible (el código queda para diagnosticar).
+function friendlyError(status, body) {
+  let msg = '';
+  try { msg = JSON.parse(body)?.error?.message || ''; } catch { msg = ''; }
+  msg = (msg || body).replace(/\s+/g, ' ').trim().slice(0, 220);
+  if (status === 429) return `Gemini 429: llegaste al límite gratis por ahora (${msg})`;
+  if (status === 400 && /API key not valid|API_KEY_INVALID/i.test(msg)) return 'Gemini 400: la API key no es válida. Revísala en Ajustes.';
+  if (status === 403) return `Gemini 403: la clave no tiene permiso para este modelo (${msg})`;
+  if (status >= 500) return `Gemini ${status}: el servicio de Google falló, prueba de nuevo en un momento`;
+  return `Gemini ${status}: ${msg}`;
 }
 
 const textOf = (parts) => parts.map((p) => p.text || '').join('').trim();
@@ -111,4 +123,4 @@ async function synthesize({ apiKey, model, text, voiceName, fetchImpl }) {
   return audio;
 }
 
-module.exports = { runAgent, transcribe, askAudio, synthesize, generate };
+module.exports = { runAgent, transcribe, askAudio, synthesize, generate, friendlyError };
