@@ -1,34 +1,34 @@
 /* La carita de Yurei: un fantasmita que respira y parpadea. La usan el notch y Ajustes (que la agranda). */
 .face { position: relative; display: block; flex: none; width: 16px; height: 15px; border-radius: 8px 8px 5px 5px; background: var(--accent); box-shadow: 0 0 8px color-mix(in srgb, var(--accent) 40%, transparent); animation: breathe 3.2s ease-in-out infinite; }
 .face i { position: absolute; display: block; background: var(--bg-solid); transition: transform .2s ease, height .2s ease, top .2s ease; }
-.face .e { top: 5px; width: 3px; height: 4px; border-radius: 2px; animation: blink 5s infinite; }
-.face .l { left: 3.5px; }
-.face .r { right: 3.5px; animation-delay: .04s; }
-.face .m { left: 50%; bottom: 2.5px; width: 5px; height: 2.5px; margin-left: -2.5px; background: none; border: 1.5px solid var(--bg-solid); border-top: 0; border-radius: 0 0 4px 4px; }
+.face .e { top: 5.6px; width: 2.1px; height: 2.7px; border-radius: 1.1px; animation: blink 5s infinite; }
+.face .l { left: 4.4px; }
+.face .r { right: 4.4px; animation-delay: .04s; }
+.face .m { left: 50%; bottom: 3.4px; width: 3.6px; height: 1.8px; margin-left: -1.8px; background: none; border: 1.1px solid var(--bg-solid); border-top: 0; border-radius: 0 0 3px 3px; }
 @keyframes breathe { 50% { transform: translateY(-1px) scale(1.06); } }
 @keyframes blink { 0%, 94%, 100% { transform: scaleY(1); } 97% { transform: scaleY(.15); } }
 
 /* gestos según lo que hace */
-.listening .face .e { top: 4px; height: 5px; } /* atenta: ojos bien abiertos */
-.thinking .face .e { transform: translate(1px, -1.5px); animation: none; } /* mira hacia arriba, pensando */
-.thinking .face .m { width: 3px; margin-left: -1.5px; height: 0; border-bottom-width: 1.5px; border-radius: 1px; }
-.speaking .face .m { height: calc(1.5px + var(--talk, 0) * 2.5px); width: 4px; margin-left: -2px; background: var(--bg-solid); border: 0; border-radius: 2px 2px 3px 3px; }
+.listening .face .e { top: 5px; height: 3.4px; } /* atenta: ojos bien abiertos */
+.thinking .face .e { transform: translate(.8px, -1.2px); animation: none; } /* mira hacia arriba, pensando */
+.thinking .face .m { width: 2.4px; margin-left: -1.2px; height: 0; border-bottom-width: 1.1px; border-radius: 1px; }
+.speaking .face .m { height: calc(1.2px + var(--talk, 0) * 2px); width: 3px; margin-left: -1.5px; background: var(--bg-solid); border: 0; border-radius: 2px 2px 3px 3px; }
 
 /* estados de ánimo (los elige Yurei al responder; duran unos segundos) */
-[data-mood=feliz] .face .e, [data-mood=tierna] .face .e { width: 4px; height: 2.2px; top: 5.6px; background: none; border: 1.3px solid var(--bg-solid); border-bottom: 0; border-radius: 2.2px 2.2px 0 0; animation: none; box-sizing: border-box; }
-[data-mood=feliz] .face .l, [data-mood=tierna] .face .l { left: 3px; }
-[data-mood=feliz] .face .r, [data-mood=tierna] .face .r { right: 3px; }
-[data-mood=tierna] .face { background: radial-gradient(circle at 3px 10.5px, #f9a8c4 1.3px, transparent 1.9px), radial-gradient(circle at 13px 10.5px, #f9a8c4 1.3px, transparent 1.9px), var(--accent); }
-[data-mood=sorprendida] .face .e { width: 3.5px; height: 3.5px; top: 4.5px; border-radius: 50%; animation: none; }
-[data-mood=sorprendida] .face .m { width: 3px; height: 3px; margin-left: -1.5px; border: 1.3px solid var(--bg-solid); border-radius: 50%; }
-[data-mood=triste] .face .e { height: 3px; top: 6px; border-radius: 1px 1px 2px 2px; }
-[data-mood=triste] .face .m { border: 1.5px solid var(--bg-solid); border-bottom: 0; border-radius: 4px 4px 0 0; bottom: 2px; }
+[data-mood=feliz] .face .e, [data-mood=tierna] .face .e { width: 3px; height: 1.7px; top: 6px; background: none; border: 1px solid var(--bg-solid); border-bottom: 0; border-radius: 1.6px 1.6px 0 0; animation: none; box-sizing: border-box; }
+[data-mood=feliz] .face .l, [data-mood=tierna] .face .l { left: 4px; }
+[data-mood=feliz] .face .r, [data-mood=tierna] .face .r { right: 4px; }
+[data-mood=tierna] .face { background: radial-gradient(circle at 3.4px 10px, #f9a8c4 1.1px, transparent 1.6px), radial-gradient(circle at 12.6px 10px, #f9a8c4 1.1px, transparent 1.6px), var(--accent); }
+[data-mood=sorprendida] .face .e { width: 2.6px; height: 2.6px; top: 5.2px; border-radius: 50%; animation: none; }
+[data-mood=sorprendida] .face .m { width: 2.4px; height: 2.4px; margin-left: -1.2px; border: 1px solid var(--bg-solid); border-radius: 50%; }
+[data-mood=triste] .face .e { height: 2.2px; top: 6.2px; border-radius: .8px .8px 1.4px 1.4px; }
+[data-mood=triste] .face .m { border: 1.1px solid var(--bg-solid); border-bottom: 0; border-radius: 3px 3px 0 0; bottom: 3px; }
 [data-mood=feliz] .face { animation: hop .5s ease-out 2; }
 @keyframes hop { 40% { transform: translateY(-2px) scale(1.05, .97); } }
 
 /* dormida: ojos cerrados y una "z" que sube */
 .sleep .face { animation-duration: 5s; }
-.sleep .face .e { height: 1.3px; top: 7px; animation: none; }
+.sleep .face .e { width: 2.6px; height: 1px; top: 6.8px; animation: none; }
 .sleep .face .m { width: 2px; margin-left: -1px; height: 0; border-bottom-width: 1.2px; }
 .sleep:not(.dnd) .face::after { content: "z"; position: absolute; right: -6px; top: -5px; font: 700 6px/1 system-ui, sans-serif; color: var(--ink2); animation: zz 2.6s ease-in-out infinite; }
 @keyframes zz { 0% { opacity: 0; transform: translate(0, 3px) scale(.7); } 40% { opacity: 1; } 100% { opacity: 0; transform: translate(3px, -4px) scale(1.2); } }
@@ -36,15 +36,15 @@
 /* no molestar: auriculares y ojos cerrados */
 .dnd .face::before { content: ""; position: absolute; left: -2px; right: -2px; top: -2px; height: 9px; border: 1.6px solid var(--ink2); border-bottom: 0; border-radius: 9px 9px 0 0; }
 .dnd .face::after { content: ""; position: absolute; left: -3px; right: -3px; top: 5px; height: 5px; border-left: 3px solid var(--ink2); border-right: 3px solid var(--ink2); border-radius: 2px; }
-.dnd .face .e { height: 1.5px; top: 6.5px; animation: none; }
+.dnd .face .e { width: 2.6px; height: 1px; top: 6.6px; animation: none; }
 
 /* accesorios (Ajustes → Apariencia) */
 .face .acc { display: none; background: none; }
 [data-acc] .face .acc { display: block; }
 [data-acc=gorro] .face .acc { left: 4px; top: -7px; width: 8px; height: 8px; clip-path: polygon(50% 0, 100% 100%, 0 100%); background: repeating-linear-gradient(120deg, #f472b6 0 2px, #facc15 2px 4px); }
 [data-acc=gorro] .face .acc::after { content: ""; position: absolute; left: 3px; top: -1px; width: 2px; height: 2px; border-radius: 50%; background: #fff; }
-[data-acc=lentes] .face .acc { left: 1px; top: 4px; width: 14px; height: 6px; background: linear-gradient(#1d1f24, #1d1f24) center 2px / 3px .9px no-repeat; }
-[data-acc=lentes] .face .acc::before, [data-acc=lentes] .face .acc::after { content: ""; position: absolute; top: 0; width: 6px; height: 6px; border: .9px solid #1d1f24; border-radius: 50%; box-sizing: border-box; }
+[data-acc=lentes] .face .acc { left: 2px; top: 4.4px; width: 12px; height: 5px; background: linear-gradient(#1d1f24, #1d1f24) center 2px / 2.4px .8px no-repeat; }
+[data-acc=lentes] .face .acc::before, [data-acc=lentes] .face .acc::after { content: ""; position: absolute; top: 0; width: 5px; height: 5px; border: .9px solid #1d1f24; border-radius: 50%; box-sizing: border-box; }
 [data-acc=lentes] .face .acc::before { left: 0; }
 [data-acc=lentes] .face .acc::after { right: 0; }
 [data-acc=mono] .face .acc { right: -1px; top: -2px; width: 8px; height: 5px; background: conic-gradient(from 45deg, #f87171 0 25%, transparent 0 50%, #f87171 0 75%, transparent 0); clip-path: polygon(0 0, 50% 40%, 100% 0, 100% 100%, 50% 60%, 0 100%); }

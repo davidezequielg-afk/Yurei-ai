@@ -14,7 +14,7 @@ const isPanel = (m) => m === 'peek';
 function setMode(mode) {
   const wasPanel = isPanel(state.mode);
   state.mode = mode;
-  island.className = `${mode} ${island.dataset.phase || ''}${state.dnd ? ' dnd' : ''}`.trim();
+  island.className = `${mode} ${island.dataset.phase || ''}${state.dnd ? ' dnd' : ''}${timer.cur ? ' timing' : ''}`.trim();
   $('panel').hidden = !isPanel(mode);
   $('reply').hidden = mode !== 'status';
   window.yurei.setMode(mode);
@@ -67,11 +67,14 @@ function emptyCell(i) {
     el('span', { className: 'plus' }, window.icon('plus', 14)), el('span', { className: 'cl', textContent: 'Añadir' }));
 }
 
+// La carita (misma estructura que la del notch; face.css la dibuja).
+const faceNode = () => el('span', { className: 'face' }, el('i', { className: 'e l' }), el('i', { className: 'e r' }), el('i', { className: 'm' }), el('i', { className: 'acc' }));
+
 const WIDGETS = {
   yurei: {
     build(c) {
       c.append(
-        el('button', { id: 'orb', title: 'Hablar con Yurei', onclick: toggleConversation }),
+        el('button', { id: 'orb', title: 'Hablar con Yurei', onclick: toggleConversation }, faceNode()),
         el('div', { id: 'wName', className: 'name', textContent: state.soul }),
         el('div', { id: 'wState', className: 'sub', textContent: state.stateText })
       );
@@ -378,7 +381,7 @@ function stopWidgets() {
 
 function setPhase(phase, label) {
   island.dataset.phase = phase;
-  island.className = `${state.mode} ${phase}${state.dnd ? ' dnd' : ''}`.trim();
+  island.className = `${state.mode} ${phase}${state.dnd ? ' dnd' : ''}${timer.cur ? ' timing' : ''}`.trim();
   if (label) $('status').textContent = label;
   armSleep();
   state.stateText = phase ? label : 'Toca para hablar';
@@ -861,16 +864,19 @@ const fmtLeft = (ms) => { const t = Math.ceil(ms / 1000); return `${Math.floor(t
 
 function drawTimer() {
   const ring = $('ring');
+  const tl = $('tleft');
   const t = timer.cur;
-  ring.classList.toggle('on', !!t);
-  ring.classList.toggle('break', !!t && t.phase === 'break');
-  if (!t) { timer.raf = null; ring.style.removeProperty('--p'); return; }
+  island.classList.toggle('timing', !!t);
+  tl.hidden = !t;
+  if (!t) { timer.raf = null; return; }
   const left = Math.max(0, t.left - (performance.now() - timer.base));
-  ring.style.setProperty('--p', (1 - left / t.total).toFixed(4));
+  tl.textContent = fmtLeft(left);
+  tl.classList.toggle('break', t.phase === 'break');
   ring.title = `${t.kind === 'pomodoro' ? (t.phase === 'break' ? 'Descanso' : `Pomodoro ${t.cycle}/${t.cycles}`) : t.label} · faltan ${fmtLeft(left)}`;
+  tl.title = ring.title;
   const ws = $('wState');
   if (ws && !island.dataset.phase) ws.textContent = `⏱ ${fmtLeft(left)}`;
-  timer.raf = setTimeout(drawTimer, 500);
+  timer.raf = setTimeout(drawTimer, 250);
 }
 function setTimerState(t) {
   timer.cur = t;
