@@ -208,3 +208,12 @@ test('portapapeles y traductor: se lee solo como dato, se copia, y el traductor 
   await tools.execute('set_translator', { language: 'off' });
   assert.equal(tools.session.translator, null);
 });
+
+test('ánimo: la etiqueta no se lee y llega como estado de la carita', () => {
+  const { splitMood, buildSystemPrompt } = require('../src/assistant');
+  assert.deepEqual(splitMood('[feliz] ¡Hola, David!'), { mood: 'feliz', text: '¡Hola, David!' });
+  assert.deepEqual(splitMood('[Tierna]  Gracias a ti'), { mood: 'tierna', text: 'Gracias a ti' });
+  assert.deepEqual(splitMood('Sin etiqueta.'), { mood: 'neutral', text: 'Sin etiqueta.' });
+  assert.equal(splitMood('[contenta] Hola').text, 'Hola'); // una etiqueta inventada tampoco se lee
+  assert.match(buildSystemPrompt({ soul: 'Y', personality: 'x' }), /\[feliz\]/);
+});

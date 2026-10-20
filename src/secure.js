@@ -57,6 +57,8 @@ const MODEL = /^[a-z0-9][a-z0-9._-]{1,79}$/i;
 const VOICE = /^[A-Za-z]{2,30}$/;
 const KEY = /^[\w.-]{10,200}$/;
 
+const ACCESSORIES = ['none', 'gorro', 'lentes', 'mono', 'corona', 'flor'];
+
 // Lista blanca de ajustes que pueden cambiar las ventanas. Lo demás (tareas, rutinas, accesos…) tiene sus propios canales.
 function validateSettingsPatch(patch, { unavailable = [] } = {}) {
   if (!patch || typeof patch !== 'object' || Array.isArray(patch)) throw new Error('Ajustes no válidos');
@@ -94,6 +96,7 @@ function validateSettingsPatch(patch, { unavailable = [] } = {}) {
       case 'theme': if (!THEMES.includes(v)) throw new Error('Tema no válido'); out[k] = v; break;
       case 'transparency': if (!TRANSPARENCY.includes(v)) throw new Error('Transparencia no válida'); out[k] = v; break;
       case 'customBg': case 'customAccent': if (!HEX.test(String(v))) throw new Error('Color no válido'); out[k] = String(v).toLowerCase(); break;
+      case 'accessory': if (!ACCESSORIES.includes(v)) throw new Error('Accesorio no válido'); out[k] = v; break;
       case 'widgets': out.widgets = validateLayout(v, unavailable); break;
       default: break; // clave desconocida (incluye launcher y widgetCatalog): se descarta
     }

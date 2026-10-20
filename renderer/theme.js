@@ -6,3 +6,11 @@ function applyAppearance(a) {
 }
 window.yurei.getAppearance().then((r) => r.ok && applyAppearance(r.data));
 window.yurei.on('appearance', applyAppearance);
+
+// Accesorio de la carita (gorro, lentes…): se aplica en todas las ventanas que la muestran.
+function applyAccessory(acc) {
+  if (acc && acc !== 'none') document.documentElement.dataset.acc = acc;
+  else delete document.documentElement.dataset.acc;
+}
+window.yurei.getSettings().then((r) => r.ok && applyAccessory(r.data.accessory));
+window.yurei.on('settings-changed', (s) => applyAccessory(s.accessory));

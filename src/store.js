@@ -24,7 +24,8 @@ const DEFAULTS = {
     widgets: ['yurei', 'clock', 'todos'],
     city: '',
     conversationSeconds: 20,
-    dnd: false
+    dnd: false,
+    accessory: 'none'
   },
   todos: [],
   tasks: [],

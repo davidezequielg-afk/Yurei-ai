@@ -192,7 +192,10 @@ function playPcm(b64) {
   const op = slider(30, 100, look.opacity, ' %', (v) => applyLook({ opacity: v }));
   const opRow = row('Opacidad', null, op.out);
   const opSlider = el('div', { className: 'row tight' }, op.input);
+  const accs = choice('chips', [['none', 'Nada'], ['gorro', '🎉 Gorrito'], ['lentes', '👓 Lentes'], ['mono', '🎀 Moño'], ['corona', '👑 Corona'], ['flor', '🌸 Flor']].map(([v, t]) => ({ value: v, node: el('button', { className: 'chip', textContent: t }) })),
+    s.accessory || 'none', (v) => { applyAccessory(v); save({ accessory: v }); });
   const lookPage = [
+    card('Tu Yurei', 'Ponle algo a la carita (mírala arriba).', el('div', { className: 'row stack' }, accs)),
     card('Tema', null, el('div', { className: 'row stack' }, themes), customRow),
     card('Transparencia', null,
       el('div', { className: 'row stack' }, choice('seg', [['off', 'Opaco'], ['on', 'Translúcido'], ['system', 'Como Windows']].map(([v, t]) => ({ value: v, node: el('button', { className: 'chip', textContent: t }) })),

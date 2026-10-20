@@ -15,15 +15,8 @@ button, input, textarea, select { font: inherit; color: inherit; }
 .ready::before { content: ""; width: 7px; height: 7px; border-radius: 50%; background: #5fcf8a; box-shadow: 0 0 0 3px color-mix(in srgb, #5fcf8a 22%, transparent); }
 .ready.warn::before { background: #e8b04a; box-shadow: 0 0 0 3px color-mix(in srgb, #e8b04a 22%, transparent); }
 .hero-face { width: 48px; height: 45px; flex: none; }
-.face { position: relative; display: block; width: 16px; height: 15px; scale: 3; transform-origin: 0 0; border-radius: 8px 8px 5px 5px; background: var(--accent); box-shadow: 0 0 6px color-mix(in srgb, var(--accent) 40%, transparent); animation: breathe 3.2s ease-in-out infinite; }
-.face i { position: absolute; display: block; background: var(--bg-solid); transition: transform .25s var(--ease); }
-.face .e { top: 5px; width: 3px; height: 4px; border-radius: 2px; animation: blink 5s infinite; }
-.face .l { left: 3.5px; }
-.face .r { right: 3.5px; }
-.face .m { left: 50%; bottom: 2.5px; width: 5px; height: 2.5px; margin-left: -2.5px; background: none; border: 1.5px solid var(--bg-solid); border-top: 0; border-radius: 0 0 4px 4px; }
+.hero-face .face { scale: 3; transform-origin: 0 0; }
 .hero:hover .face .e { transform: translateY(-.5px) scaleY(1.15); }
-@keyframes breathe { 50% { transform: translateY(-1px) scale(1.05); } }
-@keyframes blink { 0%, 94%, 100% { transform: scaleY(1); } 97% { transform: scaleY(.15); } }
 
 /* pestañas */
 .tabs { position: sticky; top: 0; z-index: 5; display: flex; gap: 4px; padding: 5px; margin: 0 0 14px; border-radius: 14px; background: color-mix(in srgb, var(--soft) 88%, transparent); backdrop-filter: blur(10px); overflow-x: auto; scrollbar-width: none; }

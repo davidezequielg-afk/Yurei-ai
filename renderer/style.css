@@ -15,20 +15,6 @@ button { font: inherit; color: inherit; }
 #island.idle #status { display: none; }
 #bar { display: flex; align-items: center; gap: 8px; padding: 0 12px; min-height: 22px; cursor: pointer; }
 #status { flex: 1; color: var(--mute); font-weight: 500; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-/* la carita: un fantasmita que respira, parpadea y cambia de gesto según lo que hace */
-.face { position: relative; flex: none; width: 16px; height: 15px; border-radius: 8px 8px 5px 5px; background: var(--accent); box-shadow: 0 0 8px color-mix(in srgb, var(--accent) 40%, transparent); animation: breathe 3.2s ease-in-out infinite; }
-.face i { position: absolute; display: block; background: var(--bg-solid); transition: transform .2s ease, height .2s ease, top .2s ease; }
-.face .e { top: 5px; width: 3px; height: 4px; border-radius: 2px; animation: blink 5s infinite; }
-.face .l { left: 3.5px; }
-.face .r { right: 3.5px; animation-delay: .04s; }
-.face .m { left: 50%; bottom: 2.5px; width: 5px; height: 2.5px; margin-left: -2.5px; background: none; border: 1.5px solid var(--bg-solid); border-top: 0; border-radius: 0 0 4px 4px; }
-@keyframes breathe { 50% { transform: translateY(-1px) scale(1.06); } }
-@keyframes blink { 0%, 94%, 100% { transform: scaleY(1); } 97% { transform: scaleY(.15); } }
-.listening .face .e { top: 4px; height: 5px; } /* atento: ojos bien abiertos */
-.thinking .face .e { transform: translate(1px, -1.5px); animation: none; } /* mira hacia arriba, pensando */
-.thinking .face .m { width: 3px; margin-left: -1.5px; height: 0; border-bottom-width: 1.5px; border-radius: 1px; }
-.speaking .face .m { height: calc(1.5px + var(--talk, 0) * 2.5px); width: 4px; margin-left: -2px; background: var(--bg-solid); border: 0; border-radius: 2px 2px 3px 3px; }
-@media (prefers-reduced-motion: reduce) { .face, .face .e { animation: none; } }
 /* anillo del temporizador alrededor de la carita */
 #ring { position: relative; flex: none; display: grid; place-items: center; width: 22px; height: 22px; }
 #ring::before { content: ""; position: absolute; inset: 0; border-radius: 50%; opacity: 0; transition: opacity .3s;
@@ -39,11 +25,7 @@ button { font: inherit; color: inherit; }
 #ring.break { --ring: #5fcf8a; }
 #ring.ding { animation: ding .5s ease-in-out 3; }
 @keyframes ding { 25% { transform: rotate(-12deg); } 75% { transform: rotate(12deg); } }
-/* no molestar: auriculares */
-.face .acc { display: none; }
-.dnd .face::before { content: ""; position: absolute; left: -2px; right: -2px; top: -2px; height: 9px; border: 1.6px solid var(--ink2); border-bottom: 0; border-radius: 9px 9px 0 0; }
-.dnd .face::after { content: ""; position: absolute; left: -3px; right: -3px; top: 5px; height: 5px; border-left: 3px solid var(--ink2); border-right: 3px solid var(--ink2); border-radius: 2px; }
-.dnd .face .e { height: 1.5px; top: 6.5px; animation: none; } /* ojos cerrados, tranquila */
+
 #reply { padding: 0 12px 8px; color: var(--ink2); user-select: text; overflow: auto; }
 
 /* barras de voz */

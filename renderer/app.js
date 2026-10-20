@@ -380,6 +380,7 @@ function setPhase(phase, label) {
   island.dataset.phase = phase;
   island.className = `${state.mode} ${phase}${state.dnd ? ' dnd' : ''}`.trim();
   if (label) $('status').textContent = label;
+  armSleep();
   state.stateText = phase ? label : 'Toca para hablar';
   const ws = $('wState');
   if (ws) ws.textContent = state.stateText;
@@ -731,6 +732,7 @@ async function handleAsk(payload, userLabel, greeting = false) {
     r.data.actions.forEach((a) => log('act', `⚙ ${a.name}${a.result?.error ? ` — ${a.result.error}` : ''}`));
     log('bot', r.data.reply);
     showReply(r.data.reply);
+    setMood(r.data.mood);
     await say(r.data.reply);
   }
   Listener.resume();
@@ -811,6 +813,31 @@ window.yurei.on('report', ({ label, results }) => {
   log('act', `⏰ ${label}: ${results.join(', ')}`);
   showReply(`⏰ ${label} — ${results.join(', ')}`);
 });
+
+/* ---------- ánimo y sueño de la carita ---------- */
+
+let moodTimer = null;
+function setMood(mood) {
+  clearTimeout(moodTimer);
+  if (!mood || mood === 'neutral' || mood === 'pensativa') { delete island.dataset.mood; return; }
+  island.dataset.mood = mood;
+  moodTimer = setTimeout(() => { delete island.dataset.mood; }, 7000);
+}
+
+// Si nadie la usa en un rato, se duerme (ojos cerrados y una "z"). Cualquier cosa la despierta.
+const SLEEP_MS = 5 * 60 * 1000;
+let sleepTimer = null;
+function nap() {
+  const busy = conv.active || state.recording || isPanel(state.mode) || timer.cur;
+  if (busy) { armSleep(); return; }
+  island.classList.add('sleep');
+}
+function armSleep() {
+  island.classList.remove('sleep');
+  clearTimeout(sleepTimer);
+  sleepTimer = setTimeout(nap, SLEEP_MS);
+}
+document.documentElement.addEventListener('mouseenter', armSleep);
 
 /* ---------- temporizador / pomodoro ---------- */
 
@@ -905,3 +932,4 @@ window.yurei.getSettings().then((r) => {
   if (!r.data.apiKey) window.yurei.openSettings(); // primer arranque: pedir la API key
 });
 setMode('idle');
+armSleep();
