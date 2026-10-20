@@ -5,7 +5,7 @@ const Listener = (() => {
   const MIN_SPEECH = 3; // descarta ruidos de menos de ~0,8 s
   const MAX_FRAMES = 80; // tope de ~20 s por enunciado
 
-  let ctx, stream, node, cb, starting, paused = false;
+  let ctx, stream, node, cb, starting, analyser, paused = false;
   let noise = 0.01;
   let preroll = null;
   let cur = null;
@@ -62,10 +62,14 @@ const Listener = (() => {
       const src = ctx.createMediaStreamSource(stream);
       node = ctx.createScriptProcessor(FRAME, 1, 1);
       node.onaudioprocess = (e) => onFrame(new Float32Array(e.inputBuffer.getChannelData(0)));
+      analyser = ctx.createAnalyser();
+      analyser.fftSize = 512;
+      src.connect(analyser);
       src.connect(node);
       node.connect(ctx.destination);
       reset();
     },
+    level: () => (ctx && !paused ? analyserLevel(analyser) : 0),
     pause() { paused = true; reset(); },
     resume() { paused = false; reset(); },
     async stop() {

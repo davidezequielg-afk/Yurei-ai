@@ -21,12 +21,43 @@ function setPhase(phase, label) {
   island.dataset.phase = phase;
   island.className = `${state.mode} ${phase}`.trim();
   if (label) $('status').textContent = label;
+  animateBars();
+}
+
+/* ---------- barras del notch (reaccionan a la voz) ---------- */
+
+const bars = [...document.querySelectorAll('#bars i')];
+let barsRaf = null;
+
+function currentLevel(phase) {
+  if (phase === 'speaking') return voice.fake ? 0.12 + 0.1 * Math.abs(Math.sin(performance.now() / 140)) : analyserLevel(voice.analyser);
+  if (phase === 'listening') return state.recording ? Recorder.level() : Listener.level();
+  return 0.1; // pensando: ondulación suave
+}
+
+function animateBars() {
+  if (barsRaf) return;
+  const frame = (t) => {
+    const phase = island.dataset.phase;
+    if (!['listening', 'speaking', 'thinking'].includes(phase)) {
+      barsRaf = null;
+      bars.forEach((b) => { b.style.transform = ''; });
+      return;
+    }
+    const lvl = Math.min(1, currentLevel(phase) * 5);
+    bars.forEach((b, i) => {
+      const wave = 0.55 + 0.45 * Math.sin(t / 110 + i * 1.3);
+      b.style.transform = `scaleY(${Math.max(0.15, Math.min(1, lvl * wave * 1.4 + 0.12 * wave))})`;
+    });
+    barsRaf = requestAnimationFrame(frame);
+  };
+  barsRaf = requestAnimationFrame(frame);
 }
 
 /* ---------- voz ---------- */
 
 const GEMINI_VOICES = ['Kore', 'Puck', 'Charon', 'Zephyr', 'Fenrir', 'Leda', 'Orus', 'Aoede', 'Callirrhoe', 'Autonoe', 'Enceladus', 'Iapetus', 'Umbriel', 'Algieba', 'Despina', 'Erinome', 'Algenib', 'Rasalgethi', 'Laomedeia', 'Achernar', 'Alnilam', 'Schedar', 'Gacrux', 'Pulcherrima', 'Achird', 'Zubenelgenubi', 'Vindemiatrix', 'Sadachbia', 'Sadaltager', 'Sulafat'];
-const voice = { token: 0, ctx: null, source: null };
+const voice = { token: 0, ctx: null, source: null, analyser: null, fake: false };
 
 function stopSpeaking() {
   voice.token++;
@@ -61,7 +92,12 @@ function playPcm(b64) {
     }
     const src = voice.ctx.createBufferSource();
     src.buffer = buf;
-    src.connect(voice.ctx.destination);
+    if (!voice.analyser) {
+      voice.analyser = voice.ctx.createAnalyser();
+      voice.analyser.fftSize = 512;
+      voice.analyser.connect(voice.ctx.destination);
+    }
+    src.connect(voice.analyser);
     src.onended = resolve;
     voice.source = src;
     src.start();
@@ -91,9 +127,10 @@ async function speakGemini(text, token) {
 }
 
 function speakSystem(text) {
+  voice.fake = true;
   return new Promise((resolve) => {
     const u = new SpeechSynthesisUtterance(text);
-    const done = () => { clearTimeout(guard); resolve(); };
+    const done = () => { clearTimeout(guard); voice.fake = false; resolve(); };
     const guard = setTimeout(done, 30000);
     u.onend = done;
     u.onerror = done;
@@ -106,10 +143,16 @@ async function say(text) {
   if (!text) return;
   stopSpeaking();
   const token = voice.token;
-  if (!state.systemVoice) {
-    try { await speakGemini(text, token); return; } catch (e) { log('act', `⚠ voz de Gemini no disponible (${e.message}); uso la del sistema`); }
+  voice.fake = false;
+  setPhase('speaking', 'Hablando');
+  try {
+    if (!state.systemVoice) {
+      try { await speakGemini(text, token); return; } catch (e) { log('act', `⚠ voz de Gemini no disponible (${e.message}); uso la del sistema`); }
+    }
+    if (token === voice.token) await speakSystem(text);
+  } finally {
+    if (token === voice.token) setPhase(conv.active ? 'listening' : '', conv.active ? 'Te escucho' : 'Yurei');
   }
-  if (token === voice.token) await speakSystem(text);
 }
 
 function log(kind, text) {
@@ -117,9 +160,13 @@ function log(kind, text) {
   $('log').scrollTop = 1e9;
 }
 
+// El notch pequeño no se agranda por cada respuesta (se oyen); solo para avisos y errores.
 function showReply(text) {
   $('reply').textContent = text;
-  if (state.mode === 'idle') setMode('status');
+  if (state.mode === 'idle' && /^(⚠|⏰)/.test(text)) {
+    setMode('status');
+    setTimeout(() => { if (state.mode === 'status') setMode('idle'); }, 8000);
+  }
 }
 
 /* ---------- conversación manos libres ---------- */
@@ -128,6 +175,7 @@ const conv = { active: false, timer: null, busy: false };
 
 function wakeIdle() {
   conv.active = false;
+  $('micBtn').classList.remove('on');
   clearTimeout(conv.timer);
   setPhase('', 'Yurei');
   if (state.mode === 'status') setMode('idle');
@@ -154,8 +202,7 @@ async function enterConversation() {
   if (!(await ensureListening())) return;
   stopSpeaking();
   conv.active = true;
-  setMode('status');
-  $('reply').textContent = 'Te escucho… (habla y haré una pausa para responder)';
+  $('micBtn').classList.add('on');
   setPhase('listening', 'Te escucho');
   armConversationTimeout();
 }
@@ -206,7 +253,6 @@ async function handleAsk(payload, userLabel) {
     await say(r.data.reply);
   }
   Listener.resume();
-  if (!conv.active) setTimeout(() => { if (state.mode === 'status' && !conv.active) setMode('idle'); }, 8000);
 }
 
 /* ---------- dictado (manual: pausas largas permitidas) ---------- */
@@ -217,11 +263,11 @@ async function toggleDictation() {
     state.recording = null;
     const { b64, seconds } = await Recorder.stop();
     Listener.resume();
-    if (seconds < 0.4) { setPhase('', 'Yurei'); setMode('idle'); return; }
+    if (seconds < 0.4) { setPhase('', 'Yurei'); return; }
     setPhase('thinking', 'Transcribiendo…');
     const r = await window.yurei.dictate(b64);
-    setPhase('', r.ok ? 'Yurei' : `⚠ ${r.error}`);
-    setTimeout(() => setMode('idle'), 2500);
+    setPhase('', 'Yurei');
+    if (!r.ok) showReply(`⚠ ${r.error}`);
     return;
   }
   try {
@@ -234,8 +280,6 @@ async function toggleDictation() {
   }
   stopSpeaking();
   state.recording = 'dictate';
-  setMode('status');
-  $('reply').textContent = 'Dictando… pulsa Ctrl+Alt+D para terminar.';
   setPhase('listening', 'Dictado');
   state.autoStop = setTimeout(toggleDictation, 120000);
 }
@@ -363,6 +407,8 @@ $('chatForm').onsubmit = (e) => {
   handleAsk({ text, imageB64: image || undefined }, text);
 };
 window.addEventListener('keydown', (e) => { if (e.key === 'Escape') setMode('idle'); });
+$('micBtn').onclick = () => (conv.active ? wakeIdle() : enterConversation());
+log('bot', 'Habla con 🎤 o Ctrl+Shift+Espacio y haz una pausa. Dictado: Ctrl+Alt+D · Pantalla: Ctrl+Shift+C.');
 
 window.yurei.on('hotkey', (name) => {
   if (name === 'dictate') toggleDictation();
@@ -385,5 +431,13 @@ function applySettings(cfg) {
   if (cfg.wakeWord) ensureListening();
   else if (!conv.active) Listener.stop();
 }
-window.yurei.getSettings().then((r) => { if (r.ok) applySettings(r.data); });
+window.yurei.getSettings().then((r) => {
+  if (!r.ok) return;
+  applySettings(r.data);
+  if (!r.data.apiKey) {
+    log('bot', 'Pega tu API key de Gemini en ⚙️ y pulsa Guardar.');
+    state.tab = 'soul';
+    setMode('full');
+  }
+});
 setMode('idle');

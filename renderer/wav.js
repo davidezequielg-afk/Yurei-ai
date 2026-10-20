@@ -14,10 +14,19 @@ function encodeWav(samples) {
   return btoa(bin);
 }
 
+function analyserLevel(an) {
+  if (!an) return 0;
+  const buf = new Uint8Array(an.fftSize);
+  an.getByteTimeDomainData(buf);
+  let sum = 0;
+  for (const v of buf) { const x = (v - 128) / 128; sum += x * x; }
+  return Math.sqrt(sum / buf.length);
+}
+
 // Grabación de micrófono → WAV PCM 16-bit mono a 16 kHz (formato que Gemini acepta).
 const Recorder = (() => {
   const RATE = WAV_RATE;
-  let ctx, stream, node, chunks;
+  let ctx, stream, node, chunks, analyser;
 
   return {
     async start() {
@@ -27,9 +36,13 @@ const Recorder = (() => {
       node = ctx.createScriptProcessor(4096, 1, 1);
       chunks = [];
       node.onaudioprocess = (e) => chunks.push(new Float32Array(e.inputBuffer.getChannelData(0)));
+      analyser = ctx.createAnalyser();
+      analyser.fftSize = 512;
+      src.connect(analyser);
       src.connect(node);
       node.connect(ctx.destination);
     },
+    level: () => analyserLevel(analyser),
     async stop() {
       node.disconnect();
       stream.getTracks().forEach((t) => t.stop());

@@ -10,23 +10,24 @@
   <div id="island" class="idle">
     <header id="bar" title="Clic para abrir o cerrar">
       <span id="eye" class="eye"></span>
+      <span id="bars"><i></i><i></i><i></i><i></i><i></i><i></i><i></i></span>
       <span id="status">Yurei</span>
     </header>
     <section id="reply" hidden></section>
     <section id="panel" hidden>
       <nav id="tabs">
-        <button data-tab="chat" class="on">Chat</button>
-        <button data-tab="today">Hoy</button>
-        <button data-tab="stats">Stats</button>
-        <button data-tab="clip">Portapapeles</button>
-        <button data-tab="apps">Apps</button>
-        <button data-tab="soul">Alma</button>
-        <button data-tab="power">Energía</button>
+        <button data-tab="chat" title="Chat" class="on">💬</button>
+        <button data-tab="today" title="Hoy">📅</button>
+        <button data-tab="stats" title="Stats">📊</button>
+        <button data-tab="clip" title="Portapapeles">📋</button>
+        <button data-tab="apps" title="Apps">🧩</button>
+        <button data-tab="soul" title="Alma y ajustes">⚙️</button>
+        <button data-tab="power" title="Energía">⏻</button>
       </nav>
       <div id="views">
         <div id="chat" class="view">
           <div id="log"></div>
-          <form id="chatForm"><input id="chatInput" placeholder="Escribe o usa Ctrl+Shift+Espacio para hablar" autocomplete="off"><button>Enviar</button></form>
+          <form id="chatForm"><input id="chatInput" placeholder="Escribe…" autocomplete="off"><button type="button" id="micBtn" title="Hablar (Ctrl+Shift+Espacio)">🎤</button><button title="Enviar">➤</button></form>
         </div>
         <div id="today" class="view" hidden></div>
         <div id="stats" class="view" hidden></div>
