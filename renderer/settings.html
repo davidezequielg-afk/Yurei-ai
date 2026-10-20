@@ -7,9 +7,18 @@
   <link rel="stylesheet" href="settings.css">
 </head>
 <body>
-  <h1>Ajustes de Yurei</h1>
-  <div id="form"></div>
+  <header class="hero">
+    <span class="hero-face"><span class="face" aria-hidden="true"><i class="e l"></i><i class="e r"></i><i class="m"></i></span></span>
+    <div>
+      <h1 id="hello">Hola, soy Yurei</h1>
+      <p id="ready" class="ready"></p>
+    </div>
+  </header>
+  <nav id="tabs" class="tabs" role="tablist"></nav>
+  <main id="form"></main>
+  <div id="toast" class="toast" role="status" aria-live="polite"></div>
   <script src="theme.js"></script>
+  <script src="pcm.js"></script>
   <script src="settings.js"></script>
 </body>
 </html>
