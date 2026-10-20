@@ -1,0 +1,44 @@
+<!doctype html>
+<html lang="es">
+<head>
+  <meta charset="utf-8">
+  <meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'self'; style-src 'self'; img-src 'self' data:;">
+  <title>Yurei</title>
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <div id="island" class="idle">
+    <header id="bar">
+      <span id="eye" class="eye"></span>
+      <span id="status">Yurei</span>
+      <button id="expand" title="Abrir panel">⌄</button>
+    </header>
+    <section id="reply" hidden></section>
+    <section id="panel" hidden>
+      <nav id="tabs">
+        <button data-tab="chat" class="on">Chat</button>
+        <button data-tab="today">Hoy</button>
+        <button data-tab="stats">Stats</button>
+        <button data-tab="clip">Portapapeles</button>
+        <button data-tab="apps">Apps</button>
+        <button data-tab="soul">Alma</button>
+        <button data-tab="power">Energía</button>
+      </nav>
+      <div id="views">
+        <div id="chat" class="view">
+          <div id="log"></div>
+          <form id="chatForm"><input id="chatInput" placeholder="Escribe o usa Ctrl+Shift+Espacio para hablar" autocomplete="off"><button>Enviar</button></form>
+        </div>
+        <div id="today" class="view" hidden></div>
+        <div id="stats" class="view" hidden></div>
+        <div id="clip" class="view" hidden></div>
+        <div id="apps" class="view" hidden></div>
+        <div id="soul" class="view" hidden></div>
+        <div id="power" class="view" hidden></div>
+      </div>
+    </section>
+  </div>
+  <script src="wav.js"></script>
+  <script src="app.js"></script>
+</body>
+</html>

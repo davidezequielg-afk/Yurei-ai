@@ -1,0 +1,36 @@
+* { box-sizing: border-box; }
+html, body { margin: 0; height: 100%; background: transparent; font: 13px/1.4 "Segoe UI", system-ui, sans-serif; color: #eee; user-select: none; }
+#island { background: #050505; border: 1px solid #1d1d1d; border-top: 0; border-radius: 0 0 22px 22px; height: 100%; display: flex; flex-direction: column; overflow: hidden; }
+#bar { display: flex; align-items: center; gap: 10px; padding: 0 14px; min-height: 46px; -webkit-app-region: drag; }
+#bar button { -webkit-app-region: no-drag; margin-left: auto; }
+#status { flex: 1; color: #bbb; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.eye { width: 14px; height: 14px; border-radius: 50%; background: #6cf; box-shadow: 0 0 10px #6cf8; animation: breathe 3.2s ease-in-out infinite; }
+.listening .eye { background: #f55; box-shadow: 0 0 14px #f55a; animation-duration: .8s; }
+.thinking .eye { background: #fc6; box-shadow: 0 0 14px #fc6a; animation-duration: 1.2s; }
+@keyframes breathe { 50% { transform: scale(1.35); opacity: .75; } }
+button { background: #181818; color: #ddd; border: 1px solid #2a2a2a; border-radius: 8px; padding: 4px 10px; cursor: pointer; font: inherit; }
+button:hover { background: #242424; }
+input, textarea, select { background: #111; color: #eee; border: 1px solid #2a2a2a; border-radius: 8px; padding: 6px 8px; font: inherit; width: 100%; user-select: text; }
+#reply { padding: 0 16px 12px; color: #ddd; user-select: text; overflow: auto; }
+#panel { display: flex; flex-direction: column; flex: 1; min-height: 0; padding: 0 12px 12px; }
+#tabs { display: flex; gap: 4px; flex-wrap: wrap; margin-bottom: 8px; }
+#tabs .on { background: #2b2f3a; border-color: #4a5170; }
+#views { flex: 1; min-height: 0; }
+.view { height: 100%; overflow: auto; }
+#chat { display: flex; flex-direction: column; }
+#log { flex: 1; overflow: auto; padding-bottom: 6px; user-select: text; }
+.msg { margin: 4px 0; padding: 6px 10px; border-radius: 10px; max-width: 88%; width: fit-content; }
+.msg.user { background: #1d2a44; margin-left: auto; }
+.msg.bot { background: #161616; }
+.msg.act { background: none; color: #888; font-size: 11px; padding: 0 10px; }
+#chatForm { display: flex; gap: 6px; }
+.row { display: flex; align-items: center; gap: 8px; padding: 5px 2px; border-bottom: 1px solid #161616; }
+.row .grow { flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.row.done .grow { text-decoration: line-through; color: #777; }
+.gauge { height: 8px; background: #181818; border-radius: 4px; overflow: hidden; margin: 4px 0 12px; }
+.gauge i { display: block; height: 100%; background: #6cf; }
+h4 { margin: 10px 0 4px; color: #999; font-weight: 600; text-transform: uppercase; font-size: 11px; letter-spacing: .06em; }
+label { display: block; margin: 8px 0 3px; color: #999; }
+.tiles { display: grid; grid-template-columns: repeat(4, 1fr); gap: 8px; }
+.tiles button { padding: 22px 0; }
+.thumb { max-height: 60px; border-radius: 6px; }
