@@ -123,3 +123,9 @@ button.ghost:hover, .ctrl button:hover, #gear:hover { color: var(--ink); }
 .cell .x:hover { color: var(--ink); }
 .sub.note { margin-top: 4px; font-size: 10px; color: var(--mute); max-width: 100%; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .w-volume .big { margin-bottom: 4px; }
+
+/* concentración */
+.widget.focusW .big { font-size: 22px; font-weight: 500; }
+.week { display: flex; align-items: flex-end; gap: 3px; height: 18px; margin-top: 6px; }
+.week i { display: block; width: 6px; border-radius: 2px; background: color-mix(in srgb, var(--accent) 45%, transparent); }
+.week i.now { background: var(--accent); }

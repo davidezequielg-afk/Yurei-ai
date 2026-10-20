@@ -58,6 +58,21 @@ const VOICE = /^[A-Za-z]{2,30}$/;
 const KEY = /^[\w.-]{10,200}$/;
 
 const ACCESSORIES = ['none', 'gorro', 'lentes', 'mono', 'corona', 'flor'];
+const PTT_KEYS = ['off', 'rctrl', 'ralt', 'f8', 'f9', 'capslock'];
+
+// Atajos: modificadores + una tecla, en el formato de Electron. Nada de teclas solas (romperían la escritura).
+const HOTKEY = /^(?:(?:Control|Alt|Shift|Super)\+){1,3}(?:[A-Z0-9]|F(?:[1-9]|1[0-2])|Space|Enter|Tab|Up|Down|Left|Right|Home|End|PageUp|PageDown|Insert|Delete|Plus|-|=|,|\.|\/|;|')$/;
+function validateHotkeys(v) {
+  if (!v || typeof v !== 'object') throw new Error('Atajos no válidos');
+  const out = {};
+  for (const k of ['talk', 'dictate', 'circle']) {
+    const a = String(v[k] || '').trim();
+    if (!HOTKEY.test(a)) throw new Error(`Atajo no válido: ${a || '(vacío)'}`);
+    out[k] = a;
+  }
+  if (new Set(Object.values(out)).size !== 3) throw new Error('Dos acciones no pueden tener el mismo atajo');
+  return out;
+}
 
 // Modos: lista corta, nombres simples, cada campo con su tope.
 function validateModes(v) {
@@ -110,8 +125,10 @@ function validateSettingsPatch(patch, { unavailable = [] } = {}) {
         if (!Array.isArray(v)) throw new Error('Frases no válidas');
         out.fillerPhrases = v.slice(0, 20).map((x) => text(String(x), 80, 'Frase')).filter(Boolean);
         break;
-      case 'systemVoice': case 'wakeWord': case 'fillers': case 'fetchFavicons': case 'dnd': case 'bargeIn': case 'autoUpdate': case 'onboarded': out[k] = bool(v); break;
-      case 'conversationSeconds': out[k] = Math.max(5, Math.min(120, Math.round(Number(v)) || 20)); break;
+      case 'systemVoice': case 'wakeWord': case 'fillers': case 'fetchFavicons': case 'dnd': case 'bargeIn': case 'autoUpdate': case 'onboarded': case 'openAtLogin': case 'morningBrief': case 'seasonal': case 'reactions': out[k] = bool(v); break;
+      case 'breakEvery': out[k] = [0, 30, 45, 60, 90, 120].includes(Number(v)) ? Number(v) : 60; break;
+      case 'birthday': if (v !== '' && !/^(0[1-9]|1[0-2])-(0[1-9]|[12]\d|3[01])$/.test(String(v))) throw new Error('Cumpleaños no válido (MM-DD)'); out[k] = String(v); break;
+      case 'pushToTalk': if (!PTT_KEYS.includes(v)) throw new Error('Tecla no válida'); out[k] = v; break;      case 'conversationSeconds': out[k] = Math.max(5, Math.min(120, Math.round(Number(v)) || 20)); break;
       case 'opacity': out[k] = Math.max(30, Math.min(100, Math.round(Number(v)) || 78)); break;
       case 'theme': if (!THEMES.includes(v)) throw new Error('Tema no válido'); out[k] = v; break;
       case 'transparency': if (!TRANSPARENCY.includes(v)) throw new Error('Transparencia no válida'); out[k] = v; break;
@@ -153,4 +170,4 @@ function coverDataUrl(cover, maxBytes = 716800) {
   return hit ? `data:${hit[0]};base64,${buf.toString('base64')}` : null;
 }
 
-module.exports = { validateModes, coverDataUrl, isTrustedUrl, validateAudio, validateAskPayload, validateSettingsPatch, validateMediaAction, validateSlot, MASK, MAX_AUDIO_B64 };
+module.exports = { validateHotkeys, PTT_KEYS, validateModes, coverDataUrl, isTrustedUrl, validateAudio, validateAskPayload, validateSettingsPatch, validateMediaAction, validateSlot, MASK, MAX_AUDIO_B64 };

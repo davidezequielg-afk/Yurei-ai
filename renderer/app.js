@@ -315,6 +315,48 @@ const WIDGETS = {
     }
   },
 
+  notes: {
+    every: 5,
+    build(c) {
+      c.classList.add('list');
+      const ul = el('ul');
+      c.append(el('h4', { textContent: 'Notas' }), ul);
+      return { ul };
+    },
+    async update(r) {
+      const notes = (await window.yurei.widgetData('notes')).data || [];
+      r.ul.replaceChildren(...(notes.length
+        ? notes.slice(0, 3).map((n) => el('li', { textContent: n.text, title: n.text }))
+        : [el('li', { className: 'dim', textContent: 'Di "anota que…"' })]));
+    }
+  },
+
+  focus: {
+    every: 20,
+    build(c) {
+      c.classList.add('focusW');
+      const big = el('div', { className: 'big' });
+      const sub = el('div', { className: 'sub' });
+      const week = el('div', { className: 'week' });
+      c.append(big, sub, week);
+      return { big, sub, week };
+    },
+    async update(r) {
+      const res = await window.yurei.widgetData('focus');
+      if (!res.ok) return;
+      const { today, week } = res.data;
+      r.big.textContent = `🍅 ${today.pomodoros}`;
+      r.sub.textContent = `${today.minutes} min hoy`;
+      const max = Math.max(1, ...week.map((d) => d.minutes));
+      r.week.replaceChildren(...week.map((d, i) => {
+        const bar = el('i', { title: `${d.day}: ${d.minutes} min` });
+        bar.style.height = `${Math.max(2, Math.round((d.minutes / max) * 18))}px`;
+        if (i === week.length - 1) bar.className = 'now';
+        return bar;
+      }));
+    }
+  },
+
   battery: {
     every: 30,
     build(c) {
@@ -920,6 +962,18 @@ window.yurei.on('timer-done', async ({ finished, next }) => {
   else showReply(`⏰ ${text}`);
 });
 window.yurei.timerGet().then((r) => r.ok && setTimerState(r.data));
+
+// Recordatorio que vence: campanita y Yurei lo dice (si estaba la PC apagada, aclara que es tarde).
+window.yurei.on('reminder', async (r) => {
+  chime();
+  setMood('sorprendida');
+  const text = r.lateMin > 2
+    ? t(`Perdón, te lo tenía que recordar hace ${r.lateMin} minutos: ${r.text}.`)
+    : t(`¡Te recuerdo! ${r.text}.`);
+  await sleep(1000);
+  if (!conv.busy) say(text);
+  else showReply(`⏰ ${text}`);
+});
 
 /* ---------- actualizaciones ---------- */
 

@@ -114,6 +114,15 @@ function createSystem({ shell, clipboard, dataDir = os.tmpdir(), confirm = async
     setMute: (muted) => win().request('vol.mute', muted ? 'true' : 'false'),
     mediaInfo: () => win().request('media.get'),
     mediaCover: () => win().request('media.cover'),
+    async openPath(p) {
+      const err = await shell.openPath(p);
+      if (err) throw new Error(err);
+    },
+    // Batería (solo notebooks): nivel y si está enchufada.
+    battery: () => (isWin ? ps('$b = Get-CimInstance Win32_Battery | Select-Object -First 1; if ($b) { "$($b.EstimatedChargeRemaining)|$($b.BatteryStatus)" }').then((o) => { const [lvl, st] = o.trim().split('|').map(Number); return Number.isFinite(lvl) ? { level: lvl, charging: [2, 6, 7, 8, 9].includes(st) } : null; }) : Promise.resolve(null)),
+    getBrightness: () => (isWin ? win().request('bright.get') : Promise.resolve({ available: false })),
+    setBrightness: (level) => win().request('bright.set', level),
+    openNightLight: () => (isWin ? shell.openExternal('ms-settings:nightlight') : Promise.reject(new Error('Solo en Windows'))),
     // action: play | pause | toggle | next | prev | seek (arg = segundos, negativo para retroceder)
     media: (action, arg = '') => win().request('media.cmd', arg === '' ? action : `${action}:${arg}`),
     shutdown: () => helper?.stop(),

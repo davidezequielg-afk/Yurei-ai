@@ -50,7 +50,7 @@ const I18N_EN = {
   'Descarga el icono de las webs que añades (consulta a Google el nombre del sitio).': 'Downloads the icon of websites you add (asks Google for the site name).',
   'Yurei (icono, toca para hablar)': 'Yurei (icon, tap to talk)', 'Hora y fecha': 'Time and date', 'Próximas tareas y rutinas': 'Upcoming tasks and routines',
   'Estado del PC (CPU y RAM)': 'PC status (CPU and RAM)', 'Calendario del mes': 'Monthly calendar', Batería: 'Battery', 'Reproduciendo (música y video)': 'Now playing (music and video)',
-  Volumen: 'Volume', 'Mis apps (4 accesos)': 'My apps (4 shortcuts)',
+  Volumen: 'Volume', 'Mis apps (4 accesos)': 'My apps (4 shortcuts)', Notas: 'Notes', 'Concentración (pomodoros)': 'Focus (pomodoros)', 'Di "anota que…"': 'Say "note that…"',
   // modos
   'Abrir estas apps': 'Open these apps', 'Separadas por comas.': 'Comma separated.', 'Cambiar el volumen': 'Change the volume', Música: 'Music',
   'No tocar': 'Leave as is', Reproducir: 'Play', Pausar: 'Pause', Pomodoro: 'Pomodoro', 'Bloques de concentración con descansos.': 'Focus blocks with breaks.',
@@ -109,7 +109,7 @@ const I18N_EN_PATTERNS = [
   [/^¡Bien hecho! Descansa (\d+) minutos\.$/, 'Well done! Take a $1-minute break.'],
   [/^Se terminó el descanso\. Vamos con el bloque (\d+) de (\d+)\.$/, 'Break\'s over. On to block $1 of $2.'],
   [/^¡Listo! Terminó el tiempo de (.+)\.$/, 'Done! Time\'s up for $1.'], [/^(.+) \(no disponible\)$/, (_, name) => `${t(name)} (unavailable)`], [/^(\d+) min$/, '$1 min'],
-  [/^(\d+) s$/, '$1 s']
+  [/^(\d+) s$/, '$1 s'], [/^¡Te recuerdo! (.+)$/, 'Reminder! $1'], [/^Perdón, te lo tenía que recordar hace (\d+) minutos: (.+)$/, 'Sorry, I was supposed to remind you $1 minutes ago: $2'], [/^(\d+) min hoy$/, '$1 min today']
 ];
 
 let LANG = 'es';

@@ -10,6 +10,9 @@ const { createFocus } = require('./src/focus');
 const { createUpdater } = require('./src/updater');
 const { generate } = require('./src/gemini');
 const { createUsage } = require('./src/usage');
+const { createReminders } = require('./src/reminders');
+const { findFiles } = require('./src/files');
+const { speedTest } = require('./src/speedtest');
 const { spawn } = require('child_process');
 const { createTtsCache } = require('./src/ttscache');
 const { resolveAppearance } = require('./src/theme');
@@ -198,10 +201,20 @@ function start() {
     return r.response === 1;
   };
   system = createSystem({ shell, clipboard, dataDir: userData, confirm: confirmPower });
+  // Concentración del día (pomodoros completos y minutos), últimos 30 días.
+  const recordFocus = (minutes) => {
+    const d = new Date();
+    const day = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+    const stats = { ...(store.get('focusStats') || {}) };
+    const cur = stats[day] || { pomodoros: 0, minutes: 0 };
+    stats[day] = { pomodoros: cur.pomodoros + 1, minutes: cur.minutes + Math.round(minutes) };
+    store.set('focusStats', Object.fromEntries(Object.entries(stats).sort().slice(-30)));
+  };
   // Temporizador / pomodoro: el notch dibuja el anillo y avisa en voz alta al terminar.
   const focus = createFocus({
     onChange: (t) => win?.webContents.send('timer', t),
     onDone: ({ finished, next }) => {
+      if (finished.kind === 'pomodoro' && finished.phase === 'focus') recordFocus(finished.focusMin);
       const title = finished.kind === 'pomodoro'
         ? (next ? (next.phase === 'break' ? tr('Hora de un descanso', 'Time for a break') : tr('¡A concentrarse otra vez!', 'Back to focus!')) : tr('¡Pomodoro completo!', 'Pomodoro complete!'))
         : `${tr('Terminó', 'Done')}: ${finished.label}`;
@@ -209,8 +222,19 @@ function start() {
       win?.webContents.send('timer-done', { finished, next });
     }
   });
-  const tools = createTools({ store, system, focus });
-  const assistant = createAssistant({ store, tools, langFor: () => langOf(store.get('settings')) });
+  // Recordatorios hablados: a la hora, notificación + Yurei lo dice en voz alta.
+  const reminders = createReminders({
+    store,
+    onDue: (r) => {
+      new Notification({ title: tr('Yurei · Recordatorio', 'Yurei · Reminder'), body: r.text, silent: true }).show();
+      win?.webContents.send('reminder', r);
+    }
+  });
+  setInterval(() => reminders.tick(), 10 * 1000);
+  setTimeout(() => reminders.tick(), 8000); // al abrir: los que vencieron con la PC apagada
+  const weatherRef = { get: (c) => weather.get(c) };
+  const tools = createTools({ store, system, focus, reminders, weather: weatherRef, speed: () => speedTest(), files: { find: (q) => findFiles(q) } });
+  const assistant = createAssistant({ store, tools, langFor: () => langOf(store.get('settings')), deviceFor: () => (system.hasBattery() === true ? 'notebook' : system.hasBattery() === false ? 'pc' : null) });
   const weather = createWeather({ persist: { load: () => store.get('weatherCache'), save: (c) => store.set('weatherCache', c) } });
   const ttsCache = createTtsCache(path.join(userData, 'tts-cache'), { maxEntries: 60 }); // solo frases de relleno, nunca lo que dices
   const iconCache = createTtsCache(path.join(userData, 'icon-cache'), { maxEntries: 300 });
@@ -227,6 +251,8 @@ function start() {
   const settingsView = () => ({
     ...store.get('settings'),
     lang: langOf(store.get('settings')),
+    device: system.hasBattery() === true ? 'notebook' : system.hasBattery() === false ? 'pc' : 'unknown', // notebook (con batería) o PC de escritorio
+    version: app.getVersion(),
     apiKey: store.get('settings').apiKey ? S.MASK : '', // la clave nunca sale del proceso principal
     keyEncrypted: store.encrypted(),
     launcher: L.normalizeLauncher(store.get('settings').launcher),
@@ -260,6 +286,9 @@ function start() {
     dnd: !!store.get('settings').dnd,
     setDnd: (on) => { store.updateSettings({ dnd: !!on }); win?.webContents.send('settings-changed', settingsView()); trayState.dnd = !!on; refreshTray(); }
   };
+  // Abrir con Windows (solo en la app instalada; en desarrollo no se toca el inicio del sistema).
+  const applyLogin = () => { if (app.isPackaged && process.platform === 'win32') app.setLoginItemSettings({ openAtLogin: store.get('settings').openAtLogin !== false, args: ['--autostart'] }); };
+  applyLogin();
   createWindow();
   createTray();
   scheduler.start();
@@ -272,11 +301,29 @@ function start() {
     win?.webContents.send('settings-changed', settingsView());
   });
 
-  for (const [name, accel] of Object.entries(HOTKEYS)) {
-    if (!globalShortcut.register(accel, () => (name === 'circle' ? startCircle() : win?.webContents.send('hotkey', name)))) {
-      console.warn(`No se pudo registrar el atajo ${accel}`);
+  // Atajos de teclado (configurables en Ajustes). Si otra app ya usa alguno, se avisa y se vuelve a los anteriores.
+  const registerHotkeys = (keys) => {
+    globalShortcut.unregisterAll();
+    const failed = [];
+    for (const [name, accel] of Object.entries(keys)) {
+      if (!globalShortcut.register(accel, () => (name === 'circle' ? startCircle() : win?.webContents.send('hotkey', name)))) failed.push(accel);
     }
-  }
+    return failed;
+  };
+  let hotkeys = { ...HOTKEYS, ...(store.get('settings').hotkeys || {}) };
+  if (registerHotkeys(hotkeys).length) { hotkeys = { ...HOTKEYS }; registerHotkeys(hotkeys); }
+  handle('hotkeys:set', (_e, keys) => {
+    const next = S.validateHotkeys(keys);
+    const failed = registerHotkeys(next);
+    if (failed.length) {
+      registerHotkeys(hotkeys);
+      throw new Error(`${failed.join(', ')} ya lo usa otra app o Windows. Prueba otra combinación.`);
+    }
+    hotkeys = next;
+    store.updateSettings({ hotkeys });
+    win?.webContents.send('settings-changed', settingsView());
+    return hotkeys;
+  });
 
   // --- accesos a apps (4 lugares) ---
   let installedCache = null;
@@ -364,7 +411,9 @@ function start() {
   // --- ajustes y datos ---
   handle('settings:get', () => settingsView());
   handle('settings:save', (_e, patch) => {
-    store.updateSettings(S.validateSettingsPatch(patch, { unavailable: unavailable() }));
+    const clean = S.validateSettingsPatch(patch, { unavailable: unavailable() });
+    store.updateSettings(clean);
+    if ('openAtLogin' in clean) applyLogin();
     win?.webContents.send('settings-changed', settingsView());
     syncTray();
     broadcastAppearance();
@@ -455,6 +504,8 @@ function start() {
       return { url: S.coverDataUrl(r?.cover), title: r?.title || '', artist: r?.artist || '' };
     }
     if (name === 'volume') return system.getVolume();
+    if (name === 'notes') return (store.get('notes') || []).slice(-4).reverse();
+    if (name === 'focus') return tools.execute('focus_stats');
     if (name === 'schedule') return nextSchedule({ tasks: store.get('tasks'), routines: store.get('routines') }, new Date());
     throw new Error('Widget desconocido');
   });

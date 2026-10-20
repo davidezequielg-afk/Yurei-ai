@@ -141,6 +141,20 @@ function Get-Media {
   }
 }
 
+# Brillo de la pantalla integrada (notebooks). Los monitores de PC de escritorio no se pueden controlar asi.
+function Get-Bright {
+  $b = Get-CimInstance -Namespace root/WMI -ClassName WmiMonitorBrightness -ErrorAction SilentlyContinue | Select-Object -First 1
+  if ($null -eq $b) { return @{ available = $false } }
+  return @{ available = $true; level = [int]$b.CurrentBrightness }
+}
+function Set-Bright($percent) {
+  $p = [int][Math]::Max(0, [Math]::Min(100, [double]$percent))
+  $m = Get-CimInstance -Namespace root/WMI -ClassName WmiMonitorBrightnessMethods -ErrorAction SilentlyContinue | Select-Object -First 1
+  if ($null -eq $m) { throw 'Esta pantalla no permite cambiar el brillo desde Windows' }
+  [void](Invoke-CimMethod -InputObject $m -MethodName WmiSetBrightness -Arguments @{ Timeout = [uint32]0; Brightness = [byte]$p })
+  return Get-Bright
+}
+
 # Tapa del disco / miniatura de lo que suena (la entrega el propio reproductor a Windows).
 function Get-Cover {
   $s = Get-Session
@@ -252,6 +266,8 @@ while ($true) {
       'diag'      { $v = Get-Vol; $data = @{ powershell = $PSVersionTable.PSVersion.ToString(); audioExacto = [bool]('YureiAudio' -as [type]); teclas = [bool]('YureiKeys' -as [type]); reproductores = $script:smtc; erroresAlIniciar = @($script:initErrors); volumen = $v; ultimoErrorDeAudio = $script:audioError } }
       'media.get' { $data = Get-Media }
       'media.cover' { $data = Get-Cover }
+      'bright.get' { $data = Get-Bright }
+      'bright.set' { $data = Set-Bright $arg }
       'media.cmd' { $a = $arg -split ':', 2; $data = Invoke-Media $a[0] $(if ($a.Count -gt 1) { $a[1] } else { '' }) }
       default     { throw "Comando desconocido: $cmd" }
     }

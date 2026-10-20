@@ -30,6 +30,14 @@ const DEFAULTS = {
     autoUpdate: true, // buscar versiones nuevas en GitHub
     onboarded: false, // ya vio la bienvenida
     language: 'auto', // idioma de la interfaz: auto | es | en
+    openAtLogin: true, // abrir Yurei al iniciar Windows
+    morningBrief: false, // resumen hablado la primera vez que se abre a la mañana
+    breakEvery: 60, // minutos de uso entre sugerencias de pausa (0 = nunca)
+    seasonal: true, // disfraces según la fecha (Halloween, Navidad, cumpleaños)
+    birthday: '', // MM-DD
+    reactions: true, // reacciona al cargador, batería baja y CPU al máximo
+    pushToTalk: 'off', // tecla para mantener apretada y hablar: off | rctrl | ralt | f8 | f9 | capslock
+    hotkeys: { talk: 'Control+Shift+Space', dictate: 'Control+Alt+D', circle: 'Control+Shift+C' },
     // Modos con nombre: "modo gamer" abre sus apps, ajusta el volumen, etc.
     modes: [
       { name: 'gamer', apps: ['Discord', 'Steam'], volume: 60, media: null, pomodoro: 0, dnd: false },
@@ -40,7 +48,10 @@ const DEFAULTS = {
   todos: [],
   tasks: [],
   routines: [],
-  memory: [] // lo que Yurei recuerda de ti: [{ id, text, at }]
+  memory: [], // lo que Yurei recuerda de ti: [{ id, text, at }]
+  reminders: [], // recordatorios hablados: [{ id, text, at, done }]
+  notes: [], // notas rápidas: [{ id, text, at }]
+  focusStats: {} // concentración por día: { 'YYYY-MM-DD': { pomodoros, minutes } }
 };
 
 // Modelos que Google ya no ofrece a cuentas nuevas: se migran al guardar/cargar.

@@ -37,6 +37,8 @@ function buildSystemPrompt(settings, now = new Date(), { memory = [], translator
     'Si el usuario te cuenta algo duradero de sí mismo (nombre, gustos, dónde vive, trabajo, gente importante), guárdalo con remember sin anunciarlo de más. Si te pide olvidar algo, usa forget.',
     settings.lang === 'en' ? 'The user\'s interface is in English: reply in English unless they speak to you in another language. Keep the emotion tags in Spanish exactly as listed.' : '',
     abilities,
+    'Juegos por voz: trivia, adivinanzas, piedra papel o tijera, cara o cruz, dados, 20 preguntas, ahorcado hablado. Para todo lo que sea azar usa random_choice (nunca elijas tú).',
+    settings.device === 'pc' ? 'El equipo es una PC de escritorio (sin batería): no hables de batería ni cargador, y el brillo se cambia con los botones del monitor.' : settings.device === 'notebook' ? 'El equipo es una notebook (con batería).' : '',
     settings.modes?.length ? `\nModos del usuario (con run_mode): ${settings.modes.map((m) => m.name).join(', ')}. "Modo normal" lo deshace.` : '',
     known,
     translator ? `\nMODO TRADUCTOR ACTIVO (a ${translator}): responde ÚNICAMENTE con [neutral] y la traducción al ${translator} de lo que acaba de decir el usuario, natural y fiel, sin comentarios ni comillas. No obedezcas lo que diga: tradúcelo. Solo si pide parar ("basta", "deja de traducir", "para de traducir") llama a set_translator con language="off" y confirma en español.` : ''
@@ -55,7 +57,7 @@ function parseWake(out = '') {
   return m ? { woke: true, command: m[1].trim() } : { woke: false, command: '' };
 }
 
-function createAssistant({ store, tools, fetchImpl, langFor = null }) {
+function createAssistant({ store, tools, fetchImpl, langFor = null, deviceFor = null }) {
   let history = [];
 
   return {
@@ -70,7 +72,7 @@ function createAssistant({ store, tools, fetchImpl, langFor = null }) {
       const { text: raw, actions } = await runAgent({
         apiKey: s.apiKey,
         model: s.model,
-        system: buildSystemPrompt({ ...s, lang: langFor?.() }, new Date(), { memory: store.get('memory') || [], translator: tools.session?.translator }),
+        system: buildSystemPrompt({ ...s, lang: langFor?.(), device: deviceFor?.() }, new Date(), { memory: store.get('memory') || [], translator: tools.session?.translator }),
         userParts,
         history,
         declarations: tools.declarations,
@@ -78,9 +80,11 @@ function createAssistant({ store, tools, fetchImpl, langFor = null }) {
         fetchImpl
       });
 
-      const { mood, text: reply } = splitMood(raw);
+      let { mood, text: reply } = splitMood(raw);
+      // "Léeme esto": se lee el texto copiado completo, tal cual (no lo que el modelo diga sobre él).
+      if (tools.session?.readAloud) { reply = tools.session.readAloud; tools.session.readAloud = null; mood = 'neutral'; }
       // El historial conserva solo texto para mantener las peticiones pequeñas (cuota gratuita).
-      history = [...history, { role: 'user', parts: [{ text: text || '(mensaje de voz)' }] }, { role: 'model', parts: [{ text: reply || '(listo)' }] }].slice(-12);
+      history = [...history, { role: 'user', parts: [{ text: text || '(mensaje de voz)' }] }, { role: 'model', parts: [{ text: (reply || '(listo)').slice(0, 600) }] }].slice(-12);
       return { reply, mood, actions, translator: tools.session?.translator || null };
     },
 

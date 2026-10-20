@@ -11,7 +11,9 @@ const CATALOG = [
   { id: 'battery', name: 'Batería' },
   { id: 'media', name: 'Reproduciendo (música y video)' },
   { id: 'volume', name: 'Volumen' },
-  { id: 'apps', name: 'Mis apps (4 accesos)' }
+  { id: 'apps', name: 'Mis apps (4 accesos)' },
+  { id: 'notes', name: 'Notas' },
+  { id: 'focus', name: 'Concentración (pomodoros)' }
 ];
 
 const DEFAULT_LAYOUT = ['yurei', 'clock', 'todos'];
