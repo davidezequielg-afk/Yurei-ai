@@ -4,9 +4,15 @@ const fs = require('fs');
 const os = require('os');
 const path = require('path');
 const { createHelper } = require('./winhelper');
+const { findApp } = require('./launcher');
 
-const isWin = process.platform === 'win32';
-const SAFE_NAME = /^[\w .\-()&+]{1,80}$/;
+// Programas del propio Windows que se pueden abrir por nombre. Son ejecutables fijos: nunca se pasa texto del usuario a un intérprete de comandos.
+const BUILTINS = {
+  'bloc de notas': 'notepad.exe', notepad: 'notepad.exe', calculadora: 'calc.exe', calculator: 'calc.exe', calc: 'calc.exe',
+  paint: 'mspaint.exe', 'administrador de tareas': 'taskmgr.exe', 'task manager': 'taskmgr.exe', explorador: 'explorer.exe', explorer: 'explorer.exe'
+};
+const norm = (s) => String(s).toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '').trim();
+const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 
 function ps(script) {
   return new Promise((resolve, reject) => {
@@ -14,7 +20,9 @@ function ps(script) {
   });
 }
 
-function createSystem({ shell, clipboard, dataDir = os.tmpdir() }) {
+// `confirm(acción)` debe pedir confirmación al usuario FUERA de la IA (un cuadro del sistema): lo destructivo no depende de lo que diga el modelo.
+function createSystem({ shell, clipboard, dataDir = os.tmpdir(), confirm = async () => false, platform = process.platform, spawnImpl = spawn }) {
+  const isWin = platform === 'win32';
   let battery = null; // null = todavía no se sabe
   let helper = null;
 
@@ -25,7 +33,7 @@ function createSystem({ shell, clipboard, dataDir = os.tmpdir() }) {
       const script = path.join(dataDir, 'yurei-winhelper.ps1');
       fs.mkdirSync(dataDir, { recursive: true });
       fs.writeFileSync(script, `\ufeff${fs.readFileSync(path.join(__dirname, 'winhelper.ps1'), 'utf8')}`); // BOM: PowerShell 5.1 lo lee como UTF-8
-      helper = createHelper({ spawn, args: ['-NoProfile', '-NonInteractive', '-ExecutionPolicy', 'Bypass', '-File', script], timeoutMs: 15000 });
+      helper = createHelper({ spawn: spawnImpl, args: ['-NoProfile', '-NonInteractive', '-ExecutionPolicy', 'Bypass', '-File', script], timeoutMs: 15000 });
     }
     return helper;
   }
@@ -47,12 +55,26 @@ function createSystem({ shell, clipboard, dataDir = os.tmpdir() }) {
     },
     hasBattery: () => battery,
 
-    openUrl: (url) => shell.openExternal(url),
+    openUrl(url) {
+      let u;
+      try { u = new URL(url); } catch { throw new Error('URL no válida'); }
+      if (!['http:', 'https:'].includes(u.protocol)) throw new Error('Solo se permiten URLs http/https');
+      return shell.openExternal(u.href);
+    },
 
+    // Solo abre apps instaladas (accesos del menú Inicio) o programas básicos de Windows. Sin intérprete de comandos.
     async launchApp(name) {
-      if (!SAFE_NAME.test(name)) throw new Error('Nombre de app no válido');
-      const [cmd, args] = isWin ? ['cmd.exe', ['/c', 'start', '""', name]] : ['xdg-open', [name]];
-      spawn(cmd, args, { detached: true, stdio: 'ignore', windowsHide: true }).unref();
+      const n = norm(name);
+      if (!n || n.length > 80) throw new Error('Nombre de app no válido');
+      const app = findApp(n, this.listApps());
+      if (app) {
+        const err = await shell.openPath(app.file);
+        if (err) throw new Error(err);
+        return;
+      }
+      const exe = isWin && Object.hasOwn(BUILTINS, n) ? BUILTINS[n] : null;
+      if (!exe) throw new Error(`No encontré una app instalada llamada "${name}"`);
+      spawnImpl(exe, [], { detached: true, stdio: 'ignore', windowsHide: false }).unref();
     },
 
     // ¿Tiene Windows activados los "efectos de transparencia"? null = no se sabe / no es Windows
@@ -96,6 +118,7 @@ function createSystem({ shell, clipboard, dataDir = os.tmpdir() }) {
 
     async power(action) {
       if (!isWin) throw new Error('Control de energía solo disponible en Windows');
+      if (action !== 'lock' && !(await confirm(action))) throw new Error('Cancelado: no se confirmó en pantalla');
       const commands = {
         lock: ['rundll32.exe', ['user32.dll,LockWorkStation']],
         sleep: ['rundll32.exe', ['powrprof.dll,SetSuspendState', '0,1,0']],
@@ -103,15 +126,19 @@ function createSystem({ shell, clipboard, dataDir = os.tmpdir() }) {
         shutdown: ['shutdown.exe', ['/s', '/t', '5']]
       };
       const [cmd, args] = commands[action];
-      spawn(cmd, args, { detached: true, stdio: 'ignore', windowsHide: true }).unref();
+      spawnImpl(cmd, args, { detached: true, stdio: 'ignore', windowsHide: true }).unref();
     },
-
-    readClipboard: () => clipboard.readText(),
 
     // Escribe en el portapapeles y envía Ctrl+V a la ventana activa.
     async pasteText(text) {
+      const previous = clipboard.readText(); // se devuelve lo que el usuario tenía copiado: dictar no debe pisarle el portapapeles
       clipboard.writeText(text);
-      if (isWin) await ps('(New-Object -ComObject WScript.Shell).SendKeys("^v")');
+      try {
+        if (isWin) await ps('(New-Object -ComObject WScript.Shell).SendKeys("^v")');
+        await sleep(300);
+      } finally {
+        if (clipboard.readText() === text) clipboard.writeText(previous);
+      }
     },
 
     stats: (() => {

@@ -3,7 +3,7 @@ const crypto = require('crypto');
 const fs = require('fs');
 const path = require('path');
 
-function createTtsCache(dir) {
+function createTtsCache(dir, { maxEntries = 200 } = {}) {
   const fileFor = (key) => path.join(dir, `${crypto.createHash('sha1').update(key).digest('hex')}.pcm`);
 
   return {
@@ -17,6 +17,7 @@ function createTtsCache(dir) {
       }
       const audio = await synth();
       fs.mkdirSync(dir, { recursive: true });
+      if (fs.readdirSync(dir).length >= maxEntries) return audio; // caché llena: se responde sin guardar (el disco no crece sin límite)
       fs.writeFileSync(file, audio);
       return audio;
     }

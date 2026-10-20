@@ -43,8 +43,7 @@ const declarations = [
   { name: 'add_launcher_app', description: 'Agrega una app o web al widget "Mis apps" (4 lugares). Sirve para WhatsApp, Instagram, Chrome, Discord, Spotify, YouTube, etc. Si no está instalada se usa su versión web. También acepta una dirección web propia.', parameters: { type: 'OBJECT', properties: { name: str('Nombre de la app, p. ej. WhatsApp'), url: str('Solo si es una web que no es conocida'), slot: { type: 'NUMBER', description: 'Lugar del 1 al 4 (si no se dice, el primero libre)' } }, required: ['name'] } },
   { name: 'remove_launcher_app', description: 'Quita una app del widget "Mis apps" por nombre o por lugar (1 a 4).', parameters: { type: 'OBJECT', properties: { name: str('Nombre de la app'), slot: { type: 'NUMBER', description: 'Lugar del 1 al 4' } } } },
   { name: 'set_widget', description: `Cambia el widget de uno de los 3 lugares fijos del panel (izquierda, centro, derecha). Widgets: ${CATALOG.map((w) => `${w.id} (${w.name})`).join(', ')}. Si el widget ya estaba en otro lugar, intercambian lugares.`, parameters: { type: 'OBJECT', properties: { slot: { type: 'STRING', enum: ['izquierda', 'centro', 'derecha'], description: 'Lugar' }, widget: { type: 'STRING', enum: CATALOG.map((w) => w.id), description: 'Widget a mostrar' } }, required: ['slot', 'widget'] } },
-  { name: 'set_city', description: 'Guarda la ciudad para el widget del clima.', parameters: { type: 'OBJECT', properties: { city: str('Nombre de la ciudad') }, required: ['city'] } },
-  { name: 'read_clipboard', description: 'Lee el texto actual del portapapeles.', parameters: { type: 'OBJECT', properties: {} } }
+  { name: 'set_city', description: 'Guarda la ciudad para el widget del clima.', parameters: { type: 'OBJECT', properties: { city: str('Nombre de la ciudad') }, required: ['city'] } }
 ];
 
 function parseDays(spec = 'daily') {
@@ -211,8 +210,7 @@ function createTools({ store, system, now = () => new Date() }) {
       if (!c) throw new Error('Falta la ciudad');
       store.updateSettings({ city: c });
       return { city: c };
-    },
-    read_clipboard: () => ({ text: system.readClipboard() })
+    }
   };
 
   return {
