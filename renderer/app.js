@@ -596,6 +596,10 @@ function showReply(text) {
 
 const conv = { active: false, timer: null, busy: false, turns: 0 }; // turns: cuántas preguntas van en esta conversación
 
+// ¿Es un saludo para arrancar la charla ("hola, ¿cómo estás?")? Con audio no hay texto: un primer mensaje muy corto cuenta como saludo.
+const GREETING = /^[\s¡!¿,.]*(hola|holi|buenas|buen d[ií]a|buenos d[ií]as|buenas tardes|buenas noches|hey|ey|qu[eé] tal|c[oó]mo (est[aá]s|and[aá]s|va))\b/i;
+const isGreeting = ({ text, seconds }) => (text ? GREETING.test(text) && text.length < 40 : seconds > 0 && seconds < 2.2);
+
 function wakeIdle() {
   conv.active = false;
   state.pendingImage = null; // una captura de pantalla vieja no debe viajar con una pregunta posterior
@@ -631,7 +635,7 @@ async function enterConversation() {
   armConversationTimeout();
 }
 
-async function handleUtterance({ b64 }) {
+async function handleUtterance({ b64, seconds }) {
   if (conv.busy) return;
   conv.busy = true;
   try {
@@ -639,7 +643,7 @@ async function handleUtterance({ b64 }) {
       clearTimeout(conv.timer);
       const image = state.pendingImage;
       state.pendingImage = null;
-      await handleAsk({ audioB64: b64, imageB64: image || undefined }, image ? '🎤 (voz + captura)' : '🎤 (voz)');
+      await handleAsk({ audioB64: b64, imageB64: image || undefined }, image ? '🎤 (voz + captura)' : '🎤 (voz)', isGreeting({ seconds }));
       if (conv.active) {
         setPhase('listening', 'Te escucho');
         armConversationTimeout();
@@ -653,7 +657,7 @@ async function handleUtterance({ b64 }) {
     await enterConversation();
     if (r.data.command) {
       clearTimeout(conv.timer);
-      await handleAsk({ text: r.data.command }, r.data.command);
+      await handleAsk({ text: r.data.command }, r.data.command, isGreeting({ text: r.data.command }));
       if (conv.active) { setPhase('listening', 'Te escucho'); armConversationTimeout(); }
     }
   } finally {
@@ -661,14 +665,15 @@ async function handleUtterance({ b64 }) {
   }
 }
 
-async function handleAsk(payload, userLabel) {
+async function handleAsk(payload, userLabel, greeting = false) {
   Listener.pause();
   setPhase('thinking', 'Pensando…');
   log('user', userLabel);
-  // El primer turno de cada conversación (el saludo) no lleva frases de relleno: si tarda, tarda. Desde el segundo, sí.
-  const firstTurn = conv.turns === 0;
+  // Si la charla arranca con un saludo, esa respuesta va sin frases de relleno: si tarda, tarda. Al terminar de
+  // responder, la charla sigue sola (manos libres). Si arranca con una pregunta directa, sí lleva relleno.
+  const quiet = conv.turns === 0 && greeting;
   conv.turns += 1;
-  const stopFillers = firstTurn ? () => {} : startFillers();
+  const stopFillers = quiet ? () => {} : startFillers();
   const r = await window.yurei.ask(payload);
   stopFillers();
   if (!r.ok) {

@@ -157,3 +157,12 @@ test('store migra modelos obsoletos a los actuales', () => {
   fs.writeFileSync(file, JSON.stringify({ settings: { model: 'gemini-3.8-flash' } }));
   assert.equal(createStore(file).get('settings').model, 'gemini-3.8-flash');
 });
+
+test('la escucha por voz también arranca con un saludo, sin decir el nombre', () => {
+  const { wakePrompt, parseWake } = require('../src/assistant');
+  const p = wakePrompt('Yurei');
+  assert.match(p, /Yurei/);
+  assert.match(p, /hola, ¿cómo estás\?/);
+  assert.match(p, /NONE/);
+  assert.deepEqual(parseWake('WAKE: hola, ¿cómo estás?'), { woke: true, command: 'hola, ¿cómo estás?' });
+});

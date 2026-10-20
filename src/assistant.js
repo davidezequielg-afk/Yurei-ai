@@ -15,7 +15,10 @@ function buildSystemPrompt(settings, now = new Date()) {
 }
 
 function wakePrompt(name) {
-  return `Escucha el audio. Si la persona llama a un asistente que se llama "${name}" (o algo que suene muy parecido, p. ej. "Shurei", "Yurey", "Jurei"), responde exactamente "WAKE: <lo que pidió después del nombre>", dejando vacío lo que sigue si solo dijo el nombre. Si no se dirige a ese asistente, responde exactamente "NONE". No escribas nada más.`;
+  return `Escucha el audio. Responde exactamente "WAKE: <lo que dijo>" en estos dos casos:
+1) La persona llama a un asistente que se llama "${name}" (o algo que suene muy parecido, p. ej. "Shurei", "Yurey", "Jurei"). Pon lo que pidió después del nombre, o déjalo vacío si solo dijo el nombre.
+2) La persona saluda para empezar a charlar con el asistente, aunque no diga el nombre (p. ej. "hola", "hola, ¿cómo estás?", "buenas", "buen día", "hey"). Pon el saludo tal cual.
+En cualquier otro caso (conversaciones con otras personas, televisión, música, ruido), responde exactamente "NONE". No escribas nada más.`;
 }
 
 function parseWake(out = '') {
