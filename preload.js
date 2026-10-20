@@ -7,6 +7,8 @@ contextBridge.exposeInMainWorld('yurei', {
   dictate: invoke('dictate'),
   wake: invoke('wake'),
   translatorOff: invoke('translator:off'),
+  timerGet: invoke('timer:get'),
+  timerCancel: invoke('timer:cancel'),
   tts: invoke('tts'),
   getSettings: invoke('settings:get'),
   saveSettings: invoke('settings:save'),
@@ -28,7 +30,7 @@ contextBridge.exposeInMainWorld('yurei', {
   pickerOpen: invoke('picker:open'),
   setMode: invoke('island:mode'),
   on: (channel, cb) => {
-    const allowed = ['hotkey', 'report', 'circle-image', 'settings-changed', 'appearance'];
+    const allowed = ['hotkey', 'report', 'circle-image', 'settings-changed', 'appearance', 'timer', 'timer-done'];
     if (!allowed.includes(channel)) return;
     ipcRenderer.on(channel, (_e, payload) => cb(payload));
   }

@@ -88,7 +88,7 @@ function validateSettingsPatch(patch, { unavailable = [] } = {}) {
         if (!Array.isArray(v)) throw new Error('Frases no válidas');
         out.fillerPhrases = v.slice(0, 20).map((x) => text(String(x), 80, 'Frase')).filter(Boolean);
         break;
-      case 'systemVoice': case 'wakeWord': case 'fillers': case 'fetchFavicons': out[k] = bool(v); break;
+      case 'systemVoice': case 'wakeWord': case 'fillers': case 'fetchFavicons': case 'dnd': out[k] = bool(v); break;
       case 'conversationSeconds': out[k] = Math.max(5, Math.min(120, Math.round(Number(v)) || 20)); break;
       case 'opacity': out[k] = Math.max(30, Math.min(100, Math.round(Number(v)) || 78)); break;
       case 'theme': if (!THEMES.includes(v)) throw new Error('Tema no válido'); out[k] = v; break;

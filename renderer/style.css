@@ -29,6 +29,21 @@ button { font: inherit; color: inherit; }
 .thinking .face .m { width: 3px; margin-left: -1.5px; height: 0; border-bottom-width: 1.5px; border-radius: 1px; }
 .speaking .face .m { height: calc(1.5px + var(--talk, 0) * 2.5px); width: 4px; margin-left: -2px; background: var(--bg-solid); border: 0; border-radius: 2px 2px 3px 3px; }
 @media (prefers-reduced-motion: reduce) { .face, .face .e { animation: none; } }
+/* anillo del temporizador alrededor de la carita */
+#ring { position: relative; flex: none; display: grid; place-items: center; width: 22px; height: 22px; }
+#ring::before { content: ""; position: absolute; inset: 0; border-radius: 50%; opacity: 0; transition: opacity .3s;
+  background: conic-gradient(var(--ring, var(--accent)) calc(var(--p, 0) * 1turn), color-mix(in srgb, var(--ink) 14%, transparent) 0);
+  -webkit-mask: radial-gradient(circle, transparent 9.2px, #000 9.6px); mask: radial-gradient(circle, transparent 9.2px, #000 9.6px); }
+#ring.on::before { opacity: 1; }
+#ring.on .face { scale: .82; }
+#ring.break { --ring: #5fcf8a; }
+#ring.ding { animation: ding .5s ease-in-out 3; }
+@keyframes ding { 25% { transform: rotate(-12deg); } 75% { transform: rotate(12deg); } }
+/* no molestar: auriculares */
+.face .acc { display: none; }
+.dnd .face::before { content: ""; position: absolute; left: -2px; right: -2px; top: -2px; height: 9px; border: 1.6px solid var(--ink2); border-bottom: 0; border-radius: 9px 9px 0 0; }
+.dnd .face::after { content: ""; position: absolute; left: -3px; right: -3px; top: 5px; height: 5px; border-left: 3px solid var(--ink2); border-right: 3px solid var(--ink2); border-radius: 2px; }
+.dnd .face .e { height: 1.5px; top: 6.5px; animation: none; } /* ojos cerrados, tranquila */
 #reply { padding: 0 12px 8px; color: var(--ink2); user-select: text; overflow: auto; }
 
 /* barras de voz */

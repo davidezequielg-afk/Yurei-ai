@@ -14,7 +14,7 @@ const isPanel = (m) => m === 'peek';
 function setMode(mode) {
   const wasPanel = isPanel(state.mode);
   state.mode = mode;
-  island.className = `${mode} ${island.dataset.phase || ''}`.trim();
+  island.className = `${mode} ${island.dataset.phase || ''}${state.dnd ? ' dnd' : ''}`.trim();
   $('panel').hidden = !isPanel(mode);
   $('reply').hidden = mode !== 'status';
   window.yurei.setMode(mode);
@@ -355,7 +355,7 @@ function stopWidgets() {
 
 function setPhase(phase, label) {
   island.dataset.phase = phase;
-  island.className = `${state.mode} ${phase}`.trim();
+  island.className = `${state.mode} ${phase}${state.dnd ? ' dnd' : ''}`.trim();
   if (label) $('status').textContent = label;
   state.stateText = phase ? label : 'Toca para hablar';
   const ws = $('wState');
@@ -784,9 +784,70 @@ window.yurei.on('circle-image', (b64) => {
   enterConversation();
 });
 window.yurei.on('report', ({ label, results }) => {
+  if (state.dnd) return;
   log('act', `⏰ ${label}: ${results.join(', ')}`);
   showReply(`⏰ ${label} — ${results.join(', ')}`);
 });
+
+/* ---------- temporizador / pomodoro ---------- */
+
+const timer = { cur: null, raf: null, base: 0 };
+const fmtLeft = (ms) => { const t = Math.ceil(ms / 1000); return `${Math.floor(t / 60)}:${String(t % 60).padStart(2, '0')}`; };
+
+function drawTimer() {
+  const ring = $('ring');
+  const t = timer.cur;
+  ring.classList.toggle('on', !!t);
+  ring.classList.toggle('break', !!t && t.phase === 'break');
+  if (!t) { timer.raf = null; ring.style.removeProperty('--p'); return; }
+  const left = Math.max(0, t.left - (performance.now() - timer.base));
+  ring.style.setProperty('--p', (1 - left / t.total).toFixed(4));
+  ring.title = `${t.kind === 'pomodoro' ? (t.phase === 'break' ? 'Descanso' : `Pomodoro ${t.cycle}/${t.cycles}`) : t.label} · faltan ${fmtLeft(left)}`;
+  const ws = $('wState');
+  if (ws && !island.dataset.phase) ws.textContent = `⏱ ${fmtLeft(left)}`;
+  timer.raf = setTimeout(drawTimer, 500);
+}
+function setTimerState(t) {
+  timer.cur = t;
+  timer.base = performance.now();
+  clearTimeout(timer.raf);
+  drawTimer();
+  if (!t) { const ws = $('wState'); if (ws) ws.textContent = state.stateText; }
+}
+
+// Campanita suave (dos notas) antes de avisar con la voz.
+function chime() {
+  voice.ctx ||= new AudioContext();
+  const c = voice.ctx;
+  [[880, 0], [1318.5, 0.18]].forEach(([f, d]) => {
+    const o = c.createOscillator();
+    const g = c.createGain();
+    o.frequency.value = f;
+    g.gain.setValueAtTime(0, c.currentTime + d);
+    g.gain.linearRampToValueAtTime(0.18, c.currentTime + d + 0.02);
+    g.gain.exponentialRampToValueAtTime(0.001, c.currentTime + d + 0.9);
+    o.connect(g).connect(c.destination);
+    o.start(c.currentTime + d);
+    o.stop(c.currentTime + d + 1);
+  });
+}
+
+window.yurei.on('timer', setTimerState);
+window.yurei.on('timer-done', async ({ finished, next }) => {
+  const ring = $('ring');
+  ring.classList.remove('ding'); void ring.offsetWidth; ring.classList.add('ding');
+  chime();
+  let text;
+  if (finished.kind === 'pomodoro') {
+    if (!next) text = '¡Pomodoro completo! Muy buen trabajo.';
+    else if (next.phase === 'break') text = `¡Bien hecho! Descansa ${Math.round(next.total / 60000)} minutos.`;
+    else text = `Se terminó el descanso. Vamos con el bloque ${next.cycle} de ${next.cycles}.`;
+  } else text = finished.label && finished.label !== 'Temporizador' ? `¡Listo! Terminó el tiempo de ${finished.label}.` : '¡Listo! Terminó el temporizador.';
+  await sleep(1100);
+  if (!conv.busy) say(text);
+  else showReply(`⏰ ${text}`);
+});
+window.yurei.timerGet().then((r) => r.ok && setTimerState(r.data));
 
 function applySettings(cfg) {
   const voiceChanged = cfg.voice !== state.voiceName || JSON.stringify(cfg.fillerPhrases || []) !== JSON.stringify(state.fillerPhrases || []);
@@ -808,7 +869,10 @@ function applySettings(cfg) {
   if (cfg.widgets) state.layout = cfg.widgets;
   state.city = cfg.city || '';
   if (isPanel(state.mode) && (layoutChanged || cityChanged || (launcherChanged && state.layout.includes('apps')))) buildWidgets();
-  if (cfg.wakeWord) ensureListening();
+  state.dnd = !!cfg.dnd;
+  island.classList.toggle('dnd', state.dnd);
+  // No molestar: deja de escuchar el saludo (si estás charlando, la charla sigue).
+  if (cfg.wakeWord && !state.dnd) ensureListening();
   else if (!conv.active) Listener.stop();
 }
 window.yurei.on('settings-changed', applySettings);

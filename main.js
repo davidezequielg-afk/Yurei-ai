@@ -6,6 +6,7 @@ const { createSystem } = require('./src/system');
 const { createTools } = require('./src/tools');
 const { createAssistant } = require('./src/assistant');
 const { createScheduler } = require('./src/scheduler');
+const { createFocus } = require('./src/focus');
 const { createTtsCache } = require('./src/ttscache');
 const { resolveAppearance } = require('./src/theme');
 const L = require('./src/launcher');
@@ -64,15 +65,21 @@ function createTray() {
   try {
     tray = new Tray(trayIcon());
     tray.setToolTip('Yurei');
-    tray.setContextMenu(Menu.buildFromTemplate([
-      { label: 'Ajustes', click: () => openSettings() },
-      { type: 'separator' },
-      { label: 'Salir de Yurei', click: () => app.quit() }
-    ]));
+    refreshTray();
     tray.on('click', () => openSettings());
   } catch (e) {
     console.warn('No se pudo crear el icono de la bandeja:', e.message);
   }
+}
+
+let trayState = { dnd: false, setDnd: () => {} };
+function refreshTray() {
+  tray?.setContextMenu(Menu.buildFromTemplate([
+    { label: 'No molestar', type: 'checkbox', checked: trayState.dnd, click: (i) => trayState.setDnd(i.checked) },
+    { label: 'Ajustes', click: () => openSettings() },
+    { type: 'separator' },
+    { label: 'Salir de Yurei', click: () => app.quit() }
+  ]));
 }
 
 function placeIsland(mode) {
@@ -182,7 +189,18 @@ function start() {
     return r.response === 1;
   };
   system = createSystem({ shell, clipboard, dataDir: userData, confirm: confirmPower });
-  const tools = createTools({ store, system });
+  // Temporizador / pomodoro: el notch dibuja el anillo y avisa en voz alta al terminar.
+  const focus = createFocus({
+    onChange: (t) => win?.webContents.send('timer', t),
+    onDone: ({ finished, next }) => {
+      const title = finished.kind === 'pomodoro'
+        ? (next ? (next.phase === 'break' ? 'Hora de un descanso' : '¡A concentrarse otra vez!') : '¡Pomodoro completo!')
+        : `Terminó: ${finished.label}`;
+      new Notification({ title: `Yurei · ${title}`, silent: true }).show();
+      win?.webContents.send('timer-done', { finished, next });
+    }
+  });
+  const tools = createTools({ store, system, focus });
   const assistant = createAssistant({ store, tools });
   const weather = createWeather({ persist: { load: () => store.get('weatherCache'), save: (c) => store.set('weatherCache', c) } });
   const ttsCache = createTtsCache(path.join(userData, 'tts-cache'), { maxEntries: 60 }); // solo frases de relleno, nunca lo que dices
@@ -190,6 +208,7 @@ function start() {
   const scheduler = createScheduler({
     store, tools,
     report: (r) => {
+      if (store.get('settings').dnd) return; // no molestar: la rutina se ejecuta igual, pero sin avisos
       new Notification({ title: `Yurei · ${r.label}`, body: r.results.join('\n') }).show();
       win?.webContents.send('report', r);
     }
@@ -226,6 +245,10 @@ function start() {
   setInterval(pollTransparency, 10000);
   handle('appearance:get', () => currentAppearance());
 
+  trayState = {
+    dnd: !!store.get('settings').dnd,
+    setDnd: (on) => { store.updateSettings({ dnd: !!on }); win?.webContents.send('settings-changed', settingsView()); trayState.dnd = !!on; refreshTray(); }
+  };
   createWindow();
   createTray();
   scheduler.start();
@@ -292,9 +315,11 @@ function start() {
   handle('picker:open', (_e, slot) => openPicker(S.validateSlot(slot)));
 
   // --- asistente ---
+  const syncTray = () => { const d = !!store.get('settings').dnd; if (d !== trayState.dnd) { trayState.dnd = d; refreshTray(); } };
   handle('ask', async (_e, payload) => {
     const out = await assistant.ask(S.validateAskPayload(payload));
     win?.webContents.send('settings-changed', settingsView()); // por si Yurei cambió un widget o la ciudad
+    syncTray();
     return out;
   });
   handle('dictate', async (_e, audioB64) => {
@@ -302,6 +327,8 @@ function start() {
     if (text) { win?.blur(); await system.pasteText(text); }
     return text;
   });
+  handle('timer:get', () => focus.get());
+  handle('timer:cancel', () => focus.cancel());
   handle('translator:off', () => { tools.session.translator = null; });
   handle('wake', (_e, audioB64) => assistant.wake(S.validateAudio(audioB64)));
   handle('tts', (_e, text, opts) => {
@@ -318,6 +345,7 @@ function start() {
   handle('settings:save', (_e, patch) => {
     store.updateSettings(S.validateSettingsPatch(patch, { unavailable: unavailable() }));
     win?.webContents.send('settings-changed', settingsView());
+    syncTray();
     broadcastAppearance();
     return settingsView();
   });

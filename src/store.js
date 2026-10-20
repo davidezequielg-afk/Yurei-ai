@@ -23,7 +23,8 @@ const DEFAULTS = {
     fillerPhrases: [],
     widgets: ['yurei', 'clock', 'todos'],
     city: '',
-    conversationSeconds: 20
+    conversationSeconds: 20,
+    dnd: false
   },
   todos: [],
   tasks: [],
