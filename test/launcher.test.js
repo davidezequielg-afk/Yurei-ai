@@ -99,16 +99,16 @@ test('el logo de la marca viaja con el acceso, sea app instalada o web', () => {
   assert.equal(L.sanitizeItem({ kind: 'url', name: 'X', target: 'https://x.com', brand: 'x' }).brand, 'x');
 });
 
-test('hay 117 sugeridas cotidianas, sin repetidos y con direcciones válidas', () => {
+test('hay 179 sugeridas, sin repetidos y con direcciones válidas', () => {
   const S = L.SUGGESTIONS;
-  assert.equal(S.length, 117);
-  assert.equal(new Set(S.map((x) => x.name)).size, 117);
-  assert.equal(new Set(S.map((x) => x.brand)).size, 117);
+  assert.equal(S.length, 179);
+  assert.equal(new Set(S.map((x) => x.name)).size, 179);
+  assert.equal(new Set(S.map((x) => x.brand)).size, 179);
   for (const x of S) {
     assert.ok(x.category && x.name && x.brand, `datos incompletos en ${x.name}`);
     assert.equal(new URL(x.url).protocol, 'https:', `${x.name} debe abrirse por https`);
   }
-  assert.equal(new Set(S.map((x) => x.category)).size, 16);
+  assert.equal(new Set(S.map((x) => x.category)).size, 18);
   // cada una se puede guardar en un lugar del widget
   for (const x of S) assert.ok(L.sanitizeItem(L.resolveSuggestion(x, [])), `no se puede guardar ${x.name}`);
 });

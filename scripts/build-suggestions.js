@@ -28,7 +28,10 @@ const TABLE = {
     ['Pinterest', 'Pinterest', 'https://www.pinterest.com', []],
     ['Threads', 'Threads', 'https://www.threads.net', []],
     ['Tumblr', 'Tumblr', 'https://www.tumblr.com', []],
-    ['Bluesky', 'Bluesky', 'https://bsky.app', []]
+    ['Bluesky', 'Bluesky', 'https://bsky.app', []],
+    ['Mastodon', 'Mastodon', 'https://joinmastodon.org', []],
+    ['Tinder', 'Tinder', 'https://tinder.com', []],
+    ['Badoo', 'Badoo', 'https://badoo.com', []]
   ],
   'Navegadores': [
     ['Chrome', 'Google Chrome', 'https://www.google.com/chrome', ['google chrome', 'chrome']],
@@ -37,7 +40,8 @@ const TABLE = {
     ['Brave', 'Brave', 'https://brave.com', ['brave']],
     ['Safari', 'Safari', 'https://www.apple.com/safari', []],
     ['Vivaldi', 'Vivaldi', 'https://vivaldi.com', ['vivaldi']],
-    ['DuckDuckGo', 'DuckDuckGo', 'https://duckduckgo.com', ['duckduckgo']]
+    ['DuckDuckGo', 'DuckDuckGo', 'https://duckduckgo.com', ['duckduckgo']],
+    ['Tor Browser', 'Tor Browser', 'https://www.torproject.org', ['tor browser']]
   ],
   'Música y audio': [
     ['Spotify', 'Spotify', 'https://open.spotify.com', ['spotify']],
@@ -47,7 +51,8 @@ const TABLE = {
     ['Deezer', 'Deezer', 'https://www.deezer.com', ['deezer']],
     ['Tidal', 'Tidal', 'https://tidal.com', ['tidal']],
     ['Shazam', 'Shazam', 'https://www.shazam.com', ['shazam']],
-    ['Bandcamp', 'Bandcamp', 'https://bandcamp.com', []]
+    ['Bandcamp', 'Bandcamp', 'https://bandcamp.com', []],
+    ['Pandora', 'Pandora', 'https://www.pandora.com', []]
   ],
   'Video y streaming': [
     ['YouTube', 'YouTube', 'https://www.youtube.com', []],
@@ -58,7 +63,10 @@ const TABLE = {
     ['Vimeo', 'Vimeo', 'https://vimeo.com', []],
     ['Plex', 'Plex', 'https://app.plex.tv', ['plex']],
     ['Apple TV', 'Apple TV', 'https://tv.apple.com', ['apple tv']],
-    ['Kick', 'Kick', 'https://kick.com', []]
+    ['Kick', 'Kick', 'https://kick.com', []],
+    ['Paramount+', 'Paramount+', 'https://www.paramountplus.com', []],
+    ['Tubi', 'Tubi', 'https://tubitv.com', []],
+    ['DAZN', 'DAZN', 'https://www.dazn.com', []]
   ],
   'Productividad y nube': [
     ['Notion', 'Notion', 'https://www.notion.so', ['notion']],
@@ -72,7 +80,16 @@ const TABLE = {
     ['Dropbox', 'Dropbox', 'https://www.dropbox.com', ['dropbox']],
     ['Evernote', 'Evernote', 'https://evernote.com', ['evernote']],
     ['Trello', 'Trello', 'https://trello.com', []],
-    ['Todoist', 'Todoist', 'https://app.todoist.com', ['todoist']]
+    ['Todoist', 'Todoist', 'https://app.todoist.com', ['todoist']],
+    ['Obsidian', 'Obsidian', 'https://obsidian.md', ['obsidian']],
+    ['Asana', 'Asana', 'https://app.asana.com', []],
+    ['Airtable', 'Airtable', 'https://airtable.com', []],
+    ['Miro', 'Miro', 'https://miro.com', []],
+    ['Linear', 'Linear', 'https://linear.app', []],
+    ['Calendly', 'Calendly', 'https://calendly.com', []],
+    ['Mailchimp', 'Mailchimp', 'https://mailchimp.com', []],
+    ['WordPress', 'WordPress', 'https://wordpress.com', []],
+    ['Zotero', 'Zotero', 'https://www.zotero.org', ['zotero']]
   ],
   'Inteligencia artificial': [
     ['Claude', 'Claude', 'https://claude.ai', ['claude']],
@@ -89,7 +106,11 @@ const TABLE = {
     ['Postman', 'Postman', 'https://www.postman.com', ['postman']],
     ['npm', 'npm', 'https://www.npmjs.com', []],
     ['Jira', 'Jira', 'https://www.atlassian.com/software/jira', []],
-    ['Vercel', 'Vercel', 'https://vercel.com', []]
+    ['Vercel', 'Vercel', 'https://vercel.com', []],
+    ['Bitbucket', 'Bitbucket', 'https://bitbucket.org', []],
+    ['Replit', 'Replit', 'https://replit.com', []],
+    ['Netlify', 'Netlify', 'https://www.netlify.com', []],
+    ['Python', 'Python', 'https://www.python.org', []]
   ],
   'Juegos': [
     ['Steam', 'Steam', 'https://store.steampowered.com', ['steam']],
@@ -98,7 +119,10 @@ const TABLE = {
     ['Battle.net', 'Battle.net', 'https://battle.net', ['battle.net']],
     ['Roblox', 'Roblox', 'https://www.roblox.com', ['roblox']],
     ['Riot Games', 'Riot Games', 'https://www.riotgames.com', ['riot client', 'riot games']],
-    ['EA', 'EA', 'https://www.ea.com', ['ea app', 'ea desktop']]
+    ['EA', 'EA', 'https://www.ea.com', ['ea app', 'ea desktop']],
+    ['Ubisoft', 'Ubisoft', 'https://www.ubisoft.com', ['ubisoft connect']],
+    ['GOG', 'GOG.com', 'https://www.gog.com', ['gog galaxy']],
+    ['itch.io', 'itch.io', 'https://itch.io', []]
   ],
   'Compras': [
     ['eBay', 'eBay', 'https://www.ebay.com', []],
@@ -112,7 +136,16 @@ const TABLE = {
     ['Binance', 'Binance', 'https://www.binance.com', ['binance']],
     ['Coinbase', 'Coinbase', 'https://www.coinbase.com', []],
     ['Revolut', 'Revolut', 'https://www.revolut.com', []],
-    ['Wise', 'Wise', 'https://wise.com', []]
+    ['Wise', 'Wise', 'https://wise.com', []],
+    ['Stripe', 'Stripe', 'https://dashboard.stripe.com', []],
+    ['Visa', 'Visa', 'https://www.visa.com', []],
+    ['Mastercard', 'Mastercard', 'https://www.mastercard.com', []],
+    ['Google Pay', 'Google Pay', 'https://pay.google.com', []],
+    ['Apple Pay', 'Apple Pay', 'https://www.apple.com/apple-pay', []],
+    ['Samsung Pay', 'Samsung Pay', 'https://www.samsung.com/us/samsung-pay', []],
+    ['Cash App', 'Cash App', 'https://cash.app', []],
+    ['Venmo', 'Venmo', 'https://venmo.com', []],
+    ['Zelle', 'Zelle', 'https://www.zellepay.com', []]
   ],
   'Viajes, transporte y comida': [
     ['Google Maps', 'Google Maps', 'https://maps.google.com', []],
@@ -122,7 +155,11 @@ const TABLE = {
     ['Booking.com', 'Booking.com', 'https://www.booking.com', []],
     ['Tripadvisor', 'Tripadvisor', 'https://www.tripadvisor.com', []],
     ['Glovo', 'Glovo', 'https://glovoapp.com', []],
-    ['Deliveroo', 'Deliveroo', 'https://deliveroo.com', []]
+    ['Deliveroo', 'Deliveroo', 'https://deliveroo.com', []],
+    ['Lyft', 'Lyft', 'https://www.lyft.com', []],
+    ['Just Eat', 'Just Eat', 'https://www.just-eat.com', []],
+    ['Ryanair', 'Ryanair', 'https://www.ryanair.com', []],
+    ['Iberia', 'Iberia', 'https://www.iberia.com', []]
   ],
   'Noticias y lectura': [
     ['Wikipedia', 'Wikipedia', 'https://www.wikipedia.org', []],
@@ -130,19 +167,27 @@ const TABLE = {
     ['Quora', 'Quora', 'https://www.quora.com', []],
     ['Substack', 'Substack', 'https://substack.com', []],
     ['Google News', 'Google News', 'https://news.google.com', []],
-    ['Goodreads', 'Goodreads', 'https://www.goodreads.com', []]
+    ['Goodreads', 'Goodreads', 'https://www.goodreads.com', []],
+    ['IMDb', 'IMDb', 'https://www.imdb.com', []],
+    ['Letterboxd', 'Letterboxd', 'https://letterboxd.com', []],
+    ['Flipboard', 'Flipboard', 'https://flipboard.com', []],
+    ['Feedly', 'Feedly', 'https://feedly.com', []]
   ],
   'Diseño y creatividad': [
     ['Figma', 'Figma', 'https://www.figma.com', ['figma']],
     ['Behance', 'Behance', 'https://www.behance.net', []],
     ['Dribbble', 'Dribbble', 'https://dribbble.com', []],
-    ['Blender', 'Blender', 'https://www.blender.org', ['blender']]
+    ['Blender', 'Blender', 'https://www.blender.org', ['blender']],
+    ['Unsplash', 'Unsplash', 'https://unsplash.com', []],
+    ['Flickr', 'Flickr', 'https://www.flickr.com', []]
   ],
   'Aprendizaje': [
     ['Duolingo', 'Duolingo', 'https://www.duolingo.com', []],
     ['Coursera', 'Coursera', 'https://www.coursera.org', []],
     ['Udemy', 'Udemy', 'https://www.udemy.com', []],
-    ['Khan Academy', 'Khan Academy', 'https://www.khanacademy.org', []]
+    ['Khan Academy', 'Khan Academy', 'https://www.khanacademy.org', []],
+    ['Anki', 'Anki', 'https://apps.ankiweb.net', ['anki']],
+    ['Google Classroom', 'Google Classroom', 'https://classroom.google.com', []]
   ],
   'Utilidades': [
     ['Google Translate', 'Google Translate', 'https://translate.google.com', []],
@@ -153,7 +198,28 @@ const TABLE = {
     ['1Password', '1Password', 'https://1password.com', ['1password']],
     ['Proton Mail', 'Proton Mail', 'https://mail.proton.me', ['proton mail']],
     ['Proton VPN', 'Proton VPN', 'https://protonvpn.com', ['proton vpn']],
-    ['LibreOffice', 'LibreOffice', 'https://www.libreoffice.org', ['libreoffice']]
+    ['LibreOffice', 'LibreOffice', 'https://www.libreoffice.org', ['libreoffice']],
+    ['7-Zip', '7-Zip', 'https://www.7-zip.org', ['7-zip']],
+    ['NordVPN', 'NordVPN', 'https://nordvpn.com', ['nordvpn']],
+    ['TeamViewer', 'TeamViewer', 'https://www.teamviewer.com', ['teamviewer']],
+    ['AnyDesk', 'AnyDesk', 'https://anydesk.com', ['anydesk']],
+    ['Notepad++', 'Notepad++', 'https://notepad-plus-plus.org', ['notepad++']]
+  ],
+  'Salud y deporte': [
+    ['Strava', 'Strava', 'https://www.strava.com', []],
+    ['Fitbit', 'Fitbit', 'https://www.fitbit.com', []],
+    ['Garmin', 'Garmin', 'https://connect.garmin.com', []]
+  ],
+  'Tecnología y marcas': [
+    ['Nvidia', 'Nvidia', 'https://www.nvidia.com', ['geforce experience', 'nvidia app']],
+    ['AMD', 'AMD', 'https://www.amd.com', ['amd software']],
+    ['Intel', 'Intel', 'https://www.intel.com', []],
+    ['Samsung', 'Samsung', 'https://www.samsung.com', []],
+    ['Apple', 'Apple', 'https://www.apple.com', []],
+    ['Android', 'Android', 'https://www.android.com', []],
+    ['Linux', 'Linux', 'https://www.linux.org', []],
+    ['Ubuntu', 'Ubuntu', 'https://ubuntu.com', ['ubuntu']],
+    ['Tesla', 'Tesla', 'https://www.tesla.com', []]
   ]
 };
 

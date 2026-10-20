@@ -163,6 +163,27 @@ module.exports = [
     "url": "https://bsky.app"
   },
   {
+    "category": "Redes sociales",
+    "name": "Mastodon",
+    "brand": "mastodon",
+    "match": [],
+    "url": "https://joinmastodon.org"
+  },
+  {
+    "category": "Redes sociales",
+    "name": "Tinder",
+    "brand": "tinder",
+    "match": [],
+    "url": "https://tinder.com"
+  },
+  {
+    "category": "Redes sociales",
+    "name": "Badoo",
+    "brand": "badoo",
+    "match": [],
+    "url": "https://badoo.com"
+  },
+  {
     "category": "Navegadores",
     "name": "Chrome",
     "brand": "googlechrome",
@@ -223,6 +244,15 @@ module.exports = [
       "duckduckgo"
     ],
     "url": "https://duckduckgo.com"
+  },
+  {
+    "category": "Navegadores",
+    "name": "Tor Browser",
+    "brand": "torbrowser",
+    "match": [
+      "tor browser"
+    ],
+    "url": "https://www.torproject.org"
   },
   {
     "category": "Música y audio",
@@ -289,6 +319,13 @@ module.exports = [
     "brand": "bandcamp",
     "match": [],
     "url": "https://bandcamp.com"
+  },
+  {
+    "category": "Música y audio",
+    "name": "Pandora",
+    "brand": "pandora",
+    "match": [],
+    "url": "https://www.pandora.com"
   },
   {
     "category": "Video y streaming",
@@ -362,6 +399,27 @@ module.exports = [
     "brand": "kick",
     "match": [],
     "url": "https://kick.com"
+  },
+  {
+    "category": "Video y streaming",
+    "name": "Paramount+",
+    "brand": "paramountplus",
+    "match": [],
+    "url": "https://www.paramountplus.com"
+  },
+  {
+    "category": "Video y streaming",
+    "name": "Tubi",
+    "brand": "tubi",
+    "match": [],
+    "url": "https://tubitv.com"
+  },
+  {
+    "category": "Video y streaming",
+    "name": "DAZN",
+    "brand": "dazn",
+    "match": [],
+    "url": "https://www.dazn.com"
   },
   {
     "category": "Productividad y nube",
@@ -456,6 +514,73 @@ module.exports = [
       "todoist"
     ],
     "url": "https://app.todoist.com"
+  },
+  {
+    "category": "Productividad y nube",
+    "name": "Obsidian",
+    "brand": "obsidian",
+    "match": [
+      "obsidian"
+    ],
+    "url": "https://obsidian.md"
+  },
+  {
+    "category": "Productividad y nube",
+    "name": "Asana",
+    "brand": "asana",
+    "match": [],
+    "url": "https://app.asana.com"
+  },
+  {
+    "category": "Productividad y nube",
+    "name": "Airtable",
+    "brand": "airtable",
+    "match": [],
+    "url": "https://airtable.com"
+  },
+  {
+    "category": "Productividad y nube",
+    "name": "Miro",
+    "brand": "miro",
+    "match": [],
+    "url": "https://miro.com"
+  },
+  {
+    "category": "Productividad y nube",
+    "name": "Linear",
+    "brand": "linear",
+    "match": [],
+    "url": "https://linear.app"
+  },
+  {
+    "category": "Productividad y nube",
+    "name": "Calendly",
+    "brand": "calendly",
+    "match": [],
+    "url": "https://calendly.com"
+  },
+  {
+    "category": "Productividad y nube",
+    "name": "Mailchimp",
+    "brand": "mailchimp",
+    "match": [],
+    "url": "https://mailchimp.com"
+  },
+  {
+    "category": "Productividad y nube",
+    "name": "WordPress",
+    "brand": "wordpress",
+    "match": [],
+    "url": "https://wordpress.com"
+  },
+  {
+    "category": "Productividad y nube",
+    "name": "Zotero",
+    "brand": "zotero",
+    "match": [
+      "zotero"
+    ],
+    "url": "https://www.zotero.org"
   },
   {
     "category": "Inteligencia artificial",
@@ -559,6 +684,34 @@ module.exports = [
     "url": "https://vercel.com"
   },
   {
+    "category": "Desarrollo",
+    "name": "Bitbucket",
+    "brand": "bitbucket",
+    "match": [],
+    "url": "https://bitbucket.org"
+  },
+  {
+    "category": "Desarrollo",
+    "name": "Replit",
+    "brand": "replit",
+    "match": [],
+    "url": "https://replit.com"
+  },
+  {
+    "category": "Desarrollo",
+    "name": "Netlify",
+    "brand": "netlify",
+    "match": [],
+    "url": "https://www.netlify.com"
+  },
+  {
+    "category": "Desarrollo",
+    "name": "Python",
+    "brand": "python",
+    "match": [],
+    "url": "https://www.python.org"
+  },
+  {
     "category": "Juegos",
     "name": "Steam",
     "brand": "steam",
@@ -623,6 +776,31 @@ module.exports = [
       "ea desktop"
     ],
     "url": "https://www.ea.com"
+  },
+  {
+    "category": "Juegos",
+    "name": "Ubisoft",
+    "brand": "ubisoft",
+    "match": [
+      "ubisoft connect"
+    ],
+    "url": "https://www.ubisoft.com"
+  },
+  {
+    "category": "Juegos",
+    "name": "GOG",
+    "brand": "gogdotcom",
+    "match": [
+      "gog galaxy"
+    ],
+    "url": "https://www.gog.com"
+  },
+  {
+    "category": "Juegos",
+    "name": "itch.io",
+    "brand": "itchdotio",
+    "match": [],
+    "url": "https://itch.io"
   },
   {
     "category": "Compras",
@@ -697,6 +875,69 @@ module.exports = [
     "url": "https://wise.com"
   },
   {
+    "category": "Finanzas y pagos",
+    "name": "Stripe",
+    "brand": "stripe",
+    "match": [],
+    "url": "https://dashboard.stripe.com"
+  },
+  {
+    "category": "Finanzas y pagos",
+    "name": "Visa",
+    "brand": "visa",
+    "match": [],
+    "url": "https://www.visa.com"
+  },
+  {
+    "category": "Finanzas y pagos",
+    "name": "Mastercard",
+    "brand": "mastercard",
+    "match": [],
+    "url": "https://www.mastercard.com"
+  },
+  {
+    "category": "Finanzas y pagos",
+    "name": "Google Pay",
+    "brand": "googlepay",
+    "match": [],
+    "url": "https://pay.google.com"
+  },
+  {
+    "category": "Finanzas y pagos",
+    "name": "Apple Pay",
+    "brand": "applepay",
+    "match": [],
+    "url": "https://www.apple.com/apple-pay"
+  },
+  {
+    "category": "Finanzas y pagos",
+    "name": "Samsung Pay",
+    "brand": "samsungpay",
+    "match": [],
+    "url": "https://www.samsung.com/us/samsung-pay"
+  },
+  {
+    "category": "Finanzas y pagos",
+    "name": "Cash App",
+    "brand": "cashapp",
+    "match": [],
+    "url": "https://cash.app"
+  },
+  {
+    "category": "Finanzas y pagos",
+    "name": "Venmo",
+    "brand": "venmo",
+    "match": [],
+    "url": "https://venmo.com"
+  },
+  {
+    "category": "Finanzas y pagos",
+    "name": "Zelle",
+    "brand": "zelle",
+    "match": [],
+    "url": "https://www.zellepay.com"
+  },
+  {
     "category": "Viajes, transporte y comida",
     "name": "Google Maps",
     "brand": "googlemaps",
@@ -753,6 +994,34 @@ module.exports = [
     "url": "https://deliveroo.com"
   },
   {
+    "category": "Viajes, transporte y comida",
+    "name": "Lyft",
+    "brand": "lyft",
+    "match": [],
+    "url": "https://www.lyft.com"
+  },
+  {
+    "category": "Viajes, transporte y comida",
+    "name": "Just Eat",
+    "brand": "justeat",
+    "match": [],
+    "url": "https://www.just-eat.com"
+  },
+  {
+    "category": "Viajes, transporte y comida",
+    "name": "Ryanair",
+    "brand": "ryanair",
+    "match": [],
+    "url": "https://www.ryanair.com"
+  },
+  {
+    "category": "Viajes, transporte y comida",
+    "name": "Iberia",
+    "brand": "iberia",
+    "match": [],
+    "url": "https://www.iberia.com"
+  },
+  {
     "category": "Noticias y lectura",
     "name": "Wikipedia",
     "brand": "wikipedia",
@@ -795,6 +1064,34 @@ module.exports = [
     "url": "https://www.goodreads.com"
   },
   {
+    "category": "Noticias y lectura",
+    "name": "IMDb",
+    "brand": "imdb",
+    "match": [],
+    "url": "https://www.imdb.com"
+  },
+  {
+    "category": "Noticias y lectura",
+    "name": "Letterboxd",
+    "brand": "letterboxd",
+    "match": [],
+    "url": "https://letterboxd.com"
+  },
+  {
+    "category": "Noticias y lectura",
+    "name": "Flipboard",
+    "brand": "flipboard",
+    "match": [],
+    "url": "https://flipboard.com"
+  },
+  {
+    "category": "Noticias y lectura",
+    "name": "Feedly",
+    "brand": "feedly",
+    "match": [],
+    "url": "https://feedly.com"
+  },
+  {
     "category": "Diseño y creatividad",
     "name": "Figma",
     "brand": "figma",
@@ -827,6 +1124,20 @@ module.exports = [
     "url": "https://www.blender.org"
   },
   {
+    "category": "Diseño y creatividad",
+    "name": "Unsplash",
+    "brand": "unsplash",
+    "match": [],
+    "url": "https://unsplash.com"
+  },
+  {
+    "category": "Diseño y creatividad",
+    "name": "Flickr",
+    "brand": "flickr",
+    "match": [],
+    "url": "https://www.flickr.com"
+  },
+  {
     "category": "Aprendizaje",
     "name": "Duolingo",
     "brand": "duolingo",
@@ -853,6 +1164,22 @@ module.exports = [
     "brand": "khanacademy",
     "match": [],
     "url": "https://www.khanacademy.org"
+  },
+  {
+    "category": "Aprendizaje",
+    "name": "Anki",
+    "brand": "anki",
+    "match": [
+      "anki"
+    ],
+    "url": "https://apps.ankiweb.net"
+  },
+  {
+    "category": "Aprendizaje",
+    "name": "Google Classroom",
+    "brand": "googleclassroom",
+    "match": [],
+    "url": "https://classroom.google.com"
   },
   {
     "category": "Utilidades",
@@ -931,5 +1258,141 @@ module.exports = [
       "libreoffice"
     ],
     "url": "https://www.libreoffice.org"
+  },
+  {
+    "category": "Utilidades",
+    "name": "7-Zip",
+    "brand": "7zip",
+    "match": [
+      "7-zip"
+    ],
+    "url": "https://www.7-zip.org"
+  },
+  {
+    "category": "Utilidades",
+    "name": "NordVPN",
+    "brand": "nordvpn",
+    "match": [
+      "nordvpn"
+    ],
+    "url": "https://nordvpn.com"
+  },
+  {
+    "category": "Utilidades",
+    "name": "TeamViewer",
+    "brand": "teamviewer",
+    "match": [
+      "teamviewer"
+    ],
+    "url": "https://www.teamviewer.com"
+  },
+  {
+    "category": "Utilidades",
+    "name": "AnyDesk",
+    "brand": "anydesk",
+    "match": [
+      "anydesk"
+    ],
+    "url": "https://anydesk.com"
+  },
+  {
+    "category": "Utilidades",
+    "name": "Notepad++",
+    "brand": "notepadplusplus",
+    "match": [
+      "notepad++"
+    ],
+    "url": "https://notepad-plus-plus.org"
+  },
+  {
+    "category": "Salud y deporte",
+    "name": "Strava",
+    "brand": "strava",
+    "match": [],
+    "url": "https://www.strava.com"
+  },
+  {
+    "category": "Salud y deporte",
+    "name": "Fitbit",
+    "brand": "fitbit",
+    "match": [],
+    "url": "https://www.fitbit.com"
+  },
+  {
+    "category": "Salud y deporte",
+    "name": "Garmin",
+    "brand": "garmin",
+    "match": [],
+    "url": "https://connect.garmin.com"
+  },
+  {
+    "category": "Tecnología y marcas",
+    "name": "Nvidia",
+    "brand": "nvidia",
+    "match": [
+      "geforce experience",
+      "nvidia app"
+    ],
+    "url": "https://www.nvidia.com"
+  },
+  {
+    "category": "Tecnología y marcas",
+    "name": "AMD",
+    "brand": "amd",
+    "match": [
+      "amd software"
+    ],
+    "url": "https://www.amd.com"
+  },
+  {
+    "category": "Tecnología y marcas",
+    "name": "Intel",
+    "brand": "intel",
+    "match": [],
+    "url": "https://www.intel.com"
+  },
+  {
+    "category": "Tecnología y marcas",
+    "name": "Samsung",
+    "brand": "samsung",
+    "match": [],
+    "url": "https://www.samsung.com"
+  },
+  {
+    "category": "Tecnología y marcas",
+    "name": "Apple",
+    "brand": "apple",
+    "match": [],
+    "url": "https://www.apple.com"
+  },
+  {
+    "category": "Tecnología y marcas",
+    "name": "Android",
+    "brand": "android",
+    "match": [],
+    "url": "https://www.android.com"
+  },
+  {
+    "category": "Tecnología y marcas",
+    "name": "Linux",
+    "brand": "linux",
+    "match": [],
+    "url": "https://www.linux.org"
+  },
+  {
+    "category": "Tecnología y marcas",
+    "name": "Ubuntu",
+    "brand": "ubuntu",
+    "match": [
+      "ubuntu"
+    ],
+    "url": "https://ubuntu.com"
+  },
+  {
+    "category": "Tecnología y marcas",
+    "name": "Tesla",
+    "brand": "tesla",
+    "match": [],
+    "url": "https://www.tesla.com"
   }
 ];
