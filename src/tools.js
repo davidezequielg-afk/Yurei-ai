@@ -35,6 +35,10 @@ const declarations = [
   { name: 'cancel_schedule', description: 'Cancela una tarea programada o rutina por id o etiqueta.', parameters: { type: 'OBJECT', properties: { ref: str('Id o etiqueta') }, required: ['ref'] } },
   { name: 'set_volume', description: 'Ajusta el volumen del sistema de 0 a 100.', parameters: { type: 'OBJECT', properties: { level: { type: 'NUMBER', description: 'Nivel 0-100' } }, required: ['level'] } },
   { name: 'power_action', description: 'Bloquea, suspende, reinicia o apaga el PC. Pide confirmación verbal al usuario ANTES de llamar con confirmed=true.', parameters: { type: 'OBJECT', properties: { action: { type: 'STRING', enum: POWER_ACTIONS, description: 'Acción' }, confirmed: { type: 'BOOLEAN', description: 'true solo si el usuario ya confirmó' } }, required: ['action', 'confirmed'] } },
+  { name: 'change_volume', description: 'Sube o baja el volumen del sistema una cantidad relativa (p. ej. +10 o -15 puntos).', parameters: { type: 'OBJECT', properties: { delta: { type: 'NUMBER', description: 'Puntos a sumar (positivo) o restar (negativo)' } }, required: ['delta'] } },
+  { name: 'mute_volume', description: 'Silencia o reactiva el sonido del sistema.', parameters: { type: 'OBJECT', properties: { mute: { type: 'BOOLEAN', description: 'true para silenciar, false para reactivar' } }, required: ['mute'] } },
+  { name: 'media_control', description: 'Controla lo que se está reproduciendo (música, video, YouTube, Spotify…): pausar, reanudar, alternar, siguiente, anterior, retroceder o adelantar unos segundos.', parameters: { type: 'OBJECT', properties: { action: { type: 'STRING', enum: ['play', 'pause', 'toggle', 'next', 'previous', 'rewind', 'forward'], description: 'Acción' }, seconds: { type: 'NUMBER', description: 'Segundos para rewind/forward (por defecto 10)' } }, required: ['action'] } },
+  { name: 'now_playing', description: 'Dice qué se está reproduciendo ahora (título, artista, app y si está en pausa).', parameters: { type: 'OBJECT', properties: {} } },
   { name: 'set_widget', description: `Cambia el widget de uno de los 3 lugares fijos del panel (izquierda, centro, derecha). Widgets: ${CATALOG.map((w) => `${w.id} (${w.name})`).join(', ')}. Si el widget ya estaba en otro lugar, intercambian lugares.`, parameters: { type: 'OBJECT', properties: { slot: { type: 'STRING', enum: ['izquierda', 'centro', 'derecha'], description: 'Lugar' }, widget: { type: 'STRING', enum: CATALOG.map((w) => w.id), description: 'Widget a mostrar' } }, required: ['slot', 'widget'] } },
   { name: 'set_city', description: 'Guarda la ciudad para el widget del clima.', parameters: { type: 'OBJECT', properties: { city: str('Nombre de la ciudad') }, required: ['city'] } },
   { name: 'read_clipboard', description: 'Lee el texto actual del portapapeles.', parameters: { type: 'OBJECT', properties: {} } }
@@ -151,9 +155,24 @@ function createTools({ store, system, now = () => new Date() }) {
     set_volume: async ({ level }) => {
       const n = Math.max(0, Math.min(100, Math.round(Number(level))));
       if (Number.isNaN(n)) throw new Error('Nivel no válido');
-      await system.setVolume(n);
-      return { volume: n };
+      return system.setVolume(n);
     },
+    change_volume: async ({ delta }) => {
+      const d = Math.max(-100, Math.min(100, Math.round(Number(delta))));
+      if (Number.isNaN(d)) throw new Error('Cambio no válido');
+      return system.changeVolume(d);
+    },
+    mute_volume: ({ mute }) => system.setMute(mute === true),
+    media_control: async ({ action, seconds }) => {
+      const secs = Math.max(1, Math.min(600, Math.round(Number(seconds) || 10)));
+      const map = {
+        play: ['play'], pause: ['pause'], toggle: ['toggle'], next: ['next'], previous: ['prev'],
+        rewind: ['seek', -secs], forward: ['seek', secs]
+      };
+      if (!map[action]) throw new Error(`Acción no válida: ${action}`);
+      return system.media(...map[action]);
+    },
+    now_playing: () => system.mediaInfo(),
     power_action: async ({ action, confirmed }) => {
       if (!POWER_ACTIONS.includes(action)) throw new Error('Acción no válida');
       if (confirmed !== true) return { executed: false, message: 'Pide confirmación al usuario y vuelve a llamar con confirmed=true.' };
@@ -162,7 +181,7 @@ function createTools({ store, system, now = () => new Date() }) {
     },
     set_widget: ({ slot, widget }) => {
       const current = store.get('settings').widgets || DEFAULT_LAYOUT;
-      const widgets = setWidget(current, slot, widget, unavailableWidgets({ hasBattery: system.hasBattery?.() }));
+      const widgets = setWidget(current, slot, widget, unavailableWidgets({ hasBattery: system.hasBattery?.(), hasMedia: system.hasMediaControl?.() }));
       store.updateSettings({ widgets });
       return { widgets };
     },

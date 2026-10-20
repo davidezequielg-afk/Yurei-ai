@@ -57,3 +57,17 @@ html, body { margin: 0; height: 100%; padding: 0 12px; background: transparent; 
 .calGrid b { color: #666; font-weight: 600; }
 .calGrid span { color: #bbb; border-radius: 50%; }
 .calGrid span.today { background: #4aa8e8; color: #000; font-weight: 700; }
+
+.widget.media { align-items: stretch; justify-content: center; gap: 2px; }
+.mTitle { font-weight: 600; font-size: 12px; white-space: nowrap; overflow: hidden; text-align: center; }
+.mTitle span { display: inline-block; }
+.mTitle.marquee { text-align: left; }
+.mTitle.marquee span { animation: marq 9s ease-in-out infinite alternate; }
+@keyframes marq { 0%, 15% { transform: translateX(0); } 85%, 100% { transform: translateX(calc(-1 * var(--over))); } }
+.widget.media .sub { text-align: center; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.gauge.thin { height: 3px; margin: 4px 0; }
+.ctrl { display: flex; justify-content: space-between; gap: 2px; margin-top: 2px; }
+.ctrl button { flex: 1; min-width: 0; padding: 3px 0; background: #181818; color: #ddd; border: 1px solid #262626; border-radius: 8px; cursor: pointer; font-size: 11px; }
+.ctrl button:hover { background: #242424; }
+.w-volume .big { font-size: 22px; margin: 2px 0 6px; }
+.slider { width: 100%; accent-color: #4aa8e8; }

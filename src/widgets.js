@@ -8,7 +8,9 @@ const CATALOG = [
   { id: 'schedule', name: 'Próximas tareas y rutinas' },
   { id: 'stats', name: 'Estado del PC (CPU y RAM)' },
   { id: 'calendar', name: 'Calendario del mes' },
-  { id: 'battery', name: 'Batería' }
+  { id: 'battery', name: 'Batería' },
+  { id: 'media', name: 'Reproduciendo (música y video)' },
+  { id: 'volume', name: 'Volumen' }
 ];
 
 const DEFAULT_LAYOUT = ['yurei', 'clock', 'todos'];
@@ -16,11 +18,11 @@ const SLOT_NAMES = { izquierda: 0, centro: 1, derecha: 2 };
 const IDS = CATALOG.map((w) => w.id);
 
 // Widgets que dependen del hardware: si el PC no los soporta, no se pueden elegir.
-const UNAVAILABLE_REASON = { battery: 'Este PC no tiene batería' };
+const UNAVAILABLE_REASON = { battery: 'Este PC no tiene batería', media: 'Solo funciona en Windows', volume: 'Solo funciona en Windows' };
 const FALLBACKS = ['clock', 'todos', 'calendar', 'weather', 'schedule', 'stats'];
 
-function unavailableWidgets({ hasBattery } = {}) {
-  return hasBattery === false ? ['battery'] : [];
+function unavailableWidgets({ hasBattery, hasMedia } = {}) {
+  return [...(hasBattery === false ? ['battery'] : []), ...(hasMedia === false ? ['media', 'volume'] : [])];
 }
 
 function checkAvailable(id, unavailable) {

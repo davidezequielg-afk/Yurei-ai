@@ -163,6 +163,80 @@ const WIDGETS = {
     }
   },
 
+  media: {
+    every: 2,
+    build(c) {
+      c.classList.add('media');
+      const titleText = el('span');
+      const title = el('div', { className: 'mTitle' }, titleText);
+      const artist = el('div', { className: 'sub dim' });
+      const bar = el('div', { className: 'gauge thin' }, el('i'));
+      const act = (action, arg) => () => { window.yurei.widgetAction('media', { action, arg }).then(() => setTimeout(() => this.update(refs), 500)); };
+      const toggle = el('button', { title: 'Pausar / reanudar', onclick: act('toggle') });
+      const refs = { title, titleText, artist, bar, toggle };
+      c.append(title, artist, bar, el('div', { className: 'ctrl' },
+        el('button', { title: 'Anterior', textContent: '⏮', onclick: act('prev') }),
+        el('button', { title: 'Retroceder 10 s', textContent: '⏪', onclick: act('seek', -10) }),
+        toggle,
+        el('button', { title: 'Adelantar 10 s', textContent: '⏩', onclick: act('seek', 10) }),
+        el('button', { title: 'Siguiente', textContent: '⏭', onclick: act('next') })));
+      return refs;
+    },
+    async update(r) {
+      const res = await window.yurei.widgetData('media');
+      const m = res.ok ? res.data : { available: false };
+      r.toggle.textContent = m.available && m.status === 'Playing' ? '⏸' : '▶';
+      const setTitle = (text) => {
+        if (r.titleText.textContent === text) return;
+        r.titleText.textContent = text;
+        const over = r.titleText.offsetWidth - r.title.clientWidth; // título más ancho que el widget: se desliza para leerlo
+        r.title.classList.toggle('marquee', over > 0);
+        if (over > 0) r.title.style.setProperty('--over', `${over}px`);
+      };
+      if (!m.available) {
+        setTitle(res.ok ? 'Nada reproduciéndose' : res.error);
+        r.artist.textContent = '';
+        r.bar.firstChild.style.width = '0%';
+        return;
+      }
+      setTitle(m.title || m.app || 'Reproduciendo');
+      r.artist.textContent = m.artist || '';
+      r.bar.firstChild.style.width = m.duration > 0 ? `${Math.min(100, Math.round((m.position / m.duration) * 100))}%` : '0%';
+    }
+  },
+
+  volume: {
+    every: 3,
+    build(c) {
+      const icon = el('div', { className: 'icon', style: 'cursor:pointer', title: 'Silenciar / reactivar' });
+      const pct = el('div', { className: 'big' });
+      const slider = el('input', { type: 'range', min: 0, max: 100, step: 1, className: 'slider' });
+      const refs = { icon, pct, slider, dragging: false, muted: false };
+      slider.oninput = () => { refs.dragging = true; pct.textContent = `${slider.value}%`; };
+      slider.onchange = async () => {
+        await window.yurei.widgetAction('volume', { level: Number(slider.value) });
+        refs.dragging = false;
+        refs.muted = false;
+        icon.textContent = '🔊';
+      };
+      icon.onclick = async () => {
+        const res = await window.yurei.widgetAction('volume', { mute: !refs.muted });
+        if (res.ok) { refs.muted = res.data.muted; icon.textContent = refs.muted ? '🔇' : '🔊'; }
+      };
+      c.append(icon, pct, slider);
+      return refs;
+    },
+    async update(r) {
+      if (r.dragging) return; // no pisar lo que el usuario está moviendo
+      const res = await window.yurei.widgetData('volume');
+      if (!res.ok) { r.pct.textContent = ''; r.icon.textContent = '🔇'; return; }
+      r.muted = res.data.muted;
+      r.icon.textContent = r.muted ? '🔇' : '🔊';
+      r.pct.textContent = `${res.data.volume}%`;
+      r.slider.value = res.data.volume;
+    }
+  },
+
   battery: {
     every: 30,
     build(c) {

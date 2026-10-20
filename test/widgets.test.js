@@ -96,3 +96,38 @@ test('la herramienta set_widget respeta la falta de batería', async () => {
   const laptop = createTools({ store, system: { hasBattery: () => true } });
   assert.deepEqual((await laptop.execute('set_widget', { slot: 'derecha', widget: 'battery' })).widgets, ['yurei', 'clock', 'battery']);
 });
+
+test('media y volumen solo existen donde hay control de audio (Windows)', async () => {
+  const off = unavailableWidgets({ hasBattery: true, hasMedia: false });
+  assert.deepEqual(off, ['media', 'volume']);
+  assert.deepEqual(unavailableWidgets({ hasBattery: false, hasMedia: true }), ['battery']);
+  assert.deepEqual(unavailableWidgets({ hasBattery: false, hasMedia: false }), ['battery', 'media', 'volume']);
+  assert.deepEqual(unavailableWidgets({}), []);
+  assert.throws(() => setWidget(DEFAULT_LAYOUT, 'derecha', 'media', off), /Windows/);
+  assert.deepEqual(setWidget(DEFAULT_LAYOUT, 'derecha', 'volume', []), ['yurei', 'clock', 'volume']);
+  assert.deepEqual(sanitizeLayout(['yurei', 'media', 'volume'], off), ['yurei', 'clock', 'todos']);
+});
+
+test('las órdenes de voz de volumen y reproducción llegan al sistema con los valores correctos', async () => {
+  const file = path.join(fs.mkdtempSync(path.join(os.tmpdir(), 'yurei-')), 's.json');
+  const calls = [];
+  const system = {
+    setVolume: async (n) => { calls.push(['set', n]); return { volume: n, muted: false }; },
+    changeVolume: async (d) => { calls.push(['step', d]); return { volume: 50, muted: false }; },
+    setMute: async (m) => { calls.push(['mute', m]); return { volume: 50, muted: m }; },
+    media: async (...a) => { calls.push(['media', ...a]); return { done: true }; },
+    mediaInfo: async () => ({ available: true, title: 'Canción', status: 'Playing' })
+  };
+  const tools = createTools({ store: createStore(file), system });
+  await tools.execute('set_volume', { level: 130 });
+  await tools.execute('change_volume', { delta: -15 });
+  await tools.execute('mute_volume', { mute: true });
+  await tools.execute('media_control', { action: 'pause' });
+  await tools.execute('media_control', { action: 'previous' });
+  await tools.execute('media_control', { action: 'rewind' });
+  await tools.execute('media_control', { action: 'forward', seconds: 30 });
+  assert.deepEqual(calls, [['set', 100], ['step', -15], ['mute', true], ['media', 'pause'], ['media', 'prev'], ['media', 'seek', -10], ['media', 'seek', 30]]);
+  assert.equal((await tools.execute('now_playing')).title, 'Canción');
+  await assert.rejects(tools.execute('media_control', { action: 'saltar' }), /no válida/);
+  await assert.rejects(tools.execute('change_volume', { delta: 'x' }), /no válido/);
+});

@@ -2,6 +2,8 @@
 const { spawn, execFile } = require('child_process');
 const fs = require('fs');
 const os = require('os');
+const path = require('path');
+const { createHelper } = require('./winhelper');
 
 const isWin = process.platform === 'win32';
 const SAFE_NAME = /^[\w .\-()&+]{1,80}$/;
@@ -12,8 +14,21 @@ function ps(script) {
   });
 }
 
-function createSystem({ shell, clipboard }) {
+function createSystem({ shell, clipboard, dataDir = os.tmpdir() }) {
   let battery = null; // null = todavía no se sabe
+  let helper = null;
+
+  // Ayudante persistente de PowerShell (volumen real y reproductores). Se crea la primera vez que se usa.
+  function win() {
+    if (!isWin) throw new Error('Esto solo funciona en Windows');
+    if (!helper) {
+      const script = path.join(dataDir, 'yurei-winhelper.ps1');
+      fs.mkdirSync(dataDir, { recursive: true });
+      fs.writeFileSync(script, `\ufeff${fs.readFileSync(path.join(__dirname, 'winhelper.ps1'), 'utf8')}`); // BOM: PowerShell 5.1 lo lee como UTF-8
+      helper = createHelper({ spawn, args: ['-NoProfile', '-NonInteractive', '-ExecutionPolicy', 'Bypass', '-File', script], timeoutMs: 15000 });
+    }
+    return helper;
+  }
 
   return {
     // ¿Este equipo tiene batería? (portátil) o no (PC de escritorio)
@@ -40,12 +55,15 @@ function createSystem({ shell, clipboard }) {
       spawn(cmd, args, { detached: true, stdio: 'ignore', windowsHide: true }).unref();
     },
 
-    // Windows no expone un "set volume" simple sin módulos nativos: se usan las teclas multimedia.
-    async setVolume(level) {
-      if (!isWin) throw new Error('Control de volumen solo disponible en Windows');
-      const steps = Math.round(level / 2);
-      await ps(`$w=New-Object -ComObject WScript.Shell; 1..50|%{$w.SendKeys([char]174)}; if(${steps}-gt 0){1..${steps}|%{$w.SendKeys([char]175)}}`);
-    },
+    hasMediaControl: () => isWin,
+    getVolume: () => win().request('vol.get'),
+    setVolume: (level) => win().request('vol.set', level),
+    changeVolume: (delta) => win().request('vol.step', delta),
+    setMute: (muted) => win().request('vol.mute', muted ? 'true' : 'false'),
+    mediaInfo: () => win().request('media.get'),
+    // action: play | pause | toggle | next | prev | seek (arg = segundos, negativo para retroceder)
+    media: (action, arg = '') => win().request('media.cmd', arg === '' ? action : `${action}:${arg}`),
+    shutdown: () => helper?.stop(),
 
     async power(action) {
       if (!isWin) throw new Error('Control de energía solo disponible en Windows');

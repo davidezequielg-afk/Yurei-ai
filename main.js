@@ -77,9 +77,11 @@ async function startCircle() {
   ipcMain.once('overlay:cancel', () => finish(null));
 }
 
+let system = null;
+
 app.whenReady().then(() => {
   const store = createStore(path.join(app.getPath('userData'), 'yurei.json'));
-  const system = createSystem({ shell, clipboard });
+  system = createSystem({ shell, clipboard, dataDir: app.getPath('userData') });
   const tools = createTools({ store, system });
   const assistant = createAssistant({ store, tools });
   const weather = createWeather();
@@ -112,7 +114,7 @@ app.whenReady().then(() => {
   const safe = (fn) => async (...a) => {
     try { return { ok: true, data: await fn(...a) }; } catch (e) { return { ok: false, error: e.message }; }
   };
-  const unavailable = () => unavailableWidgets({ hasBattery: system.hasBattery() });
+  const unavailable = () => unavailableWidgets({ hasBattery: system.hasBattery(), hasMedia: system.hasMediaControl() });
   const settingsView = () => ({ ...store.get('settings'), apiKey: store.get('settings').apiKey ? '••••••••' : '', widgets: sanitizeLayout(store.get('settings').widgets, unavailable()), widgetCatalog: catalogFor(unavailable()) });
 
   ipcMain.handle('ask', safe(async (_e, payload) => {
@@ -151,12 +153,22 @@ app.whenReady().then(() => {
   ipcMain.handle('widget:data', safe(async (_e, name) => {
     if (name === 'weather') return weather.get(store.get('settings').city);
     if (name === 'stats') return system.stats();
+    if (name === 'media') return system.mediaInfo();
+    if (name === 'volume') return system.getVolume();
     if (name === 'schedule') return nextSchedule({ tasks: store.get('tasks'), routines: store.get('routines') }, new Date());
     throw new Error('Widget desconocido');
+  }));
+  // Acciones desde los propios widgets (botones y deslizador)
+  ipcMain.handle('widget:action', safe(async (_e, name, p = {}) => {
+    if (name === 'media') return system.media(String(p.action), p.arg ?? '');
+    if (name === 'volume' && p.mute !== undefined) return system.setMute(p.mute === true);
+    if (name === 'volume') return system.setVolume(Math.max(0, Math.min(100, Number(p.level))));
+    throw new Error('Acción desconocida');
   }));
   ipcMain.handle('settings:open', safe(() => openSettings()));
   ipcMain.handle('island:mode', safe((_e, mode) => placeIsland(mode)));
 });
 
 app.on('will-quit', () => globalShortcut.unregisterAll());
+app.on('quit', () => system?.shutdown());
 app.on('window-all-closed', () => app.quit());
