@@ -384,7 +384,7 @@ function animateBars() {
 /* ---------- voz ---------- */
 
 const voice = { token: 0, ctx: null, sources: [], analyser: null, fake: false, head: 0, filler: false };
-const FADE_MS = 8; // fundido de entrada/salida de cada trozo: evita el clic al cortar el audio en seco
+const SENTENCE_PAUSE = 0.2; // pausa natural entre frases (el silencio que traía el audio se recorta y se pone a propósito)
 const TAIL_MS = 350; // espera tras hablar antes de volver a escuchar (no oírse a sí mismo)
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 
@@ -408,28 +408,25 @@ function chunkSentences(text) {
   return chunks;
 }
 
-// PCM 16-bit mono 24 kHz (base64) → AudioBuffer con fundidos en los extremos.
+// PCM 16-bit mono 24 kHz (base64) → AudioBuffer. Antes se limpia: la voz de Gemini trae silencio al principio
+// y ~140 ms de ruido al final de cada audio (ver renderer/pcm.js).
 function decodePcm(ctx, b64) {
   const bin = atob(b64);
   const n = bin.length >> 1;
-  const buf = ctx.createBuffer(1, n, 24000);
-  const ch = buf.getChannelData(0);
+  const raw = new Float32Array(n);
   for (let i = 0; i < n; i++) {
     let v = bin.charCodeAt(2 * i) | (bin.charCodeAt(2 * i + 1) << 8);
     if (v >= 0x8000) v -= 0x10000;
-    ch[i] = v / 32768;
+    raw[i] = v / 32768;
   }
-  const fade = Math.min(Math.round((24000 * FADE_MS) / 1000), n >> 1);
-  for (let i = 0; i < fade; i++) {
-    const g = i / fade;
-    ch[i] *= g;
-    ch[n - 1 - i] *= g;
-  }
+  const { samples } = cleanTts(raw, 24000);
+  const buf = ctx.createBuffer(1, samples.length, 24000);
+  buf.copyToChannel(samples, 0);
   return buf;
 }
 
 // Encola el trozo justo detrás del anterior (sin huecos). Resuelve cuando termina de sonar.
-function schedulePcm(b64) {
+function schedulePcm(b64, gap = 0) {
   voice.ctx ||= new AudioContext();
   if (!voice.analyser) {
     voice.analyser = voice.ctx.createAnalyser();
@@ -440,7 +437,7 @@ function schedulePcm(b64) {
   const src = voice.ctx.createBufferSource();
   src.buffer = buf;
   src.connect(voice.analyser);
-  const when = Math.max(voice.ctx.currentTime + 0.03, voice.head);
+  const when = Math.max(voice.ctx.currentTime + 0.03, voice.head + gap);
   voice.head = when + buf.duration;
   voice.sources.push(src);
   return new Promise((resolve) => {
@@ -453,7 +450,7 @@ function schedulePcm(b64) {
   });
 }
 
-async function speakGemini(text, token) {
+async function speakGemini(text, token, firstGap = 0) {
   const chunks = chunkSentences(text);
   const fetchChunk = async (t) => {
     const r = await window.yurei.tts(t);
@@ -471,7 +468,8 @@ async function speakGemini(text, token) {
       next = fetchChunk(chunks[i + 1]);
       next.catch(() => {}); // el fallo se maneja al esperarlo; esto evita un rechazo sin captura
     }
-    playing.push(schedulePcm(audio)); // se encola nada más llegar: el audio sigue sin cortes
+    playing.push(schedulePcm(audio, i === 0 ? firstGap : SENTENCE_PAUSE)); // se encola nada más llegar
+    if (i === 0) setPhase('speaking', 'Hablando'); // recién ahora suena algo
   }
   await Promise.all(playing);
 }
@@ -495,18 +493,22 @@ async function say(text) {
   else stopSpeaking();
   const token = voice.token;
   voice.fake = false;
-  setPhase('speaking', 'Hablando');
+  const afterFiller = voice.filler; // si sonaba un "mmm", la respuesta entra tras una pausa corta
+  if (!afterFiller) setPhase('thinking', 'Pensando…'); // hasta que haya audio de verdad
   try {
     let spoken = false;
     if (!state.systemVoice) {
       try {
-        await speakGemini(text, token);
+        await speakGemini(text, token, afterFiller ? 0.15 : 0);
         spoken = true;
       } catch (e) {
         log('act', `⚠ voz de Gemini no disponible (${e.message}); uso la del sistema`);
       }
     }
-    if (!spoken && token === voice.token) await speakSystem(text);
+    if (!spoken && token === voice.token) {
+      setPhase('speaking', 'Hablando');
+      await speakSystem(text);
+    }
     if (token === voice.token) await sleep(TAIL_MS); // que se apague el eco antes de volver a escuchar
   } finally {
     if (token === voice.token) setPhase(conv.active ? 'listening' : '', conv.active ? 'Te escucho' : 'Yurei');
@@ -574,7 +576,7 @@ function showReply(text) {
 
 /* ---------- conversación manos libres ---------- */
 
-const conv = { active: false, timer: null, busy: false };
+const conv = { active: false, timer: null, busy: false, turns: 0 }; // turns: cuántas preguntas van en esta conversación
 
 function wakeIdle() {
   conv.active = false;
@@ -605,6 +607,7 @@ async function ensureListening() {
 async function enterConversation() {
   if (!(await ensureListening())) return;
   stopSpeaking();
+  if (!conv.active) conv.turns = 0; // conversación nueva: el primer turno (saludo) vuelve a ir sin relleno
   conv.active = true;
   setPhase('listening', 'Te escucho');
   armConversationTimeout();
@@ -644,11 +647,14 @@ async function handleAsk(payload, userLabel) {
   Listener.pause();
   setPhase('thinking', 'Pensando…');
   log('user', userLabel);
-  const stopFillers = startFillers();
+  // El primer turno de cada conversación (el saludo) no lleva frases de relleno: si tarda, tarda. Desde el segundo, sí.
+  const firstTurn = conv.turns === 0;
+  conv.turns += 1;
+  const stopFillers = firstTurn ? () => {} : startFillers();
   const r = await window.yurei.ask(payload);
   stopFillers();
-  setPhase(conv.active ? 'listening' : '', conv.active ? 'Te escucho' : 'Yurei');
   if (!r.ok) {
+    setPhase(conv.active ? 'listening' : '', conv.active ? 'Te escucho' : 'Yurei');
     log('bot', `⚠ ${r.error}`);
     showReply(`⚠ ${r.error}`);
   } else {
