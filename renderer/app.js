@@ -13,7 +13,6 @@ function setMode(mode) {
   island.className = `${mode} ${island.dataset.phase || ''}`.trim();
   $('panel').hidden = mode !== 'full';
   $('reply').hidden = mode !== 'status';
-  $('expand').textContent = mode === 'full' ? '⌃' : '⌄';
   window.yurei.setMode(mode);
   if (mode === 'full') showTab(state.tab);
 }
@@ -199,7 +198,7 @@ function showTab(tab) {
 /* ---------- eventos ---------- */
 
 $('tabs').onclick = (e) => e.target.dataset.tab && showTab(e.target.dataset.tab);
-$('expand').onclick = () => setMode(state.mode === 'full' ? 'idle' : 'full');
+$('bar').onclick = () => setMode(state.mode === 'full' ? 'idle' : 'full');
 $('chatForm').onsubmit = (e) => {
   e.preventDefault();
   const text = $('chatInput').value.trim();
