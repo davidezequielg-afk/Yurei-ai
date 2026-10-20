@@ -267,17 +267,21 @@ function animateBars() {
 
 /* ---------- voz ---------- */
 
-const voice = { token: 0, ctx: null, source: null, analyser: null, fake: false };
+const voice = { token: 0, ctx: null, sources: [], analyser: null, fake: false, head: 0 };
+const FADE_MS = 8; // fundido de entrada/salida de cada trozo: evita el clic al cortar el audio en seco
+const TAIL_MS = 350; // espera tras hablar antes de volver a escuchar (no oírse a sí mismo)
+const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 
 function stopSpeaking() {
   voice.token++;
+  voice.head = 0;
   speechSynthesis.cancel();
-  try { voice.source?.stop(); } catch { /* ya terminó */ }
+  voice.sources.splice(0).forEach((src) => { try { src.stop(); } catch { /* ya terminó */ } });
 }
 
 // Trozos de 1-2 frases: el primero suena enseguida mientras se genera el siguiente.
 function chunkSentences(text) {
-  const sentences = text.match(/[^.!?¿¡\n]+[.!?]*\s*/g) || [text];
+  const sentences = text.match(/[^.!?\n]+[.!?]*\s*/g) || [text];
   const chunks = [];
   let cur = '';
   for (const s of sentences) {
@@ -288,29 +292,48 @@ function chunkSentences(text) {
   return chunks;
 }
 
-function playPcm(b64) {
+// PCM 16-bit mono 24 kHz (base64) → AudioBuffer con fundidos en los extremos.
+function decodePcm(ctx, b64) {
+  const bin = atob(b64);
+  const n = bin.length >> 1;
+  const buf = ctx.createBuffer(1, n, 24000);
+  const ch = buf.getChannelData(0);
+  for (let i = 0; i < n; i++) {
+    let v = bin.charCodeAt(2 * i) | (bin.charCodeAt(2 * i + 1) << 8);
+    if (v >= 0x8000) v -= 0x10000;
+    ch[i] = v / 32768;
+  }
+  const fade = Math.min(Math.round((24000 * FADE_MS) / 1000), n >> 1);
+  for (let i = 0; i < fade; i++) {
+    const g = i / fade;
+    ch[i] *= g;
+    ch[n - 1 - i] *= g;
+  }
+  return buf;
+}
+
+// Encola el trozo justo detrás del anterior (sin huecos). Resuelve cuando termina de sonar.
+function schedulePcm(b64) {
+  voice.ctx ||= new AudioContext();
+  if (!voice.analyser) {
+    voice.analyser = voice.ctx.createAnalyser();
+    voice.analyser.fftSize = 512;
+    voice.analyser.connect(voice.ctx.destination);
+  }
+  const buf = decodePcm(voice.ctx, b64);
+  const src = voice.ctx.createBufferSource();
+  src.buffer = buf;
+  src.connect(voice.analyser);
+  const when = Math.max(voice.ctx.currentTime + 0.03, voice.head);
+  voice.head = when + buf.duration;
+  voice.sources.push(src);
   return new Promise((resolve) => {
-    voice.ctx ||= new AudioContext();
-    const bin = atob(b64);
-    const n = bin.length >> 1;
-    const buf = voice.ctx.createBuffer(1, n, 24000);
-    const ch = buf.getChannelData(0);
-    for (let i = 0; i < n; i++) {
-      let v = bin.charCodeAt(2 * i) | (bin.charCodeAt(2 * i + 1) << 8);
-      if (v >= 0x8000) v -= 0x10000;
-      ch[i] = v / 32768;
-    }
-    const src = voice.ctx.createBufferSource();
-    src.buffer = buf;
-    if (!voice.analyser) {
-      voice.analyser = voice.ctx.createAnalyser();
-      voice.analyser.fftSize = 512;
-      voice.analyser.connect(voice.ctx.destination);
-    }
-    src.connect(voice.analyser);
-    src.onended = resolve;
-    voice.source = src;
-    src.start();
+    src.onended = () => {
+      const i = voice.sources.indexOf(src);
+      if (i >= 0) voice.sources.splice(i, 1);
+      resolve();
+    };
+    src.start(when);
   });
 }
 
@@ -323,17 +346,18 @@ async function speakGemini(text, token) {
   };
   let next = fetchChunk(chunks[0]);
   await next; // si falla el primero, se propaga y se usa la voz del sistema
+  const playing = [];
   for (let i = 0; i < chunks.length; i++) {
     let audio;
-    try { audio = await next; } catch { return; }
+    try { audio = await next; } catch { break; }
     if (token !== voice.token) return;
     if (i + 1 < chunks.length) {
       next = fetchChunk(chunks[i + 1]);
       next.catch(() => {}); // el fallo se maneja al esperarlo; esto evita un rechazo sin captura
     }
-    await playPcm(audio);
-    if (token !== voice.token) return;
+    playing.push(schedulePcm(audio)); // se encola nada más llegar: el audio sigue sin cortes
   }
+  await Promise.all(playing);
 }
 
 function speakSystem(text) {
@@ -356,10 +380,17 @@ async function say(text) {
   voice.fake = false;
   setPhase('speaking', 'Hablando');
   try {
+    let spoken = false;
     if (!state.systemVoice) {
-      try { await speakGemini(text, token); return; } catch (e) { log('act', `⚠ voz de Gemini no disponible (${e.message}); uso la del sistema`); }
+      try {
+        await speakGemini(text, token);
+        spoken = true;
+      } catch (e) {
+        log('act', `⚠ voz de Gemini no disponible (${e.message}); uso la del sistema`);
+      }
     }
-    if (token === voice.token) await speakSystem(text);
+    if (!spoken && token === voice.token) await speakSystem(text);
+    if (token === voice.token) await sleep(TAIL_MS); // que se apague el eco antes de volver a escuchar
   } finally {
     if (token === voice.token) setPhase(conv.active ? 'listening' : '', conv.active ? 'Te escucho' : 'Yurei');
   }

@@ -141,7 +141,7 @@ test('synthesize pide audio con la voz elegida y devuelve el PCM', async () => {
   assert.equal(await synthesize({ apiKey: 'k', model: 'm', text: 'hola', voiceName: 'Charon', fetchImpl }), 'UENN');
   assert.deepEqual(sent.generationConfig.responseModalities, ['AUDIO']);
   assert.equal(sent.generationConfig.speechConfig.voiceConfig.prebuiltVoiceConfig.voiceName, 'Charon');
-  assert.match(sent.contents[0].parts[0].text, /hola$/);
+  assert.equal(sent.contents[0].parts[0].text, 'hola'); // sin instrucciones: el modelo las leería en voz alta
   const empty = async () => ({ ok: true, json: async () => ({ candidates: [{ content: { parts: [{ text: 'x' }] } }] }) });
   await assert.rejects(synthesize({ apiKey: 'k', model: 'm', text: 'a', voiceName: 'Kore', fetchImpl: empty }), /audio/);
 });

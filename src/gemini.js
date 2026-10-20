@@ -72,16 +72,15 @@ const TRANSCRIBE_PROMPT = 'Transcribe este audio a texto limpio. Elimina muletil
 
 const transcribe = (opts) => askAudio({ ...opts, prompt: TRANSCRIBE_PROMPT });
 
-const STYLE = 'Di esto con una voz natural, expresiva y cercana, con entonación, énfasis y ritmo humanos, como en una conversación real:';
-
-// Devuelve PCM 16-bit mono a 24 kHz en base64.
+// Devuelve PCM 16-bit mono a 24 kHz en base64. Solo se envía el texto a decir: cualquier instrucción añadida
+// ("di esto con voz...") el modelo la lee en voz alta.
 async function synthesize({ apiKey, model, text, voiceName, fetchImpl }) {
   const data = await generate({
     apiKey,
     model,
     fetchImpl,
     body: {
-      contents: [{ role: 'user', parts: [{ text: `${STYLE}\n${text}` }] }],
+      contents: [{ role: 'user', parts: [{ text }] }],
       generationConfig: {
         responseModalities: ['AUDIO'],
         speechConfig: { voiceConfig: { prebuiltVoiceConfig: { voiceName } } }
