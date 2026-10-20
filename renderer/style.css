@@ -106,3 +106,5 @@ button.ghost:hover, .ctrl button:hover, #gear:hover { color: var(--ink); }
 .cell .x { position: absolute; top: 0; right: 0; padding: 2px; border-radius: 50%; color: var(--mute); opacity: 0; line-height: 0; }
 .cell:hover .x { opacity: 1; }
 .cell .x:hover { color: var(--ink); }
+.sub.note { margin-top: 4px; font-size: 10px; color: var(--mute); max-width: 100%; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.w-volume .big { margin-bottom: 4px; }

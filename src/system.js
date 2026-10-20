@@ -108,6 +108,7 @@ function createSystem({ shell, clipboard, dataDir = os.tmpdir(), confirm = async
     },
     hasMediaControl: () => isWin,
     getVolume: () => win().request('vol.get'),
+    diagnose: () => win().request('diag'),
     setVolume: (level) => win().request('vol.set', level),
     changeVolume: (delta) => win().request('vol.step', delta),
     setMute: (muted) => win().request('vol.mute', muted ? 'true' : 'false'),

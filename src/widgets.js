@@ -96,24 +96,103 @@ function describeWeather(code, isDay = true) {
   return { desc: hit[1], icon: hit[2] === 'sun' && !isDay ? 'moon' : hit[2] };
 }
 
-function createWeather({ fetchImpl = fetch, now = () => Date.now(), ttlMs = 10 * 60 * 1000 } = {}) {
+// Códigos del servicio de respaldo (wttr.in, formato WorldWeatherOnline).
+const WWO = [
+  [[113], 'Despejado', 'sun'], [[116], 'Parcialmente nublado', 'partly'], [[119, 122], 'Nublado', 'cloud'], [[143, 248, 260], 'Niebla', 'fog'],
+  [[176, 185, 263, 266, 281, 284, 293, 296, 311, 353], 'Llovizna', 'rain'], [[299, 302, 305, 308, 314, 356, 359], 'Lluvia', 'rain'],
+  [[179, 182, 227, 230, 317, 320, 323, 326, 329, 332, 335, 338, 350, 362, 365, 368, 371, 374, 377], 'Nieve', 'snow'], [[200, 386, 389, 392, 395], 'Tormenta', 'storm']
+];
+
+function describeWwo(code, isDay = true) {
+  const hit = WWO.find(([codes]) => codes.includes(Number(code)));
+  if (!hit) return { desc: 'Sin datos', icon: 'cloud' };
+  return { desc: hit[1], icon: hit[2] === 'sun' && !isDay ? 'moon' : hit[2] };
+}
+
+function weatherError(e) {
+  if (e?.notFound) return e.message;
+  if (e?.status === 429) return 'El servicio del clima recibió demasiadas consultas; reintento en un minuto';
+  if (e?.status >= 500) return 'El servicio del clima no está disponible ahora; reintento en un minuto';
+  return 'El servicio del clima no responde; reintento en un minuto';
+}
+
+// Clima con dos servicios sin API key (Open-Meteo y, si falla, wttr.in), un reintento ante fallos pasajeros,
+// el último dato bueno si ambos fallan, y espera de un minuto antes de volver a molestar a un servicio caído.
+function createWeather({ fetchImpl = fetch, now = () => Date.now(), ttlMs = 10 * 60 * 1000, retryMs = 60 * 1000, staleMaxMs = 6 * 3600 * 1000, timeoutMs = 8000, sleep = (ms) => new Promise((r) => setTimeout(r, ms)) } = {}) {
   const places = new Map();
   let cache = null;
+  let failedAt = null; // instante del último fallo total (null = ninguno)
+  let lastError = null;
 
   async function getJson(url) {
-    const res = await fetchImpl(url);
-    if (!res.ok) throw new Error(`Servicio del clima: ${res.status}`);
-    return res.json();
+    const ctl = new AbortController();
+    const timer = setTimeout(() => ctl.abort(), timeoutMs);
+    try {
+      const res = await fetchImpl(url, { signal: ctl.signal, headers: { 'user-agent': 'Yurei (asistente de escritorio de codigo abierto)' } });
+      if (!res.ok) throw Object.assign(new Error(`Servicio del clima: ${res.status}`), { status: res.status });
+      return await res.json();
+    } catch (e) {
+      if (e.name === 'AbortError') throw Object.assign(new Error('Servicio del clima: sin respuesta'), { status: 0 });
+      throw e;
+    } finally {
+      clearTimeout(timer);
+    }
   }
 
-  async function place(city) {
-    if (places.has(city)) return places.get(city);
-    const data = await getJson(`https://geocoding-api.open-meteo.com/v1/search?name=${encodeURIComponent(city)}&count=1&language=es`);
-    const hit = data.results?.[0];
-    if (!hit) throw new Error(`No encontré la ciudad "${city}"`);
-    const p = { name: hit.name, lat: hit.latitude, lon: hit.longitude };
-    places.set(city, p);
-    return p;
+  // Un reintento si el fallo parece pasajero (5xx o sin respuesta).
+  async function getJsonRetry(url) {
+    try {
+      return await getJson(url);
+    } catch (e) {
+      if (!(e.status === 0 || e.status >= 500)) throw e;
+      await sleep(600);
+      return getJson(url);
+    }
+  }
+
+  async function openMeteo(city) {
+    let p = places.get(city);
+    if (!p) {
+      const data = await getJsonRetry(`https://geocoding-api.open-meteo.com/v1/search?name=${encodeURIComponent(city)}&count=1&language=es`);
+      const hit = data.results?.[0];
+      if (!hit) throw Object.assign(new Error(`No encontré la ciudad "${city}"`), { notFound: true });
+      p = { name: hit.name, lat: hit.latitude, lon: hit.longitude };
+      places.set(city, p);
+    }
+    const w = await getJsonRetry(`https://api.open-meteo.com/v1/forecast?latitude=${p.lat}&longitude=${p.lon}&current=temperature_2m,weather_code,is_day&daily=temperature_2m_max,temperature_2m_min&timezone=auto&forecast_days=1`);
+    const cur = w.current;
+    return {
+      city: p.name,
+      temp: Math.round(cur.temperature_2m),
+      min: Math.round(w.daily.temperature_2m_min[0]),
+      max: Math.round(w.daily.temperature_2m_max[0]),
+      ...describeWeather(cur.weather_code, cur.is_day === 1)
+    };
+  }
+
+  async function wttr(city) {
+    const d = await getJson(`https://wttr.in/${encodeURIComponent(city)}?format=j1&lang=es`);
+    const cur = d.current_condition?.[0];
+    const day = d.weather?.[0];
+    if (!cur || cur.temp_C === undefined) throw new Error('Servicio del clima: respuesta no válida');
+    const hour = new Date(now()).getHours();
+    const { desc, icon } = describeWwo(cur.weatherCode, hour >= 7 && hour < 20);
+    return {
+      city,
+      temp: Math.round(Number(cur.temp_C)),
+      min: Math.round(Number(day?.mintempC ?? cur.temp_C)),
+      max: Math.round(Number(day?.maxtempC ?? cur.temp_C)),
+      desc: cur.lang_es?.[0]?.value || desc,
+      icon,
+      source: 'wttr.in'
+    };
+  }
+
+  function fallback(city) {
+    if (cache && cache.city === city && now() - cache.at < staleMaxMs) {
+      return { ...cache.data, stale: true, ageMin: Math.round((now() - cache.at) / 60000) };
+    }
+    throw new Error(weatherError(lastError));
   }
 
   return {
@@ -121,18 +200,22 @@ function createWeather({ fetchImpl = fetch, now = () => Date.now(), ttlMs = 10 *
       const c = String(city || '').trim();
       if (!c) throw new Error('Dile a Yurei tu ciudad o ponla en Ajustes');
       if (cache && cache.city === c && now() - cache.at < ttlMs) return cache.data;
-      const p = await place(c);
-      const w = await getJson(`https://api.open-meteo.com/v1/forecast?latitude=${p.lat}&longitude=${p.lon}&current=temperature_2m,weather_code,is_day&daily=temperature_2m_max,temperature_2m_min&timezone=auto&forecast_days=1`);
-      const cur = w.current;
-      const data = {
-        city: p.name,
-        temp: Math.round(cur.temperature_2m),
-        min: Math.round(w.daily.temperature_2m_min[0]),
-        max: Math.round(w.daily.temperature_2m_max[0]),
-        ...describeWeather(cur.weather_code, cur.is_day === 1)
-      };
-      cache = { city: c, at: now(), data };
-      return data;
+      if (failedAt !== null && now() - failedAt < retryMs) return fallback(c); // servicio caído hace poco: no insistir
+      let notFound = null;
+      for (const provider of [openMeteo, wttr]) {
+        try {
+          const data = await provider(c);
+          cache = { city: c, at: now(), data };
+          failedAt = null;
+          return data;
+        } catch (e) {
+          lastError = e;
+          if (e.notFound) notFound = e;
+        }
+      }
+      if (notFound) lastError = notFound;
+      failedAt = now();
+      return fallback(c);
     }
   };
 }
@@ -159,4 +242,4 @@ function nextSchedule({ tasks = [], routines = [] }, now = new Date(), limit = 2
   return items.sort((a, b) => a.when - b.when).slice(0, limit).map((i) => ({ ...i, when: i.when.toISOString() }));
 }
 
-module.exports = { CATALOG, DEFAULT_LAYOUT, unavailableWidgets, sanitizeLayout, catalogFor, slotIndex, validateLayout, setWidget, describeWeather, createWeather, nextSchedule };
+module.exports = { CATALOG, DEFAULT_LAYOUT, unavailableWidgets, sanitizeLayout, catalogFor, slotIndex, validateLayout, setWidget, describeWeather, describeWwo, createWeather, nextSchedule };

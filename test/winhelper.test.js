@@ -43,3 +43,11 @@ test('si el ejecutable no existe, el error llega y no tumba nada', async () => {
   await assert.rejects(h.request('vol.get'));
   h.stop();
 });
+
+test('si el ayudante se cae, el error explica por qué (lo que escribió en stderr)', async () => {
+  const h = fake();
+  try {
+    await assert.rejects(h.request('crash'), /se detuvo: Excepción al establecer OutputEncoding: El identificador no es válido/);
+    assert.equal((await h.request('vol.get')).volume, 40); // y el siguiente pedido arranca uno nuevo
+  } finally { h.stop(); }
+});

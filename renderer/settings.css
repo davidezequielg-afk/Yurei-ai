@@ -18,3 +18,4 @@ button:hover { filter: brightness(1.1); }
 .note { margin-top: 6px; color: var(--mute); font-size: 12px; line-height: 1.4; }
 button.danger { background: none; color: #e5736f; border: 1px solid #5a2b2b; }
 button.danger:hover { background: #2a1717; filter: none; }
+pre.diag { margin-top: 10px; padding: 10px; background: var(--track); border: 1px solid var(--line); border-radius: 8px; color: var(--ink2); font: 11px/1.4 ui-monospace, Consolas, monospace; white-space: pre-wrap; word-break: break-word; user-select: text; }

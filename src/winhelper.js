@@ -4,6 +4,7 @@
 function createHelper({ spawn, command = 'powershell.exe', args = [], timeoutMs = 6000 }) {
   let child = null;
   let buf = '';
+  let errTail = ''; // últimas líneas de error del proceso: explican por qué se detuvo
   let nextId = 1;
   const pending = new Map();
 
@@ -44,12 +45,17 @@ function createHelper({ spawn, command = 'powershell.exe', args = [], timeoutMs 
 
   function ensure() {
     if (child) return;
-    const proc = spawn(command, args, { stdio: ['pipe', 'pipe', 'ignore'], windowsHide: true });
+    const proc = spawn(command, args, { stdio: ['pipe', 'pipe', 'pipe'], windowsHide: true });
     child = proc;
+    errTail = '';
     proc.stdout.setEncoding('utf8');
     proc.stdout.on('data', onData);
+    proc.stderr.setEncoding('utf8');
+    proc.stderr.on('data', (d) => { errTail = (errTail + d).slice(-2000); });
     const gone = () => {
-      if (child === proc) reset('El ayudante de Windows se detuvo');
+      if (child !== proc) return;
+      const why = errTail.split(/\r?\n/).map((l) => l.trim()).filter(Boolean).slice(-2).join(' · ').slice(0, 300);
+      reset(why ? `El ayudante de Windows se detuvo: ${why}` : 'El ayudante de Windows se detuvo');
     };
     proc.on('exit', gone);
     proc.on('error', gone);

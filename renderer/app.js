@@ -120,7 +120,10 @@ const WIDGETS = {
       return { icon, temp, desc, place };
     },
     async update(r) {
+      clearTimeout(r.retry);
       const res = await window.yurei.widgetData('weather');
+      // Si falla o el dato es viejo, se vuelve a probar en un minuto (no a los 10).
+      if (!res.ok || res.data.stale) r.retry = setTimeout(() => this.update(r), 60000);
       if (!res.ok) {
         r.icon.replaceChildren(window.icon('cloud', 28));
         r.temp.textContent = '';
@@ -132,7 +135,7 @@ const WIDGETS = {
       r.icon.replaceChildren(window.icon(w.icon, 28));
       r.temp.textContent = `${w.temp}°`;
       r.desc.textContent = w.desc;
-      r.place.textContent = `${w.city} · ${w.min}° / ${w.max}°`;
+      r.place.textContent = w.stale ? `${w.city} · hace ${w.ageMin} min` : `${w.city} · ${w.min}° / ${w.max}°`;
     }
   },
 
@@ -243,29 +246,36 @@ const WIDGETS = {
       const icon = el('button', { className: 'ghost', title: 'Silenciar / reactivar' }, window.icon('volume', 20));
       const pct = el('div', { className: 'big' });
       const slider = el('input', { type: 'range', min: 0, max: 100, step: 1, className: 'slider' });
-      const refs = { icon, pct, slider, dragging: false, muted: false };
+      const note = el('div', { className: 'sub note' }); // explica si algo falla o si va en modo teclas
+      const refs = { icon, pct, slider, note, dragging: false, muted: false, level: null };
+      const show = (data) => {
+        refs.muted = !!data.muted;
+        icon.replaceChildren(window.icon(refs.muted ? 'mute' : 'volume', 20));
+        if (typeof data.volume === 'number') refs.level = data.volume;
+        pct.textContent = refs.level === null ? '—' : `${refs.level}%`;
+        if (refs.level !== null) slider.value = refs.level;
+        note.textContent = data.mode === 'teclas' ? 'Modo teclas (aprox.)' : '';
+      };
+      const fail = (error) => { note.textContent = error.length > 60 ? `${error.slice(0, 57)}…` : error; note.title = error; };
       slider.oninput = () => { refs.dragging = true; pct.textContent = `${slider.value}%`; };
       slider.onchange = async () => {
-        await window.yurei.widgetAction('volume', { level: Number(slider.value) });
+        const res = await window.yurei.widgetAction('volume', { level: Number(slider.value) });
         refs.dragging = false;
-        refs.muted = false;
-        icon.replaceChildren(window.icon('volume', 20));
+        if (res.ok) show(res.data); else fail(res.error);
       };
       icon.onclick = async () => {
         const res = await window.yurei.widgetAction('volume', { mute: !refs.muted });
-        if (res.ok) { refs.muted = res.data.muted; icon.replaceChildren(window.icon(refs.muted ? 'mute' : 'volume', 20)); }
+        if (res.ok) show(res.data); else fail(res.error);
       };
-      c.append(icon, pct, slider);
+      refs.show = show;
+      refs.fail = fail;
+      c.append(icon, pct, slider, note);
       return refs;
     },
     async update(r) {
       if (r.dragging) return; // no pisar lo que el usuario está moviendo
       const res = await window.yurei.widgetData('volume');
-      if (!res.ok) { r.pct.textContent = ''; r.icon.replaceChildren(window.icon('mute', 20)); return; }
-      r.muted = res.data.muted;
-      r.icon.replaceChildren(window.icon(r.muted ? 'mute' : 'volume', 20));
-      r.pct.textContent = `${res.data.volume}%`;
-      r.slider.value = res.data.volume;
+      if (res.ok) r.show(res.data); else { r.pct.textContent = r.level === null ? '—' : `${r.level}%`; r.fail(res.error); }
     }
   },
 
@@ -315,7 +325,12 @@ function tickWidgets(force) {
   });
 }
 
+function clearWidgetTimers() {
+  slots.forEach(({ refs }) => clearTimeout(refs.retry));
+}
+
 function buildWidgets() {
+  clearWidgetTimers(); // los reintentos del panel anterior no deben quedar vivos
   const box = $('widgets');
   box.replaceChildren();
   slots = state.layout.map((id) => {
@@ -334,6 +349,7 @@ function startWidgets() {
 
 function stopWidgets() {
   clearInterval(widgetTimer);
+  clearWidgetTimers();
   slots = [];
 }
 

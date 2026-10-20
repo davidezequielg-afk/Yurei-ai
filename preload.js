@@ -11,6 +11,7 @@ contextBridge.exposeInMainWorld('yurei', {
   saveSettings: invoke('settings:save'),
   openSettings: invoke('settings:open'),
   wipeData: invoke('data:wipe'),
+  diagnoseAudio: invoke('diag:audio'),
   getAppearance: invoke('appearance:get'),
   todos: invoke('todos'),
   widgetData: invoke('widget:data'),

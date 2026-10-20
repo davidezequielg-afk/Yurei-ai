@@ -2,8 +2,17 @@
 # Protocolo: una linea por peticion  "id|comando|argumento"  y una linea JSON por respuesta.
 # Solo ASCII a proposito (PowerShell 5.1 lee el archivo con la codificacion del sistema).
 $ErrorActionPreference = 'Stop'
-[Console]::OutputEncoding = [System.Text.Encoding]::UTF8
 
+# E/S sin depender de una consola. La app lanza este proceso oculto (sin ventana NI consola), y en Windows
+# PowerShell 5.1 tocar [Console]::OutputEncoding sin consola falla ("identificador no valido") y mataba el script.
+$utf8 = New-Object System.Text.UTF8Encoding($false)
+$out = New-Object System.IO.StreamWriter([Console]::OpenStandardOutput(), $utf8)
+$out.AutoFlush = $true
+$in = New-Object System.IO.StreamReader([Console]::OpenStandardInput(), $utf8)
+$script:initErrors = @()
+
+# Si algo de esto falla, el resto sigue funcionando (y el fallo se informa con el comando diag).
+try {
 Add-Type -TypeDefinition @"
 using System;
 using System.Runtime.InteropServices;
@@ -70,6 +79,9 @@ public class YureiKeys {
   }
 }
 "@
+} catch {
+  $script:initErrors += "codigo de audio: $($_.Exception.Message)"
+}
 
 # --- SMTC (Windows 10 1809+): lo que suena ahora y sus controles ---
 $script:smtc = $false
@@ -82,6 +94,18 @@ try {
   $script:smtc = $true
 } catch {
   $script:smtc = $false
+  $script:initErrors += "reproductores (SMTC): $($_.Exception.Message)"
+}
+
+# Teclas multimedia de Windows: plan B cuando no se puede usar el audio exacto o un reproductor no se deja controlar.
+function Press-Key([int]$vk, [int]$times = 1) {
+  for ($i = 0; $i -lt $times; $i++) {
+    if ('YureiKeys' -as [type]) { [YureiKeys]::Press([byte]$vk) }
+    else {
+      if (-not $script:wsh) { $script:wsh = New-Object -ComObject WScript.Shell }
+      $script:wsh.SendKeys([string][char]$vk)
+    }
+  }
 }
 
 function Await($op, $type) {
@@ -138,25 +162,61 @@ function Invoke-Media($action, $arg) {
   # Sin sesion SMTC: teclas multimedia (play/pausa alterna; no hay retroceso por segundos)
   $keys = @{ toggle = 179; play = 179; pause = 179; next = 176; prev = 177 }
   if ($keys.ContainsKey($action)) {
-    [YureiKeys]::Press([byte]$keys[$action])
+    Press-Key $keys[$action]
     return @{ done = $true; viaKeys = $true }
   }
   throw 'No hay ningun reproductor activo'
 }
 
+# Volumen exacto (Core Audio). Si falla, plan B con las teclas de volumen (pasos de 2 %, sin poder leerlo).
 function Get-Vol {
-  return @{ volume = [int][Math]::Round([YureiAudio]::GetVolume() * 100); muted = [YureiAudio]::GetMute() }
+  try {
+    return @{ volume = [int][Math]::Round([YureiAudio]::GetVolume() * 100); muted = [YureiAudio]::GetMute(); mode = 'exacto' }
+  } catch {
+    $script:audioError = $_.Exception.Message
+    return @{ volume = $null; muted = $null; mode = 'teclas'; note = 'Sin lectura exacta: se ajusta con las teclas de volumen' }
+  }
 }
 
 function Set-Vol($percent) {
+  $p = [Math]::Max(0, [Math]::Min(100, [double]$percent))
+  try {
+    [YureiAudio]::SetVolume([float]($p / 100))
+    if ($p -gt 0 -and [YureiAudio]::GetMute()) { [YureiAudio]::SetMute($false) }
+    return Get-Vol
+  } catch {
+    $script:audioError = $_.Exception.Message
+    Press-Key 174 50 # al minimo...
+    Press-Key 175 ([int][Math]::Round($p / 2)) # ...y sube hasta el nivel pedido (cada tecla = 2 %)
+    return @{ volume = [int]$p; muted = $false; mode = 'teclas' }
+  }
+}
+
+function Step-Vol($delta) {
+  $d = [double]$delta
+  try {
+    return Set-VolExact ((([YureiAudio]::GetVolume()) * 100) + $d)
+  } catch {
+    $script:audioError = $_.Exception.Message
+    if ($d -gt 0) { Press-Key 175 ([int][Math]::Max(1, [Math]::Round($d / 2))) } else { Press-Key 174 ([int][Math]::Max(1, [Math]::Round(-$d / 2))) }
+    return @{ volume = $null; muted = $false; mode = 'teclas' }
+  }
+}
+
+function Set-VolExact($percent) {
   $p = [Math]::Max(0, [Math]::Min(100, [double]$percent))
   [YureiAudio]::SetVolume([float]($p / 100))
   if ($p -gt 0 -and [YureiAudio]::GetMute()) { [YureiAudio]::SetMute($false) }
   return Get-Vol
 }
 
+function Set-Mute([bool]$m) {
+  try { [YureiAudio]::SetMute($m); return Get-Vol }
+  catch { $script:audioError = $_.Exception.Message; Press-Key 173; return @{ volume = $null; muted = $m; mode = 'teclas' } }
+}
+
 while ($true) {
-  $line = [Console]::In.ReadLine()
+  $line = $in.ReadLine()
   if ($null -eq $line) { break }
   $parts = $line -split '\|', 3
   $id = $parts[0]
@@ -169,16 +229,16 @@ while ($true) {
       'ping'      { $data = @{ smtc = $script:smtc } }
       'vol.get'   { $data = Get-Vol }
       'vol.set'   { $data = Set-Vol $arg }
-      'vol.step'  { $data = Set-Vol (([YureiAudio]::GetVolume() * 100) + [double]$arg) }
-      'vol.mute'  { [YureiAudio]::SetMute(($arg -eq 'true')); $data = Get-Vol }
+      'vol.step'  { $data = Step-Vol $arg }
+      'vol.mute'  { $data = Set-Mute ($arg -eq 'true') }
+      'diag'      { $v = Get-Vol; $data = @{ powershell = $PSVersionTable.PSVersion.ToString(); audioExacto = [bool]('YureiAudio' -as [type]); teclas = [bool]('YureiKeys' -as [type]); reproductores = $script:smtc; erroresAlIniciar = @($script:initErrors); volumen = $v; ultimoErrorDeAudio = $script:audioError } }
       'media.get' { $data = Get-Media }
       'media.cmd' { $a = $arg -split ':', 2; $data = Invoke-Media $a[0] $(if ($a.Count -gt 1) { $a[1] } else { '' }) }
       default     { throw "Comando desconocido: $cmd" }
     }
-    $out = @{ id = $id; ok = $true; data = $data }
+    $reply = @{ id = $id; ok = $true; data = $data }
   } catch {
-    $out = @{ id = $id; ok = $false; error = $_.Exception.Message }
+    $reply = @{ id = $id; ok = $false; error = $_.Exception.Message }
   }
-  [Console]::Out.WriteLine(($out | ConvertTo-Json -Compress -Depth 6))
-  [Console]::Out.Flush()
+  $out.WriteLine(($reply | ConvertTo-Json -Compress -Depth 6))
 }

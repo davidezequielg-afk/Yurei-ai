@@ -7,6 +7,7 @@ rl.on('line', (line) => {
   const out = (o) => process.stdout.write(`${JSON.stringify({ id, ...o })}\n`);
   if (cmd === 'hang') return; // no responde nunca
   if (cmd === 'die') process.exit(1);
+  if (cmd === 'crash') { process.stderr.write('Excepción al establecer OutputEncoding: El identificador no es válido.\n'); process.exit(1); }
   if (cmd === 'noise') process.stdout.write('esto no es JSON\n');
   if (cmd === 'vol.get') return out({ ok: true, data: { volume, muted: false } });
   if (cmd === 'vol.set') { volume = Number(arg); return out({ ok: true, data: { volume, muted: false } }); }

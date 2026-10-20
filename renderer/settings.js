@@ -80,6 +80,22 @@ const el = (tag, props = {}, ...kids) => {
     ...field('Ciudad (clima)', city),
     ...field('Habilidades', abil),
     save,
+    el('h2', { textContent: 'Audio y reproductores' }),
+    el('div', { className: 'note', textContent: 'Si el volumen o los controles de música no responden, esto muestra qué falla para poder arreglarlo.' }),
+    (() => {
+      const outBox = el('pre', { className: 'diag', hidden: true });
+      const btn = el('button', {
+        textContent: 'Probar audio',
+        onclick: async () => {
+          btn.textContent = 'Probando…';
+          const r = await window.yurei.diagnoseAudio();
+          btn.textContent = 'Probar audio';
+          outBox.hidden = false;
+          outBox.textContent = r.ok ? JSON.stringify(r.data, null, 2) : `Error: ${r.error}`;
+        }
+      });
+      return el('div', {}, btn, outBox);
+    })(),
     el('h2', { textContent: 'Tus datos' }),
     el('div', { className: 'note', textContent: 'Todo lo tuyo vive solo en este equipo. Puedes borrarlo por completo en cualquier momento.' }),
     el('button', { className: 'danger', textContent: 'Borrar todos mis datos…', onclick: () => window.yurei.wipeData() })

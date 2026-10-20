@@ -331,6 +331,7 @@ function start() {
     app.exit(0);
     return true;
   });
+  handle('diag:audio', () => system.diagnose());
   handle('todos', () => store.get('todos'));
   handle('widget:data', async (_e, name) => {
     if (name === 'weather') return weather.get(store.get('settings').city);
