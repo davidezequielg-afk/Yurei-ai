@@ -57,6 +57,17 @@ function toolRunner(executeTool, actions) {
 
 /* ---------- Claude (SDK oficial de Anthropic) ---------- */
 
+// Errores de Anthropic en palabras claras (las clases tipadas del SDK; el texto solo para el caso del saldo).
+function claudeError(e) {
+  if (e instanceof Anthropic.AuthenticationError) return new Error('Anthropic rechazó la clave: revisa que la copiaste completa en Ajustes → Cerebro.');
+  if (e instanceof Anthropic.PermissionDeniedError) return new Error('Tu clave de Anthropic no tiene permiso para usar ese modelo.');
+  if (e instanceof Anthropic.NotFoundError) return new Error('Ese modelo de Claude no existe para tu cuenta: elige otro en Ajustes → Cerebro.');
+  if (e instanceof Anthropic.RateLimitError) return new Error('Claude está recibiendo demasiados pedidos de tu cuenta: prueba en un momento.');
+  if (e instanceof Anthropic.BadRequestError && /credit balance/i.test(e.message)) return new Error('Tu cuenta de Anthropic no tiene saldo. Carga crédito en console.anthropic.com → Plans & Billing, o elige Gemini (gratis) en Ajustes → Cerebro.');
+  if (e instanceof Anthropic.APIError && e.status >= 500) return new Error('Claude está saturado o falló ahora mismo: prueba de nuevo en un momento.');
+  return e;
+}
+
 // Modelos que aceptan la red de seguridad del servidor: si el modelo declina, el mismo pedido se reintenta en otro.
 const CLAUDE_FALLBACK = new Set(['claude-opus-5-5', 'claude-opus-5', 'claude-sonnet-5-5', 'claude-fable-5-1']);
 
@@ -83,7 +94,7 @@ async function runClaude({ apiKey, model, system, text, imageB64, history = [], 
       messages,
       output_config: { effort: 'low' }, // charla por voz: respuestas rápidas
       ...extra
-    });
+    }).catch((e) => { throw claudeError(e); });
     if (res.stop_reason === 'refusal') return { text: 'Perdón, con eso no puedo ayudarte.', actions };
     messages.push({ role: 'assistant', content: res.content });
     if (res.stop_reason === 'pause_turn') continue;
@@ -167,7 +178,7 @@ async function testBrain({ provider, baseUrl, apiKey, model, fetchImpl = fetch, 
   if (provider === 'anthropic') {
     if (!apiKey) throw new Error('Falta la API key de Claude');
     const anthropic = client || new Anthropic({ apiKey, timeout: 30000, maxRetries: 1 });
-    const res = await anthropic.messages.create({ model, max_tokens: 1024, output_config: { effort: 'low' }, messages: [{ role: 'user', content: 'Responde solo: ok' }] });
+    const res = await anthropic.messages.create({ model, max_tokens: 1024, output_config: { effort: 'low' }, messages: [{ role: 'user', content: 'Responde solo: ok' }] }).catch((e) => { throw claudeError(e); });
     return { ok: true, model: res.model };
   }
   if (!baseUrl) throw new Error('Falta la dirección de la IA');
@@ -175,4 +186,4 @@ async function testBrain({ provider, baseUrl, apiKey, model, fetchImpl = fetch, 
   return { ok: true, model: data.model || model };
 }
 
-module.exports = { testBrain, PRESETS, toJsonSchema, runClaude, runOpenAI, transcribeOpenAI, speakOpenAI, plainHistory };
+module.exports = { claudeError, testBrain, PRESETS, toJsonSchema, runClaude, runOpenAI, transcribeOpenAI, speakOpenAI, plainHistory };

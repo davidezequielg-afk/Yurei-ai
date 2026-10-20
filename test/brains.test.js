@@ -131,3 +131,15 @@ test('la clave de la otra IA se guarda cifrada y nunca vuelve a la ventana', () 
   assert.throws(() => S.validateSettingsPatch({ brainBase: 'http://otro-sitio.com/v1' }), /https/);
   assert.throws(() => S.validateSettingsPatch({ brainPreset: 'inventado' }));
 });
+
+test('errores de Claude en palabras claras (sin saldo, clave mala, modelo inexistente)', () => {
+  const { claudeError } = require('../src/brains');
+  const mod = require('@anthropic-ai/sdk');
+  const A = mod.default || mod;
+  const mk = (Cls, status, msg) => new Cls(status, { type: 'error', error: { type: 'invalid_request_error', message: msg } }, msg, new Headers());
+  assert.match(claudeError(mk(A.BadRequestError, 400, 'Your credit balance is too low to access the Anthropic API.')).message, /no tiene saldo/);
+  assert.match(claudeError(mk(A.AuthenticationError, 401, 'invalid x-api-key')).message, /rechazó la clave/);
+  assert.match(claudeError(mk(A.NotFoundError, 404, 'model: x')).message, /no existe/);
+  const other = new Error('otra cosa');
+  assert.equal(claudeError(other), other);
+});
