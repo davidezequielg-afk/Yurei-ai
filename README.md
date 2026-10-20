@@ -22,7 +22,7 @@ Asistente de voz de escritorio de **código abierto** (MIT), inspirado en la cat
 | **Isla en pantalla** | Notch mínimo que solo se mueve con la voz. Al hacer clic se despliega un panel de 3 widgets fijos: icono de Yurei (tócalo para hablar), hora y pendientes |
 | **Widgets intercambiables** | El panel tiene 3 lugares fijos (izquierda, centro, derecha) y cada uno muestra el widget que elijas: Yurei, hora y fecha, pendientes, clima, próximas tareas, estado del PC, calendario o batería. Cámbialos por voz ("pon el clima a la derecha") o en Ajustes. El icono de Yurei no se puede quitar, pero sí mover |
 | **Música y video** | Detecta lo que suena en el PC (Spotify, YouTube en el navegador, etc.) y lo controlas por voz ("pausa", "siguiente", "retrocede 10 segundos", "sube el volumen") o desde los widgets *Reproduciendo* y *Volumen*. Solo Windows |
-| **Mis apps** | Widget con 4 accesos a apps o webs (WhatsApp, Instagram, Chrome, Discord…). Cada lugar vacío tiene un **+** que abre un selector con sugeridas y tus apps instaladas; si una sugerida no está instalada se usa su versión web. También por voz: "pon WhatsApp en mis apps". Los iconos de las webs se piden a Google por el dominio y se guardan en disco |
+| **Mis apps** | Widget con 4 accesos a apps o webs. Cada lugar vacío tiene un **+** que abre un selector con **117 sugeridas por categorías** (mensajería, redes, navegadores, música, streaming, productividad, IA, desarrollo, juegos, compras, finanzas, viajes, noticias, diseño, aprendizaje y utilidades; con su logo oficial) y tus apps instaladas; si una sugerida no está instalada se usa su versión web. También por voz: "pon WhatsApp en mis apps". Los iconos de las webs se piden a Google por el dominio y se guardan en disco |
 | **Apariencia** | Tema como el sistema (claro/oscuro, color de acento y transparencia de Windows), claro, oscuro o personalizado con tus colores; transparencia opcional. Se ve al instante en Ajustes |
 | **Personalización** | Ventana de Ajustes (⚙️ del panel): API key, nombre (*alma*), personalidad, voz y habilidades extra |
 | **Operación desatendida** | Las tareas y rutinas se ejecutan solas y notifican lo que hicieron |
@@ -80,6 +80,10 @@ Por defecto usa `gemini-3.5-flash-lite` para entender y actuar, y `gemini-3.8-fl
 ## Widgets
 
 Catálogo en `src/widgets.js` (reglas de los lugares y lógica de clima/agenda) y `renderer/app.js` (`WIDGETS`). Para añadir uno nuevo: agrégalo al `CATALOG` y define su `build`/`update` en `WIDGETS`. El clima usa [Open-Meteo](https://open-meteo.com/) y no necesita API key; solo se envía el nombre de la ciudad.
+
+## Créditos de los logos
+
+Los logos de las apps sugeridas vienen de [Simple Icons](https://simpleicons.org) (licencia CC0-1.0) y van incluidos en `renderer/brandicons.js`, sin depender de internet. Las marcas y logos pertenecen a sus dueños y se usan solo para identificar cada app. Para regenerarlos o añadir otros: `npm i --no-save simple-icons && node scripts/build-suggestions.js` (la lista de las 117 apps sugeridas está en ese script). Las apps instaladas usan su icono real de Windows.
 
 ## Seguridad
 

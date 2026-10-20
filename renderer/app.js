@@ -47,11 +47,19 @@ async function appIcon(item) {
   return iconCache.get(key);
 }
 
+// Logo de la marca al instante (sin red); si es una app instalada, después se reemplaza por su icono real de Windows.
+function appArt(item) {
+  const brand = item.brand && window.brandIcon(item.brand, 26);
+  const art = brand || el('span', { className: 'tile', textContent: item.name[0].toUpperCase() });
+  if (!(item.kind === 'url' && brand)) {
+    appIcon(item).then((src) => { if (src) art.replaceWith(el('img', { src, alt: '' })); });
+  }
+  return art;
+}
+
 function filledCell(item, i) {
-  const art = el('span', { className: 'tile', textContent: item.name[0].toUpperCase() });
-  appIcon(item).then((src) => { if (src) art.replaceWith(el('img', { src, alt: '' })); });
   const remove = el('span', { className: 'x', title: 'Quitar', onclick: (e) => { e.stopPropagation(); window.yurei.launcherClear(i); } }, window.icon('close', 10));
-  return el('button', { className: 'cell', title: `Abrir ${item.name}`, onclick: () => window.yurei.launcherOpen(i) }, art, el('span', { className: 'cl', textContent: item.name }), remove);
+  return el('button', { className: 'cell', title: `Abrir ${item.name}`, onclick: () => window.yurei.launcherOpen(i) }, appArt(item), el('span', { className: 'cl', textContent: item.name }), remove);
 }
 
 function emptyCell(i) {

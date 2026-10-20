@@ -7,8 +7,12 @@ h2 { margin: 16px 0 4px; font-size: 11px; font-weight: 600; letter-spacing: .08e
 input { width: 100%; background: var(--track); color: var(--ink); border: 1px solid var(--line); border-radius: 8px; padding: 8px 10px; font: inherit; user-select: text; }
 .item { display: flex; align-items: center; gap: 10px; width: 100%; padding: 7px 8px; background: none; border: 0; border-radius: 8px; color: var(--ink); font: inherit; text-align: left; cursor: pointer; }
 .item:hover { background: var(--track); }
+.item .brand { display: flex; width: 24px; height: 24px; flex: none; }
 .item img, .item .tile { width: 24px; height: 24px; flex: none; object-fit: contain; }
 .item .tile { display: flex; align-items: center; justify-content: center; border: 1px solid var(--faint); border-radius: 7px; color: var(--accent); font-weight: 600; font-size: 12px; }
 .item .name { flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .item .tag { color: var(--mute); font-size: 11px; font-weight: 500; }
 .empty { color: var(--mute); padding: 8px; }
+#tabs { display: flex; gap: 4px; margin: 10px 0 2px; }
+#tabs button { flex: 1; padding: 6px 0; background: none; border: 0; border-bottom: 2px solid var(--line); color: var(--mute); font: inherit; font-weight: 500; cursor: pointer; }
+#tabs button.on { color: var(--ink); border-bottom-color: var(--accent); }

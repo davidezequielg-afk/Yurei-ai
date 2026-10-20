@@ -2,21 +2,9 @@
 
 const SLOTS = 4;
 
-// Sugeridas: si la app está instalada se abre la app; si no, la versión web.
-const SUGGESTIONS = [
-  { name: 'WhatsApp', match: ['whatsapp'], url: 'https://web.whatsapp.com' },
-  { name: 'Instagram', match: ['instagram'], url: 'https://www.instagram.com' },
-  { name: 'Chrome', match: ['google chrome', 'chrome'], url: 'https://www.google.com' },
-  { name: 'Discord', match: ['discord'], url: 'https://discord.com/app' },
-  { name: 'Spotify', match: ['spotify'], url: 'https://open.spotify.com' },
-  { name: 'YouTube', match: ['youtube'], url: 'https://www.youtube.com' },
-  { name: 'Gmail', match: [], url: 'https://mail.google.com' },
-  { name: 'Telegram', match: ['telegram'], url: 'https://web.telegram.org' },
-  { name: 'Netflix', match: ['netflix'], url: 'https://www.netflix.com' },
-  { name: 'Notion', match: ['notion'], url: 'https://www.notion.so' },
-  { name: 'GitHub', match: ['github desktop', 'github'], url: 'https://github.com' },
-  { name: 'X', match: [], url: 'https://x.com' }
-];
+// Sugeridas (117, por categorías): si la app está instalada se abre la app; si no, la versión web.
+// Los datos se generan con scripts/build-suggestions.js
+const SUGGESTIONS = require('./suggestions');
 
 const norm = (s) => String(s).toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '').trim();
 
@@ -25,11 +13,12 @@ function sanitizeItem(item) {
   const name = String(item.name || '').trim().slice(0, 40);
   const target = String(item.target || '');
   if (!name || !target) return null;
-  if (item.kind === 'app') return { kind: 'app', name, target };
+  const brand = /^[a-z0-9]{1,30}$/.test(String(item.brand || '')) ? { brand: String(item.brand) } : {}; // logo de la marca (de brandicons.js)
+  if (item.kind === 'app') return { kind: 'app', name, target, ...brand };
   if (item.kind === 'url') {
     try {
       const u = new URL(target);
-      return ['http:', 'https:'].includes(u.protocol) ? { kind: 'url', name, target: u.href } : null;
+      return ['http:', 'https:'].includes(u.protocol) ? { kind: 'url', name, target: u.href, ...brand } : null;
     } catch {
       return null;
     }
@@ -48,9 +37,9 @@ function findApp(name, installed) {
 function resolveSuggestion(suggestion, installed) {
   for (const m of suggestion.match) {
     const app = findApp(m, installed);
-    if (app) return { kind: 'app', name: app.name, target: app.file };
+    if (app) return { kind: 'app', name: app.name, target: app.file, brand: suggestion.brand };
   }
-  return { kind: 'url', name: suggestion.name, target: new URL(suggestion.url).href };
+  return { kind: 'url', name: suggestion.name, target: new URL(suggestion.url).href, brand: suggestion.brand };
 }
 
 // Resuelve lo que el usuario nombra ("whatsapp", "mi discord") a una app o web.

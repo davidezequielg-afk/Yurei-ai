@@ -6,6 +6,12 @@ const path = require('path');
 const { createStore } = require('../src/store');
 const { createTools } = require('../src/tools');
 const L = require('../src/launcher');
+const vm = require('vm');
+
+// brandicons.js es un script de navegador: se carga en un contexto aislado
+const ctx = {};
+vm.runInNewContext(`${fs.readFileSync(path.join(__dirname, '..', 'renderer', 'brandicons.js'), 'utf8')}\nthis.BRAND_ICONS = BRAND_ICONS;`, ctx);
+const BRANDS = ctx.BRAND_ICONS;
 
 const installed = [
   { name: 'Discord', file: 'C:\\Start\\Discord.lnk' },
@@ -16,10 +22,10 @@ const installed = [
 
 test('sugeridas: abre la app si está instalada y la web si no', () => {
   const byName = (n) => L.SUGGESTIONS.find((s) => s.name === n);
-  assert.deepEqual(L.resolveSuggestion(byName('Discord'), installed), { kind: 'app', name: 'Discord', target: 'C:\\Start\\Discord.lnk' });
-  assert.deepEqual(L.resolveSuggestion(byName('Chrome'), installed), { kind: 'app', name: 'Google Chrome', target: 'C:\\Start\\Google Chrome.lnk' }); // no "Chrome Remote Desktop"
-  assert.deepEqual(L.resolveSuggestion(byName('WhatsApp'), installed), { kind: 'url', name: 'WhatsApp', target: 'https://web.whatsapp.com/' });
-  assert.deepEqual(L.resolveSuggestion(byName('Instagram'), []), { kind: 'url', name: 'Instagram', target: 'https://www.instagram.com/' });
+  assert.deepEqual(L.resolveSuggestion(byName('Discord'), installed), { kind: 'app', name: 'Discord', target: 'C:\\Start\\Discord.lnk', brand: 'discord' });
+  assert.deepEqual(L.resolveSuggestion(byName('Chrome'), installed), { kind: 'app', name: 'Google Chrome', target: 'C:\\Start\\Google Chrome.lnk', brand: 'googlechrome' }); // no "Chrome Remote Desktop"
+  assert.deepEqual(L.resolveSuggestion(byName('WhatsApp'), installed), { kind: 'url', name: 'WhatsApp', target: 'https://web.whatsapp.com/', brand: 'whatsapp' });
+  assert.deepEqual(L.resolveSuggestion(byName('Instagram'), []), { kind: 'url', name: 'Instagram', target: 'https://www.instagram.com/', brand: 'instagram' });
   assert.ok(['WhatsApp', 'Instagram', 'Chrome', 'Discord'].every((n) => byName(n)));
 });
 
@@ -72,4 +78,44 @@ test('por voz: agregar y quitar apps del widget', async () => {
   assert.equal((await tools.execute('remove_launcher_app', { slot: 1 })).removed.name, 'WhatsApp');
   await assert.rejects(tools.execute('remove_launcher_app', { name: 'nada' }), /No encontré/);
   await assert.rejects(tools.execute('remove_launcher_app', {}), /No encontré/);
+});
+
+test('todas las sugeridas tienen su logo oficial incluido (y válido)', () => {
+  for (const s of L.SUGGESTIONS) {
+    const b = BRANDS[s.brand];
+    assert.ok(b, `falta el logo de ${s.name}`);
+    assert.match(b.hex, /^[0-9A-F]{6}$/i);
+    assert.match(b.path, /^[Mm][\d .,\-a-zA-Z]+$/, `ruta SVG rara en ${s.name}`); // solo comandos de trazo: nada de scripts
+  }
+  for (const n of ['WhatsApp', 'Instagram', 'Chrome', 'Discord']) assert.ok(L.SUGGESTIONS.some((s) => s.name === n && BRANDS[s.brand]));
+});
+
+test('el logo de la marca viaja con el acceso, sea app instalada o web', () => {
+  const wa = L.resolveByName('whatsapp', installed);
+  assert.equal(wa.brand, 'whatsapp');
+  assert.equal(L.resolveByName('discord', installed).brand, 'discord'); // app instalada, con su logo de respaldo
+  assert.equal(L.sanitizeItem({ kind: 'url', name: 'Mi blog', target: 'https://blog.example.com' }).brand, undefined);
+  assert.equal(L.sanitizeItem({ kind: 'url', name: 'X', target: 'https://x.com', brand: '<script>' }).brand, undefined); // slug inválido: se descarta
+  assert.equal(L.sanitizeItem({ kind: 'url', name: 'X', target: 'https://x.com', brand: 'x' }).brand, 'x');
+});
+
+test('hay 117 sugeridas cotidianas, sin repetidos y con direcciones válidas', () => {
+  const S = L.SUGGESTIONS;
+  assert.equal(S.length, 117);
+  assert.equal(new Set(S.map((x) => x.name)).size, 117);
+  assert.equal(new Set(S.map((x) => x.brand)).size, 117);
+  for (const x of S) {
+    assert.ok(x.category && x.name && x.brand, `datos incompletos en ${x.name}`);
+    assert.equal(new URL(x.url).protocol, 'https:', `${x.name} debe abrirse por https`);
+  }
+  assert.equal(new Set(S.map((x) => x.category)).size, 16);
+  // cada una se puede guardar en un lugar del widget
+  for (const x of S) assert.ok(L.sanitizeItem(L.resolveSuggestion(x, [])), `no se puede guardar ${x.name}`);
+});
+
+test('los nombres cortos de las apps instaladas no confunden a otras', () => {
+  const apps = [{ name: 'Online Banking Helper', file: 'a' }, { name: 'Linea de comandos', file: 'b' }, { name: 'Steamless Tool', file: 'c' }];
+  const S = L.SUGGESTIONS;
+  assert.equal(L.resolveSuggestion(S.find((x) => x.name === 'LINE'), apps).kind, 'url'); // "line" no coincide con "Online…"
+  assert.equal(L.resolveSuggestion(S.find((x) => x.name === 'X'), apps).kind, 'url');
 });

@@ -172,7 +172,7 @@ app.whenReady().then(() => {
     store.updateSettings({ launcher });
     win?.webContents.send('settings-changed', settingsView());
   };
-  ipcMain.handle('launcher:data', safe(() => ({ installed: installed(), suggestions: L.SUGGESTIONS.map((x) => L.resolveSuggestion(x, installed())) })));
+  ipcMain.handle('launcher:data', safe(() => ({ installed: installed(), suggestions: L.SUGGESTIONS.map((x) => ({ ...L.resolveSuggestion(x, installed()), category: x.category })) })));
   ipcMain.handle('launcher:set', safe((_e, slot, item) => {
     const clean = L.sanitizeItem(item);
     if (!clean || !L.isAllowed(clean, installed())) throw new Error('App no válida');

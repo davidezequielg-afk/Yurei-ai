@@ -19,8 +19,9 @@ async function iconFor(item) {
 }
 
 function row(item, tag) {
-  const art = el('span', { className: 'tile', textContent: item.name[0].toUpperCase() });
-  iconFor(item).then((src) => { if (src) art.replaceWith(el('img', { src, alt: '' })); });
+  const brand = item.brand && window.brandIcon(item.brand, 24);
+  const art = brand || el('span', { className: 'tile', textContent: item.name[0].toUpperCase() });
+  if (!(item.kind === 'url' && brand)) iconFor(item).then((src) => { if (src) art.replaceWith(el('img', { src, alt: '' })); });
   return el('button', {
     className: 'item',
     onclick: async () => {
@@ -30,19 +31,38 @@ function row(item, tag) {
   }, art, el('span', { className: 'name', textContent: item.name }), el('span', { className: 'tag', textContent: tag }));
 }
 
+let view = 'sug';
+
+function section(title, items, tag) {
+  return items.length ? [el('h2', { textContent: title }), ...items.map((x) => row(x, tag(x)))] : [];
+}
+
 function render() {
   const q = document.getElementById('q').value.trim().toLowerCase();
   const list = document.getElementById('list');
-  const sug = data.suggestions.filter((x) => !q || x.name.toLowerCase().includes(q));
-  const shown = new Set(sug.map((x) => x.target)); // lo que ya sale en Sugeridas no se repite abajo
-  const apps = data.installed.filter((a) => !shown.has(a.file) && (!q || a.name.toLowerCase().includes(q))).slice(0, 80)
-    .map((a) => ({ kind: 'app', name: a.name, target: a.file }));
-  list.replaceChildren(
-    ...(sug.length ? [el('h2', { textContent: 'Sugeridas' }), ...sug.map((x) => row(x, x.kind === 'app' ? 'instalada' : 'web'))] : []),
-    ...(apps.length ? [el('h2', { textContent: 'Instaladas' }), ...apps.map((x) => row(x, ''))] : []),
-    ...(!sug.length && !apps.length ? [el('div', { className: 'empty', textContent: 'No encontré nada con ese nombre.' })] : [])
-  );
+  const match = (name) => !q || name.toLowerCase().includes(q);
+  const sug = data.suggestions.filter((x) => match(x.name));
+  const shown = new Set(sug.map((x) => x.target)); // lo que ya sale en Sugeridas no se repite en Instaladas
+  const toItem = (a) => ({ kind: 'app', name: a.name, target: a.file });
+  const apps = data.installed.filter((a) => match(a.name) && (view === 'inst' || !shown.has(a.file))).slice(0, 120).map(toItem);
+  const tag = (x) => (x.kind === 'app' ? 'instalada' : 'web');
+  let out;
+  if (q) {
+    out = [...section('Sugeridas', sug, tag), ...section('Instaladas', apps, () => '')];
+  } else if (view === 'sug') {
+    const cats = [...new Set(data.suggestions.map((x) => x.category))];
+    out = cats.flatMap((c) => section(c, data.suggestions.filter((x) => x.category === c), tag));
+  } else {
+    out = apps.length ? apps.map((x) => row(x, '')) : [el('div', { className: 'empty', textContent: 'No hay apps instaladas para listar (esto solo funciona en Windows).' })];
+  }
+  list.replaceChildren(...(out.length ? out : [el('div', { className: 'empty', textContent: 'No encontré nada con ese nombre.' })]));
 }
 
+document.getElementById('tabs').onclick = (e) => {
+  if (!e.target.dataset.v) return;
+  view = e.target.dataset.v;
+  document.querySelectorAll('#tabs button').forEach((b) => b.classList.toggle('on', b === e.target));
+  render();
+};
 document.getElementById('q').oninput = render;
 window.yurei.launcherData().then((r) => { if (r.ok) { data = r.data; render(); } });

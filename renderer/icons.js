@@ -37,3 +37,18 @@ function batteryIcon(level, charging, size = 28) {
   span.innerHTML = `<svg viewBox="0 0 24 24" width="${size}" height="${size}" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="2" y="7" width="18" height="10" rx="2.5"/><path d="M22 10.5v3"/><rect x="4.5" y="9.5" width="${w}" height="5" rx="1" fill="currentColor" stroke="none"/>${charging ? '<path class="bolt" d="M12.5 8.5l-2.2 3.5h3l-2.2 3.5" stroke-width="1.8"/>' : ''}</svg>`;
   return span;
 }
+
+// Logo oficial de una marca (de brandicons.js). Si su color se pierde sobre el fondo del tema, usa el color del texto.
+function brandIcon(slug, size = 26) {
+  const b = typeof BRAND_ICONS !== 'undefined' && BRAND_ICONS[slug];
+  if (!b) return null;
+  const [r, g, bl] = [0, 2, 4].map((i) => parseInt(b.hex.slice(i, i + 2), 16) / 255);
+  const lum = 0.2126 * r + 0.7152 * g + 0.0722 * bl;
+  const dark = document.documentElement.dataset.mode !== 'light';
+  const fill = (dark && lum < 0.1) || (!dark && lum > 0.85) ? 'var(--ink)' : `#${b.hex}`;
+  const span = document.createElement('span');
+  span.className = 'brand';
+  span.title = b.title;
+  span.innerHTML = `<svg viewBox="0 0 24 24" width="${size}" height="${size}" role="img" aria-label="${b.title}"><path d="${b.path}" fill="${fill}"/></svg>`;
+  return span;
+}
