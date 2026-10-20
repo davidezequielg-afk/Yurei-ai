@@ -103,7 +103,7 @@ function runWelcome(s) {
         tryBtn.disabled = true;
         tryBtn.textContent = 'Preparando…';
         await flush();
-        const r = await window.yurei.tts('¡Hola! Así sueno yo. ¿Te gusta?');
+        const r = await window.yurei.tts(t('¡Hola! Así sueno yo. ¿Te gusta?'));
         if (r.ok) { tryBtn.textContent = 'Sonando…'; await playPcm(r.data); } else toast(r.error, true);
         tryBtn.disabled = false;
         tryBtn.textContent = '▶ Probar';

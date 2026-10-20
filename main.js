@@ -22,6 +22,11 @@ const HOTKEYS = { talk: 'Control+Shift+Space', dictate: 'Control+Alt+D', circle:
 const PNG_SIGNATURE = Buffer.from([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a]);
 const POWER_TEXT = { shutdown: ['apagar', 'Apagar'], restart: ['reiniciar', 'Reiniciar'], sleep: ['suspender', 'Suspender'] };
 
+// Idioma de la interfaz: el elegido, o el de Windows (español si empieza con "es"; si no, inglés).
+const langOf = (settings) => (['es', 'en'].includes(settings?.language) ? settings.language : (app.getLocale() || 'es').toLowerCase().startsWith('es') ? 'es' : 'en');
+let LANG = 'es';
+const tr = (es, en) => (LANG === 'en' ? en : es);
+
 // Todas las ventanas usan aislamiento, sin Node, en sandbox y con las herramientas de desarrollo apagadas.
 if (!process.argv.includes('--no-sandbox')) app.enableSandbox(); // las ventanas ya llevan sandbox:true; esto lo extiende a todos los procesos (--no-sandbox solo se usa en pruebas como administrador)
 app.setAppUserModelId('com.yurei.assistant');
@@ -79,10 +84,10 @@ function createTray() {
 let trayState = { dnd: false, setDnd: () => {} };
 function refreshTray() {
   tray?.setContextMenu(Menu.buildFromTemplate([
-    { label: 'No molestar', type: 'checkbox', checked: trayState.dnd, click: (i) => trayState.setDnd(i.checked) },
-    { label: 'Ajustes', click: () => openSettings() },
+    { label: tr('No molestar', 'Do not disturb'), type: 'checkbox', checked: trayState.dnd, click: (i) => trayState.setDnd(i.checked) },
+    { label: tr('Ajustes', 'Settings'), click: () => openSettings() },
     { type: 'separator' },
-    { label: 'Salir de Yurei', click: () => app.quit() }
+    { label: tr('Salir de Yurei', 'Quit Yurei'), click: () => app.quit() }
   ]));
 }
 
@@ -198,14 +203,14 @@ function start() {
     onChange: (t) => win?.webContents.send('timer', t),
     onDone: ({ finished, next }) => {
       const title = finished.kind === 'pomodoro'
-        ? (next ? (next.phase === 'break' ? 'Hora de un descanso' : '¡A concentrarse otra vez!') : '¡Pomodoro completo!')
-        : `Terminó: ${finished.label}`;
+        ? (next ? (next.phase === 'break' ? tr('Hora de un descanso', 'Time for a break') : tr('¡A concentrarse otra vez!', 'Back to focus!')) : tr('¡Pomodoro completo!', 'Pomodoro complete!'))
+        : `${tr('Terminó', 'Done')}: ${finished.label}`;
       new Notification({ title: `Yurei · ${title}`, silent: true }).show();
       win?.webContents.send('timer-done', { finished, next });
     }
   });
   const tools = createTools({ store, system, focus });
-  const assistant = createAssistant({ store, tools });
+  const assistant = createAssistant({ store, tools, langFor: () => langOf(store.get('settings')) });
   const weather = createWeather({ persist: { load: () => store.get('weatherCache'), save: (c) => store.set('weatherCache', c) } });
   const ttsCache = createTtsCache(path.join(userData, 'tts-cache'), { maxEntries: 60 }); // solo frases de relleno, nunca lo que dices
   const iconCache = createTtsCache(path.join(userData, 'icon-cache'), { maxEntries: 300 });
@@ -221,6 +226,7 @@ function start() {
   const unavailable = () => unavailableWidgets({ hasBattery: system.hasBattery(), hasMedia: system.hasMediaControl() });
   const settingsView = () => ({
     ...store.get('settings'),
+    lang: langOf(store.get('settings')),
     apiKey: store.get('settings').apiKey ? S.MASK : '', // la clave nunca sale del proceso principal
     keyEncrypted: store.encrypted(),
     launcher: L.normalizeLauncher(store.get('settings').launcher),
@@ -249,6 +255,7 @@ function start() {
   setInterval(pollTransparency, 10000);
   handle('appearance:get', () => currentAppearance());
 
+  LANG = langOf(store.get('settings'));
   trayState = {
     dnd: !!store.get('settings').dnd,
     setDnd: (on) => { store.updateSettings({ dnd: !!on }); win?.webContents.send('settings-changed', settingsView()); trayState.dnd = !!on; refreshTray(); }
@@ -319,7 +326,11 @@ function start() {
   handle('picker:open', (_e, slot) => openPicker(S.validateSlot(slot)));
 
   // --- asistente ---
-  const syncTray = () => { const d = !!store.get('settings').dnd; if (d !== trayState.dnd) { trayState.dnd = d; refreshTray(); } };
+  const syncTray = () => {
+    const d = !!store.get('settings').dnd;
+    const l = langOf(store.get('settings'));
+    if (d !== trayState.dnd || l !== LANG) { trayState.dnd = d; LANG = l; refreshTray(); }
+  };
   // Cada pedido a Gemini se cuenta (Ajustes → Privacidad muestra el uso de hoy y si se llegó al límite gratis).
   const usage = createUsage({ load: () => store.get('usage'), save: (u) => store.set('usage', u) });
   handle('usage:get', () => usage.get());

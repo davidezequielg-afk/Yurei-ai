@@ -117,6 +117,7 @@ function validateSettingsPatch(patch, { unavailable = [] } = {}) {
       case 'transparency': if (!TRANSPARENCY.includes(v)) throw new Error('Transparencia no válida'); out[k] = v; break;
       case 'customBg': case 'customAccent': if (!HEX.test(String(v))) throw new Error('Color no válido'); out[k] = String(v).toLowerCase(); break;
       case 'modes': out.modes = validateModes(v); break;
+      case 'language': if (!['auto', 'es', 'en'].includes(v)) throw new Error('Idioma no válido'); out[k] = v; break;
       case 'accessory': if (!ACCESSORIES.includes(v)) throw new Error('Accesorio no válido'); out[k] = v; break;
       case 'widgets': out.widgets = validateLayout(v, unavailable); break;
       default: break; // clave desconocida (incluye launcher y widgetCatalog): se descarta

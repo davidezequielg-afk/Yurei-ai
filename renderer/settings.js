@@ -139,6 +139,9 @@ function playPcm(b64) {
       row('API key de Gemini', 'Se consigue gratis en Google AI Studio.', el('div', { className: 'with-btn' }, key, eye), true),
       el('details', { className: 'more' }, el('summary', { textContent: 'Opciones avanzadas' }),
         row('Modelo', 'Solo cámbialo si sabes cuál usar.', text(s.model, 'model', { spellcheck: false, map: (v) => v.trim() }), true))),
+    card('Idioma', 'Idioma de la interfaz y de las frases de Yurei.',
+      el('div', { className: 'row stack' }, choice('seg', [['auto', 'Automático'], ['es', 'Español'], ['en', 'English']].map(([v, l]) => ({ value: v, node: el('button', { className: 'chip', textContent: l }) })),
+        s.language || 'auto', (v) => { save({ language: v }); flush().then(() => location.reload()); }))),
     card('Personalidad', 'Cómo se llama y cómo te habla.',
       row('Nombre', 'También es la palabra para llamarla por voz.', soul, true),
       row('Forma de ser', null, text(s.personality, 'personality', { rows: 2 }), true),
@@ -153,7 +156,7 @@ function playPcm(b64) {
     tryBtn.disabled = true;
     tryBtn.textContent = 'Preparando…';
     await flush(); // la prueba usa la voz guardada
-    const r = await window.yurei.tts(`Hola, soy ${soul.value.trim() || 'Yurei'}. ¿En qué te ayudo?`);
+    const r = await window.yurei.tts(t(`Hola, soy ${soul.value.trim() || 'Yurei'}. ¿En qué te ayudo?`));
     if (r.ok) { tryBtn.textContent = 'Sonando…'; await playPcm(r.data); } else toast(r.error, true);
     tryBtn.disabled = false;
     tryBtn.textContent = '▶ Probar voz';

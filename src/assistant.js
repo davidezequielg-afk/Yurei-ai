@@ -35,6 +35,7 @@ function buildSystemPrompt(settings, now = new Date(), { memory = [], translator
     `Fecha y hora local: ${now.toLocaleString('sv-SE').replace(' ', 'T').slice(0, 16)} (${Intl.DateTimeFormat().resolvedOptions().timeZone}). Es de ${when}.`,
     `Si te saluda, saluda según la hora (${when === 'mañana' ? '"buen día"' : when === 'tarde' ? '"buenas tardes"' : '"buenas noches"'}) y llámalo por su nombre si lo sabes.${when === 'madrugada' ? ' Es muy tarde: puedes bostezar ("¡uaaah!") y comentarlo con cariño, sin sermonear.' : ''}`,
     'Si el usuario te cuenta algo duradero de sí mismo (nombre, gustos, dónde vive, trabajo, gente importante), guárdalo con remember sin anunciarlo de más. Si te pide olvidar algo, usa forget.',
+    settings.lang === 'en' ? 'The user\'s interface is in English: reply in English unless they speak to you in another language. Keep the emotion tags in Spanish exactly as listed.' : '',
     abilities,
     settings.modes?.length ? `\nModos del usuario (con run_mode): ${settings.modes.map((m) => m.name).join(', ')}. "Modo normal" lo deshace.` : '',
     known,
@@ -45,7 +46,7 @@ function buildSystemPrompt(settings, now = new Date(), { memory = [], translator
 function wakePrompt(name) {
   return `Escucha el audio. Responde exactamente "WAKE: <lo que dijo>" en estos dos casos:
 1) La persona llama a un asistente que se llama "${name}" (o algo que suene muy parecido, p. ej. "Shurei", "Yurey", "Jurei"). Pon lo que pidió después del nombre, o déjalo vacío si solo dijo el nombre.
-2) La persona saluda para empezar a charlar con el asistente, aunque no diga el nombre (p. ej. "hola", "hola, ¿cómo estás?", "buenas", "buen día", "hey"). Pon el saludo tal cual.
+2) La persona saluda para empezar a charlar con el asistente, aunque no diga el nombre (p. ej. "hola", "hola, ¿cómo estás?", "buenas", "buen día", "hey", "hi", "hello", "good morning"). Pon el saludo tal cual.
 En cualquier otro caso (conversaciones con otras personas, televisión, música, ruido), responde exactamente "NONE". No escribas nada más.`;
 }
 
@@ -54,7 +55,7 @@ function parseWake(out = '') {
   return m ? { woke: true, command: m[1].trim() } : { woke: false, command: '' };
 }
 
-function createAssistant({ store, tools, fetchImpl }) {
+function createAssistant({ store, tools, fetchImpl, langFor = null }) {
   let history = [];
 
   return {
@@ -69,7 +70,7 @@ function createAssistant({ store, tools, fetchImpl }) {
       const { text: raw, actions } = await runAgent({
         apiKey: s.apiKey,
         model: s.model,
-        system: buildSystemPrompt(s, new Date(), { memory: store.get('memory') || [], translator: tools.session?.translator }),
+        system: buildSystemPrompt({ ...s, lang: langFor?.() }, new Date(), { memory: store.get('memory') || [], translator: tools.session?.translator }),
         userParts,
         history,
         declarations: tools.declarations,

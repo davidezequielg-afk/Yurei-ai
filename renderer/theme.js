@@ -12,5 +12,5 @@ function applyAccessory(acc) {
   if (acc && acc !== 'none') document.documentElement.dataset.acc = acc;
   else delete document.documentElement.dataset.acc;
 }
-window.yurei.getSettings().then((r) => r.ok && applyAccessory(r.data.accessory));
-window.yurei.on('settings-changed', (s) => applyAccessory(s.accessory));
+window.yurei.getSettings().then((r) => { if (r.ok) { applyAccessory(r.data.accessory); setLang(r.data.lang); } });
+window.yurei.on('settings-changed', (s) => { applyAccessory(s.accessory); setLang(s.lang); });

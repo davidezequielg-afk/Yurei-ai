@@ -190,7 +190,7 @@ const WIDGETS = {
       const first = new Date(now.getFullYear(), now.getMonth(), 1);
       const days = new Date(now.getFullYear(), now.getMonth() + 1, 0).getDate();
       const offset = (first.getDay() + 6) % 7; // semana desde lunes
-      const cells = ['L', 'M', 'X', 'J', 'V', 'S', 'D'].map((d) => el('b', { textContent: d }));
+      const cells = (LANG === 'en' ? ['M', 'T', 'W', 'T', 'F', 'S', 'S'] : ['L', 'M', 'X', 'J', 'V', 'S', 'D']).map((d) => el('b', { textContent: d }));
       for (let i = 0; i < offset; i++) cells.push(el('span'));
       for (let d = 1; d <= days; d++) cells.push(el('span', { textContent: d, className: d === now.getDate() ? 'today' : '' }));
       r.grid.replaceChildren(...cells);
@@ -587,7 +587,11 @@ const FILLER_MORE_MS = 7000;
 const fillerAudio = new Map(); // frase → audio (base64); la voz se genera una vez y queda en disco
 let lastFiller = '';
 
-const fillerPool = (kind) => (kind === 'first' && state.fillerPhrases?.length ? state.fillerPhrases : FILLERS[kind]);
+const FILLERS_EN = {
+  first: ['Hmm, let me see.', 'Let\'s see…', 'One second…', 'Sure, one moment.', 'Checking right now.', 'Good question, let me think.'],
+  more: ['Still on it, almost there.', 'Just a moment more.', 'Sorry for the wait, nearly got it.']
+};
+const fillerPool = (kind) => (kind === 'first' && state.fillerPhrases?.length ? state.fillerPhrases : (LANG === 'en' ? FILLERS_EN : FILLERS)[kind]);
 
 // Precarga en segundo plano: la primera vez genera los audios; después salen del disco al instante.
 async function prefetchFillers() {
@@ -641,7 +645,7 @@ const conv = { active: false, timer: null, busy: false, turns: 0 }; // turns: cu
 const listenLabel = () => (state.translator ? `Traduciendo → ${state.translator}` : 'Te escucho');
 
 // ¿Es un saludo para arrancar la charla ("hola, ¿cómo estás?")? Con audio no hay texto: un primer mensaje muy corto cuenta como saludo.
-const GREETING = /^[\s¡!¿,.]*(hola|holi|buenas|buen d[ií]a|buenos d[ií]as|buenas tardes|buenas noches|hey|ey|qu[eé] tal|c[oó]mo (est[aá]s|and[aá]s|va))\b/i;
+const GREETING = /^[\s¡!¿,.]*(hola|holi|buenas|buen d[ií]a|buenos d[ií]as|buenas tardes|buenas noches|hey|ey|qu[eé] tal|c[oó]mo (est[aá]s|and[aá]s|va)|hi|hello|good (morning|afternoon|evening)|how are you)\b/i;
 const isGreeting = ({ text, seconds }) => (text ? GREETING.test(text) && text.length < 40 : seconds > 0 && seconds < 2.2);
 
 function wakeIdle() {
@@ -905,6 +909,7 @@ window.yurei.on('timer-done', async ({ finished, next }) => {
     else text = `Se terminó el descanso. Vamos con el bloque ${next.cycle} de ${next.cycles}.`;
   } else text = finished.label && finished.label !== 'Temporizador' ? `¡Listo! Terminó el tiempo de ${finished.label}.` : '¡Listo! Terminó el temporizador.';
   await sleep(1100);
+  text = t(text); // en inglés, la frase sale traducida
   if (!conv.busy) say(text);
   else showReply(`⏰ ${text}`);
 });
@@ -937,7 +942,8 @@ window.yurei.on('update', showUpdate);
 window.yurei.updateGet().then((r) => r.ok && showUpdate(r.data));
 
 function applySettings(cfg) {
-  const voiceChanged = cfg.voice !== state.voiceName || JSON.stringify(cfg.fillerPhrases || []) !== JSON.stringify(state.fillerPhrases || []);
+  const voiceChanged = cfg.voice !== state.voiceName || cfg.lang !== state.lang || JSON.stringify(cfg.fillerPhrases || []) !== JSON.stringify(state.fillerPhrases || []);
+  state.lang = cfg.lang;
   state.voiceName = cfg.voice;
   state.systemVoice = cfg.systemVoice;
   state.fillers = cfg.fillers !== false;
