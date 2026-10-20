@@ -305,6 +305,19 @@ function playPcm(b64) {
   };
   window.yurei.on('update', showUpd);
   window.yurei.updateGet().then((r) => r.ok && showUpd(r.data));
+  // Uso de hoy: Google no dice cuánto queda, así que Yurei cuenta lo que pide.
+  const usageStats = el('div', { className: 'stats' });
+  const usageNote = el('div', { className: 'd' });
+  window.yurei.usageGet().then((r) => {
+    if (!r.ok) return;
+    const u = r.data;
+    const stat = (n, label) => el('div', { className: 'stat' }, el('b', { textContent: String(n) }), el('span', { textContent: label }));
+    usageStats.replaceChildren(stat(u.ask, 'preguntas'), stat(u.voice, 'respuestas habladas'), stat(u.wake + u.dictate, 'escuchas y dictados'));
+    usageNote.textContent = u.limitedAt
+      ? `Hoy llegaste al límite gratis de Gemini a las ${new Date(u.limitedAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}. Se renueva solo.`
+      : 'El plan gratis de Gemini tiene un tope diario que depende del modelo. Si se llega, Yurei te avisa y se renueva solo.';
+  });
+  const usageCard = card('Uso de hoy', 'Pedidos que Yurei hizo a Gemini con tu clave.', el('div', { className: 'row stack' }, usageStats, usageNote));
   const updCard = card('Actualizaciones', 'Las versiones nuevas se bajan de GitHub y se verifica su huella antes de instalarlas.',
     el('div', { className: 'row' }, el('div', { className: 'txt' }, el('div', { className: 't', textContent: 'Yurei' }), updText), updBtn),
     row('Buscar actualizaciones solo', 'Una consulta a GitHub al abrir y cada 6 horas.', toggle(s.autoUpdate !== false, (v) => save({ autoUpdate: v }))));
@@ -312,6 +325,7 @@ function playPcm(b64) {
     card('Lo que recuerda de ti', 'Para charlar mejor, guarda lo que le cuentas de ti. Vive solo en este equipo.',
       el('div', { className: 'row stack' }, memList),
       row('Olvidar todo', null, el('button', { className: 'btn', type: 'button', textContent: 'Olvidar todo', onclick: async () => { const r = await window.yurei.memoryClear(); if (r.ok) { renderMem([]); toast('Olvidé todo'); } } }))),
+    usageCard,
     updCard,
     card('Volumen y música', 'Si el volumen o los controles de música no responden, esto muestra qué falla.', row('Diagnóstico', null, diagBtn), el('div', { className: 'row stack tight' }, diagOut)),
     card('Tus datos', 'Todo lo tuyo vive solo en este equipo.',

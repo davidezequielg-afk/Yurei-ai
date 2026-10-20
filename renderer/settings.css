@@ -142,6 +142,12 @@ pre.diag { margin: 0; padding: 10px; background: var(--soft); border-radius: 10p
 
 @media (prefers-reduced-motion: reduce) { *, *::before, *::after { animation: none !important; transition: none !important; } }
 
+/* uso de hoy */
+.stats { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; }
+.stat { display: flex; flex-direction: column; align-items: center; padding: 10px 6px; border-radius: 12px; background: var(--soft); text-align: center; }
+.stat b { font-size: 20px; font-weight: 600; color: var(--accent); font-variant-numeric: tabular-nums; }
+.stat span { font-size: 11px; color: var(--mute); }
+
 /* recuerdos */
 .mems { display: flex; flex-direction: column; gap: 6px; max-height: 220px; overflow: auto; }
 .mems .d { color: var(--mute); font-size: 12px; }

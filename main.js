@@ -9,6 +9,7 @@ const { createScheduler } = require('./src/scheduler');
 const { createFocus } = require('./src/focus');
 const { createUpdater } = require('./src/updater');
 const { generate } = require('./src/gemini');
+const { createUsage } = require('./src/usage');
 const { spawn } = require('child_process');
 const { createTtsCache } = require('./src/ttscache');
 const { resolveAppearance } = require('./src/theme');
@@ -319,28 +320,34 @@ function start() {
 
   // --- asistente ---
   const syncTray = () => { const d = !!store.get('settings').dnd; if (d !== trayState.dnd) { trayState.dnd = d; refreshTray(); } };
+  // Cada pedido a Gemini se cuenta (Ajustes → Privacidad muestra el uso de hoy y si se llegó al límite gratis).
+  const usage = createUsage({ load: () => store.get('usage'), save: (u) => store.set('usage', u) });
+  handle('usage:get', () => usage.get());
   handle('ask', async (_e, payload) => {
-    const out = await assistant.ask(S.validateAskPayload(payload));
+    const clean = S.validateAskPayload(payload);
+    const out = await usage.track('ask', () => assistant.ask(clean));
     win?.webContents.send('settings-changed', settingsView()); // por si Yurei cambió un widget o la ciudad
     syncTray();
     return out;
   });
   handle('dictate', async (_e, audioB64) => {
-    const text = await assistant.dictate(S.validateAudio(audioB64));
+    const audio = S.validateAudio(audioB64);
+    const text = await usage.track('dictate', () => assistant.dictate(audio));
     if (text) { win?.blur(); await system.pasteText(text); }
     return text;
   });
   handle('timer:get', () => focus.get());
   handle('timer:cancel', () => focus.cancel());
   handle('translator:off', () => { tools.session.translator = null; });
-  handle('wake', (_e, audioB64) => assistant.wake(S.validateAudio(audioB64)));
+  handle('wake', (_e, audioB64) => { const audio = S.validateAudio(audioB64); return usage.track('wake', () => assistant.wake(audio)); });
   handle('tts', (_e, text, opts) => {
     if (typeof text !== 'string' || !text.trim()) throw new Error('Texto no válido');
     const t = text.slice(0, 1500);
-    if (opts?.cache !== true) return assistant.speak(t);
+    const speak = () => usage.track('voice', () => assistant.speak(t));
+    if (opts?.cache !== true) return speak();
     if (t.length > 80) throw new Error('Texto demasiado largo para la caché'); // la caché es solo para frases de relleno cortas
     const { voice, ttsModel } = store.get('settings');
-    return ttsCache.getOrCreate(`${ttsModel}|${voice || 'Kore'}|${t}`, () => assistant.speak(t));
+    return ttsCache.getOrCreate(`${ttsModel}|${voice || 'Kore'}|${t}`, speak); // de la caché no cuenta: no se pide a Google
   });
 
   // --- ajustes y datos ---
