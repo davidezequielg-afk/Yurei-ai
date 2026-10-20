@@ -9,7 +9,16 @@ Asistente de voz de escritorio de **código abierto** (MIT), inspirado en la cat
 | Función | Cómo se usa |
 |---|---|
 | **Conversación manos libres** | `Ctrl+Shift+Espacio` abre la charla: habla, y al hacer una pausa (~1,3 s) Yurei te entiende y responde. La charla sigue abierta unos segundos (20 por defecto) sin repetir el nombre; vuelve a pulsar el atajo para cerrarla |
-| **Palabra de activación** | Opcional (Alma → *Escuchar siempre mi nombre*): di "Yurei, abre YouTube" sin tocar el teclado. El nombre es el de la pestaña *Alma* |
+| **Palabra de activación** | Opcional (Ajustes → Voz → *Responder al saludo o a mi nombre*): di "hola, ¿cómo estás?" o "Yurei, abre YouTube" sin tocar el teclado. Si la charla arranca con un saludo, esa respuesta va sin frases de relleno y después la charla sigue sola |
+| **Interrumpirla** | Si le hablas encima mientras responde, se calla y te escucha (se puede apagar si el eco de los parlantes la corta) |
+| **Memoria** | Recuerda lo que le cuentas de ti ("me llamo…", "me gusta…") y lo usa en otras charlas. Se ve y se borra en Ajustes → Privacidad; vive solo en tu equipo |
+| **Saludo según la hora** | "Buen día", "buenas tardes" o "buenas noches", con tu nombre si lo sabe (y un bostezo de madrugada) |
+| **Portapapeles** | "Resume lo que copié", "corrige este texto", "tradúcelo": lee el portapapeles solo cuando se lo pides y puede copiar el resultado |
+| **Traductor en vivo** | "Traduce al inglés lo que diga": repite traducida cada frase hasta que digas "basta" |
+| **Temporizador y pomodoro** | "Pon un temporizador de 10 minutos para los fideos", "empecemos un pomodoro": un anillo alrededor de la carita muestra el tiempo y al terminar suena una campanita y avisa en voz alta |
+| **No molestar** | Por voz o desde la bandeja: deja de escuchar el saludo y calla los avisos; la carita se pone auriculares |
+| **Modos** | "Modo gamer", "modo estudio", "modo cine": abren sus apps y ajustan volumen, música, pomodoro y no molestar. Se crean y editan en Ajustes → Modos; "modo normal" lo deshace |
+| **Carita con vida** | Un fantasmita que respira, parpadea, cambia de gesto al escuchar, pensar y hablar, muestra emociones (feliz, tierna, sorprendida, triste), se duerme si no la usas y se le pueden poner accesorios (gorrito, lentes, moño, corona, flor) |
 | **Voz natural** | Respuestas con el TTS de Gemini (30 voces expresivas: Kore, Puck, Charon…), por frases para empezar a hablar cuanto antes; si falla, usa la voz del sistema |
 | **Charla fluida** | Si la respuesta tarda, Yurei dice una frase corta con su misma voz ("A ver…", "Un segundo…") y otra si se alarga ("Sigo en ello"). Los audios se generan una sola vez y se guardan en disco; las frases se pueden cambiar o desactivar en Ajustes |
 | **Dictado** | `Ctrl+Alt+D` para empezar, otra vez para terminar; el texto limpio (sin muletillas, con autocorrecciones) se pega en la ventana activa |
@@ -24,7 +33,10 @@ Asistente de voz de escritorio de **código abierto** (MIT), inspirado en la cat
 | **Música y video** | Detecta lo que suena en el PC (Spotify, YouTube en el navegador, etc.) y lo controlas por voz ("pausa", "siguiente", "retrocede 10 segundos", "sube el volumen") o desde los widgets *Reproduciendo* y *Volumen*. Solo Windows |
 | **Mis apps** | Widget con 4 accesos a apps o webs. Cada lugar vacío tiene un **+** que abre un selector con **179 sugeridas por categorías** (mensajería, redes, navegadores, música, streaming, productividad, IA, desarrollo, juegos, compras, finanzas, viajes, noticias, diseño, aprendizaje, salud, utilidades y tecnología; con su logo oficial) y tus apps instaladas; si una sugerida no está instalada se usa su versión web. También por voz: "pon WhatsApp en mis apps". Los iconos de las webs se piden a Google por el dominio y se guardan en disco |
 | **Apariencia** | Tema como el sistema (claro/oscuro, color de acento y transparencia de Windows), claro, oscuro o personalizado con tus colores; transparencia opcional. Se ve al instante en Ajustes |
-| **Personalización** | Ventana de Ajustes (⚙️ del panel): API key, nombre (*alma*), personalidad, voz y habilidades extra |
+| **Personalización** | Ventana de Ajustes (⚙️ del panel) con pestañas y guardado automático: API key, nombre, personalidad, voz (con botón para probarla), habilidades extra, idioma (español o inglés) |
+| **Bienvenida** | La primera vez, una guía de 5 pasos: qué hace, API key con comprobación, prueba de micrófono y elegir voz |
+| **Actualizaciones** | Busca versiones nuevas en GitHub (se puede apagar), baja el instalador, verifica su SHA-256 y lo instala con un toque |
+| **Uso de hoy** | Cuántos pedidos se hicieron hoy a Gemini y, si se llegó al límite gratis, a qué hora |
 | **Operación desatendida** | Las tareas y rutinas se ejecutan solas y notifican lo que hicieron |
 
 ## Requisitos
@@ -96,8 +108,9 @@ Los logos de las apps sugeridas vienen de [Simple Icons](https://simpleicons.org
 | **Google Gemini** | Tu voz (audio) o texto, la captura que tú recortas con *Circle to Ask*, los resultados de las acciones y el texto a pronunciar | Solo cuando hablas, dictas o preguntas. Con la palabra de activación (desactivada por defecto) también los fragmentos con voz que oye |
 | **Open-Meteo** | Solo el nombre de tu ciudad | Si el widget de clima está puesto |
 | **Google (iconos)** | El dominio de las webs que añades a *Mis apps* | Solo si activas "descargar iconos" (desactivado por defecto) |
+| **GitHub** | Nada tuyo: solo se pide la información del último release (y el instalador si decides actualizar) | Al abrir y cada 6 horas, si "buscar actualizaciones" está activado |
 
-Nada más: **sin telemetría, sin analíticas, sin cuentas, sin actualizaciones automáticas**. Las ventanas de la app ni siquiera pueden hacer peticiones de red; todo sale desde un único proceso y a destinos fijos.
+Nada más: **sin telemetría, sin analíticas, sin cuentas**. Las ventanas de la app ni siquiera pueden hacer peticiones de red; todo sale desde un único proceso y a destinos fijos.
 
 Lo tuyo vive solo en tu equipo (ajustes, pendientes, tareas y rutinas; la API key, cifrada) y puedes borrarlo todo desde Ajustes → *Borrar todos mis datos*.
 
