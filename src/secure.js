@@ -58,7 +58,7 @@ const VOICE = /^[A-Za-z]{2,30}$/;
 const KEY = /^[\w.-]{10,200}$/;
 
 const ACCESSORIES = ['none', 'gorro', 'lentes', 'mono', 'corona', 'flor'];
-const PTT_KEYS = ['off', 'rctrl', 'ralt', 'f8', 'f9', 'capslock'];
+const PTT_KEYS = ['off', 'rctrl', 'ralt', 'f8', 'f9'];
 
 // Atajos: modificadores + una tecla, en el formato de Electron. Nada de teclas solas (romperían la escritura).
 const HOTKEY = /^(?:(?:Control|Alt|Shift|Super)\+){1,3}(?:[A-Z0-9]|F(?:[1-9]|1[0-2])|Space|Enter|Tab|Up|Down|Left|Right|Home|End|PageUp|PageDown|Insert|Delete|Plus|-|=|,|\.|\/|;|')$/;

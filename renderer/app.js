@@ -676,6 +676,16 @@ function startFillers() {
 const log = (kind, text) => console.debug(kind, text);
 
 // El notch pequeño no se agranda por cada respuesta (se oyen); solo para avisos y errores.
+// Aviso corto en el notch (se estira unos segundos y vuelve), sin voz.
+function notice(text, ms = 5000) {
+  if (state.dnd) return;
+  $('reply').textContent = text;
+  if (state.mode === 'idle') {
+    setMode('status');
+    setTimeout(() => { if (state.mode === 'status') setMode('idle'); }, ms);
+  }
+}
+
 function showReply(text) {
   $('reply').textContent = text;
   if (state.mode === 'idle' && /^(⚠|⏰)/.test(text)) {
@@ -860,6 +870,8 @@ $('gear').onclick = () => window.yurei.openSettings();
 window.addEventListener('keydown', (e) => { if (e.key === 'Escape') setMode('idle'); });
 
 window.yurei.on('hotkey', (name) => {
+  if (name === 'ptt-down') { pttDown(); return; }
+  if (name === 'ptt-up') { pttUp(); return; }
   if (name === 'dictate') toggleDictation();
   else if (conv.active) wakeIdle();
   else enterConversation();
@@ -946,6 +958,111 @@ function chime() {
 }
 
 window.yurei.on('timer', setTimerState);
+
+/* ---------- vida: ojitos, reacciones, pausas, disfraces ---------- */
+
+// Los ojitos miran hacia el mouse cuando pasa cerca (el proceso principal manda solo la dirección).
+window.yurei.on('cursor', (look) => {
+  island.style.setProperty('--lx', look ? look.x : 0);
+  island.style.setProperty('--ly', look ? look.y : 0);
+});
+
+const BREAK_TIPS = [
+  'Llevas un buen rato con la pantalla. ¿Te estiras un poquito y tomas agua?',
+  'Hora de una pausa: mira algo lejos por veinte segundos, tus ojos te lo agradecen.',
+  '¿Una pausa corta? Párate, mueve los hombros y respira hondo.',
+  'Te propongo un descanso de dos minutos. Yo te espero acá.'
+];
+window.yurei.on('nudge', async (n) => {
+  if (n.kind === 'cpu') {
+    setMood('sorprendida');
+    notice(t(`Uf, la CPU está al ${n.cpu}%`));
+  } else if (n.kind === 'break') {
+    if (conv.active || conv.busy || state.dnd) return;
+    setMood('tierna');
+    say(t(BREAK_TIPS[Math.floor(Math.random() * BREAK_TIPS.length)]));
+  } else if (n.kind === 'brief') {
+    if (conv.active || conv.busy || !state.hasKey) return;
+    conv.busy = true;
+    try { await handleAsk({ text: t('Buen día. Dame el resumen de hoy en pocas frases.') }, '☀️ resumen de la mañana'); }
+    finally { conv.busy = false; setPhase('', 'Yurei'); }
+  }
+});
+
+// Reacciones a la batería y al cargador: SOLO en notebooks (una PC de escritorio no tiene batería).
+let batteryWatch = null;
+async function watchBattery(on) {
+  if (!on || batteryWatch) return;
+  const b = await navigator.getBattery?.().catch(() => null);
+  if (!b) return;
+  batteryWatch = b;
+  let warned = false;
+  const pct = () => Math.round(b.level * 100);
+  b.addEventListener('chargingchange', () => {
+    if (state.reactions === false || state.device !== 'notebook') return;
+    if (b.charging) { warned = false; setMood('feliz'); notice(t(`⚡ ¡Gracias! Cargando · ${pct()}%`), 3500); }
+    else notice(t(`🔋 En batería · ${pct()}%`), 3500);
+  });
+  b.addEventListener('levelchange', () => {
+    if (state.reactions === false || state.device !== 'notebook' || b.charging) return;
+    if (pct() <= 15 && !warned) {
+      warned = true;
+      setMood('triste');
+      if (pct() <= 10 && !conv.busy && !state.dnd) say(t(`Me queda poca batería, ${pct()} por ciento. ¿Enchufamos el cargador?`));
+      else notice(t(`🪫 Batería baja: ${pct()}%. ¿Enchufamos el cargador?`), 6000);
+    }
+  });
+}
+
+// Disfraces según la fecha (si están activados): calabaza en Halloween, gorro navideño y gorrito el día del cumple.
+function seasonalAccessory(cfg, d = new Date()) {
+  if (cfg.seasonal === false) return null;
+  const md = `${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+  if (cfg.birthday && cfg.birthday === md) return 'gorro';
+  if (md >= '10-24' && md <= '10-31') return 'calabaza';
+  if (md >= '12-15' && md <= '12-26') return 'navidad';
+  return null;
+}
+let birthdayGreeted = null;
+function applySeason(cfg) {
+  const acc = seasonalAccessory(cfg);
+  if (acc) document.documentElement.dataset.acc = acc; // se impone al accesorio elegido solo esos días
+  const now = new Date();
+  const md = `${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`;
+  if (acc === 'gorro' && cfg.birthday && birthdayGreeted !== md) {
+    birthdayGreeted = md;
+    setTimeout(() => { setMood('feliz'); notice(t('🎂 ¡Feliz cumpleaños!'), 8000); }, 4000);
+  }
+}
+setInterval(() => window.yurei.getSettings().then((r) => r.ok && applySeason(r.data)), 3600 * 1000);
+
+// Mantener apretado para hablar: se graba mientras la tecla esté apretada (desde ~¼ s, para no saltar con atajos).
+const ptt = { timer: null, on: false };
+async function pttDown() {
+  if (ptt.on || state.recording) return;
+  clearTimeout(ptt.timer);
+  ptt.timer = setTimeout(async () => {
+    try {
+      stopSpeaking();
+      Listener.pause();
+      await Recorder.start();
+      ptt.on = true;
+      state.recording = 'ptt';
+      setPhase('listening', t('Te escucho… suelta para enviar'));
+    } catch (e) { Listener.resume(); showReply(`⚠ ${e.message}`); }
+  }, 250);
+}
+async function pttUp() {
+  clearTimeout(ptt.timer);
+  if (!ptt.on) return;
+  ptt.on = false;
+  state.recording = null;
+  const { b64, seconds } = await Recorder.stop();
+  if (seconds < 0.4) { Listener.resume(); setPhase(conv.active ? 'listening' : '', conv.active ? listenLabel() : 'Yurei'); return; }
+  conv.busy = true;
+  try { await handleAsk({ audioB64: b64 }, '🎤 (mantener apretado)'); }
+  finally { conv.busy = false; setPhase(conv.active ? 'listening' : '', conv.active ? listenLabel() : 'Yurei'); }
+}
 window.yurei.on('timer-done', async ({ finished, next }) => {
   const ring = $('ring');
   ring.classList.remove('ding'); void ring.offsetWidth; ring.classList.add('ding');
@@ -1024,6 +1141,10 @@ function applySettings(cfg) {
   state.city = cfg.city || '';
   if (isPanel(state.mode) && (layoutChanged || cityChanged || (launcherChanged && state.layout.includes('apps')))) buildWidgets();
   state.dnd = !!cfg.dnd;
+  state.device = cfg.device;
+  state.reactions = cfg.reactions !== false;
+  watchBattery(cfg.device === 'notebook');
+  applySeason(cfg);
   island.classList.toggle('dnd', state.dnd);
   // No molestar: deja de escuchar el saludo (si estás charlando, la charla sigue).
   if (cfg.wakeWord && !state.dnd) ensureListening();

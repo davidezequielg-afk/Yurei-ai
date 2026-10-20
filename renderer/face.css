@@ -1,7 +1,7 @@
 /* La carita de Yurei: un fantasmita que respira y parpadea. La usan el notch y Ajustes (que la agranda). */
 .face { position: relative; display: block; flex: none; width: 16px; height: 15px; border-radius: 8px 8px 5px 5px; background: var(--accent); box-shadow: 0 0 8px color-mix(in srgb, var(--accent) 40%, transparent); animation: breathe 3.2s ease-in-out infinite; }
 .face i { position: absolute; display: block; background: var(--bg-solid); transition: transform .2s ease, height .2s ease, top .2s ease; }
-.face .e { top: 5.6px; width: 2.1px; height: 2.7px; border-radius: 1.1px; animation: blink 5s infinite; }
+.face .e { top: 5.6px; width: 2.1px; height: 2.7px; border-radius: 1.1px; animation: blink 5s infinite; translate: calc(var(--lx, 0) * .9px) calc(var(--ly, 0) * .7px); transition: translate .15s ease-out, transform .2s ease, height .2s ease, top .2s ease; }
 .face .l { left: 4.4px; }
 .face .r { right: 4.4px; animation-delay: .04s; }
 .face .m { left: 50%; bottom: 3.4px; width: 3.6px; height: 1.8px; margin-left: -1.8px; background: none; border: 1.1px solid var(--bg-solid); border-top: 0; border-radius: 0 0 3px 3px; }
@@ -50,6 +50,8 @@
 [data-acc=mono] .face .acc { right: -1px; top: -2px; width: 8px; height: 5px; background: conic-gradient(from 45deg, #f87171 0 25%, transparent 0 50%, #f87171 0 75%, transparent 0); clip-path: polygon(0 0, 50% 40%, 100% 0, 100% 100%, 50% 60%, 0 100%); }
 [data-acc=corona] .face .acc { left: 3.5px; top: -5px; width: 9px; height: 5px; background: #facc15; clip-path: polygon(0 100%, 0 20%, 25% 60%, 50% 0, 75% 60%, 100% 20%, 100% 100%); }
 [data-acc=flor] .face .acc { right: 0; top: -3px; width: 6px; height: 6px; border-radius: 50%; background: radial-gradient(circle, #facc15 0 1.1px, transparent 1.3px), radial-gradient(circle at 50% 0, #fb7aa4 1.5px, transparent 1.6px), radial-gradient(circle at 50% 100%, #fb7aa4 1.5px, transparent 1.6px), radial-gradient(circle at 0 50%, #fb7aa4 1.5px, transparent 1.6px), radial-gradient(circle at 100% 50%, #fb7aa4 1.5px, transparent 1.6px); }
+[data-acc=calabaza] .face .acc { left: 4.5px; top: -5px; width: 7px; height: 6px; background: linear-gradient(#3f8f3f, #3f8f3f) 50% 0 / 1.2px 2px no-repeat, radial-gradient(ellipse 50% 42% at 50% 64%, #ff8a1f 92%, transparent 100%), radial-gradient(ellipse 30% 40% at 26% 64%, #f97316 92%, transparent 100%), radial-gradient(ellipse 30% 40% at 74% 64%, #f97316 92%, transparent 100%); }
+[data-acc=navidad] .face .acc { left: 3px; top: -7px; width: 10px; height: 8.5px; background: radial-gradient(circle at 80% 18%, #fff 1.2px, transparent 1.5px), linear-gradient(#fff, #fff) bottom / 100% 2px no-repeat, linear-gradient(to bottom right, transparent 50%, #e53935 50%) left / 50% 100% no-repeat, linear-gradient(to bottom left, transparent 50%, #e53935 50%) right / 50% 100% no-repeat; }
 .dnd .face .acc { display: none; } /* con auriculares no entra nada más */
 
 @media (prefers-reduced-motion: reduce) { .face, .face .e, .face::after { animation: none !important; } }

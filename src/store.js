@@ -36,7 +36,7 @@ const DEFAULTS = {
     seasonal: true, // disfraces según la fecha (Halloween, Navidad, cumpleaños)
     birthday: '', // MM-DD
     reactions: true, // reacciona al cargador, batería baja y CPU al máximo
-    pushToTalk: 'off', // tecla para mantener apretada y hablar: off | rctrl | ralt | f8 | f9 | capslock
+    pushToTalk: 'off', // tecla para mantener apretada y hablar: off | rctrl | ralt | f8 | f9
     hotkeys: { talk: 'Control+Shift+Space', dictate: 'Control+Alt+D', circle: 'Control+Shift+C' },
     // Modos con nombre: "modo gamer" abre sus apps, ajusta el volumen, etc.
     modes: [

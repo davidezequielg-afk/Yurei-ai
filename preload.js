@@ -37,7 +37,7 @@ contextBridge.exposeInMainWorld('yurei', {
   pickerOpen: invoke('picker:open'),
   setMode: invoke('island:mode'),
   on: (channel, cb) => {
-    const allowed = ['hotkey', 'report', 'circle-image', 'settings-changed', 'appearance', 'timer', 'timer-done', 'update', 'reminder', 'cursor', 'power'];
+    const allowed = ['hotkey', 'report', 'circle-image', 'settings-changed', 'appearance', 'timer', 'timer-done', 'update', 'reminder', 'cursor', 'nudge'];
     if (!allowed.includes(channel)) return;
     ipcRenderer.on(channel, (_e, payload) => cb(payload));
   }

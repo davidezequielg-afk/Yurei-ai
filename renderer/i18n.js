@@ -83,13 +83,33 @@ const I18N_EN = {
   '🖱️ Pasa el ratón por el notch para ver tu panel': '🖱️ Hover over the notch to see your panel', '🎮 Di "modo gamer" o "modo estudio" (los editas en Ajustes → Modos)': '🎮 Say "gaming mode" or "study mode" (edit them in Settings → Modes)',
   'Manos libres': 'Hands-free', 'Responder cuando digo "hola" o mi nombre': 'Answer when I say "hi" or its name',
   'El micrófono queda abierto y los fragmentos con voz se envían a Google para detectarlo.': 'The mic stays open and voice snippets are sent to Google to detect it.',
+  // inicio, bienestar, teclas, vida
+  Inicio: 'Startup', 'Abrir con Windows': 'Open with Windows', 'Yurei arranca sola al prender la PC.': 'Yurei starts automatically when you turn on the PC.',
+  'Resumen de la mañana': 'Morning summary', 'La primera vez que abres la PC entre las 5 y las 12, te cuenta el clima, tus pendientes y lo programado.': 'The first time you open the PC between 5 and 12, it tells you the weather, your to-dos and what\'s scheduled.',
+  Bienestar: 'Wellbeing', 'Cada tanto te sugiere una pausa: estirarte, tomar agua o mirar lejos. Cuenta solo el tiempo que de verdad usas la PC.': 'Every so often it suggests a break: stretch, drink water or look far away. It only counts time you actually use the PC.',
+  Nunca: 'Never', '1 h': '1 h', '1 h 30': '1 h 30', '2 h': '2 h', Teclas: 'Keys', 'Mantener apretado para hablar': 'Hold to talk',
+  'Mientras tengas apretada la tecla, te escucha; al soltarla, responde. Solo mira esa tecla.': 'While you hold the key it listens; when you release it, it answers. It only watches that key.',
+  Apagado: 'Off', 'Ctrl der.': 'Right Ctrl', 'Alt der.': 'Right Alt', Hablar: 'Talk', 'Abre o cierra la charla.': 'Opens or closes the conversation.',
+  'Escribe lo que dices en la ventana activa.': 'Types what you say in the active window.', 'Rodear y preguntar': 'Circle and ask', 'Rodea algo de la pantalla y pregunta.': 'Circle something on screen and ask.',
+  'Aprieta la combinación…': 'Press the combination…', 'Vida de la carita': 'The face\'s life',
+  'Tu equipo: PC de escritorio. Sin batería, así que no hay avisos de cargador ni de batería baja.': 'Your device: desktop PC. No battery, so no charger or low-battery alerts.',
+  'Tu equipo: notebook. Reacciona al cargador y a la batería baja.': 'Your device: laptop. It reacts to the charger and low battery.', Reacciones: 'Reactions',
+  'Se sorprende si la CPU está al máximo.': 'It gets surprised if the CPU is maxed out.', 'Se alegra al enchufar el cargador, se preocupa con poca batería y se sorprende si la CPU está al máximo.': 'It cheers when you plug in the charger, worries when the battery is low and gets surprised if the CPU is maxed out.',
+  'Disfraces de temporada': 'Seasonal costumes', 'Calabaza en Halloween, gorro navideño en diciembre y gorrito de fiesta en tu cumpleaños.': 'A pumpkin on Halloween, a Santa hat in December and a party hat on your birthday.',
+  'Tu cumpleaños': 'Your birthday', 'Para festejarlo ese día.': 'To celebrate that day.', Mes: 'Month', Día: 'Day', enero: 'January', febrero: 'February', marzo: 'March', abril: 'April', mayo: 'May', junio: 'June', julio: 'July', agosto: 'August', septiembre: 'September', octubre: 'October', noviembre: 'November', diciembre: 'December',
   // elegir app
   'Elegir app': 'Choose app', 'Yurei · Elegir app': 'Yurei · Choose app', 'Yurei · Ajustes': 'Yurei · Settings', Sugeridas: 'Suggested', Instaladas: 'Installed',
   'Buscar…': 'Search…', 'No encontré nada con ese nombre.': 'Nothing found with that name.', 'No hay apps instaladas para listar (esto solo funciona en Windows).': 'No installed apps to list (this only works on Windows).',
   instalada: 'installed', web: 'web', 'Este PC no tiene batería': 'This PC has no battery', 'Solo funciona en Windows': 'Only works on Windows',
   // voz de Yurei (frases que dice el notch)
   '¡Pomodoro completo! Muy buen trabajo.': 'Pomodoro complete! Great work.', '¡Listo! Terminó el temporizador.': 'Done! The timer is over.',
-  '¡Hola! Así sueno yo. ¿Te gusta?': 'Hi! This is how I sound. Do you like it?'
+  '¡Hola! Así sueno yo. ¿Te gusta?': 'Hi! This is how I sound. Do you like it?',
+  'Llevas un buen rato con la pantalla. ¿Te estiras un poquito y tomas agua?': 'You\'ve been at the screen for a while. How about a stretch and some water?',
+  'Hora de una pausa: mira algo lejos por veinte segundos, tus ojos te lo agradecen.': 'Break time: look at something far away for twenty seconds. Your eyes will thank you.',
+  '¿Una pausa corta? Párate, mueve los hombros y respira hondo.': 'A short break? Stand up, roll your shoulders and take a deep breath.',
+  'Te propongo un descanso de dos minutos. Yo te espero acá.': 'How about a two-minute break? I\'ll wait right here.',
+  'Buen día. Dame el resumen de hoy en pocas frases.': 'Good morning. Give me today\'s summary in a few sentences.',
+  'Te escucho… suelta para enviar': 'Listening… release to send', '🎂 ¡Feliz cumpleaños!': '🎂 Happy birthday!'
 };
 
 // Textos con partes que cambian (números, nombres…).
@@ -109,7 +129,8 @@ const I18N_EN_PATTERNS = [
   [/^¡Bien hecho! Descansa (\d+) minutos\.$/, 'Well done! Take a $1-minute break.'],
   [/^Se terminó el descanso\. Vamos con el bloque (\d+) de (\d+)\.$/, 'Break\'s over. On to block $1 of $2.'],
   [/^¡Listo! Terminó el tiempo de (.+)\.$/, 'Done! Time\'s up for $1.'], [/^(.+) \(no disponible\)$/, (_, name) => `${t(name)} (unavailable)`], [/^(\d+) min$/, '$1 min'],
-  [/^(\d+) s$/, '$1 s'], [/^¡Te recuerdo! (.+)$/, 'Reminder! $1'], [/^Perdón, te lo tenía que recordar hace (\d+) minutos: (.+)$/, 'Sorry, I was supposed to remind you $1 minutes ago: $2'], [/^(\d+) min hoy$/, '$1 min today']
+  [/^(\d+) s$/, '$1 s'], [/^(\d+) min$/, '$1 min'], [/^Uf, la CPU está al (\d+)%$/, 'Whoa, the CPU is at $1%'], [/^⚡ ¡Gracias! Cargando · (\d+)%$/, '⚡ Thanks! Charging · $1%'], [/^🔋 En batería · (\d+)%$/, '🔋 On battery · $1%'],
+  [/^Me queda poca batería, (\d+) por ciento\. ¿Enchufamos el cargador\?$/, 'My battery is low, $1 percent. Shall we plug in the charger?'], [/^🪫 Batería baja: (\d+)%\. ¿Enchufamos el cargador\?$/, '🪫 Low battery: $1%. Plug in the charger?'], [/^¡Te recuerdo! (.+)$/, 'Reminder! $1'], [/^Perdón, te lo tenía que recordar hace (\d+) minutos: (.+)$/, 'Sorry, I was supposed to remind you $1 minutes ago: $2'], [/^(\d+) min hoy$/, '$1 min today']
 ];
 
 let LANG = 'es';

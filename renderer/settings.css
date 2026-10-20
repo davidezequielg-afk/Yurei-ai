@@ -101,7 +101,7 @@ input[type=range] { width: 100%; accent-color: var(--accent); }
 .chip[aria-checked=true] { background: var(--tint); border-color: var(--accent); color: var(--ink); }
 .chip small { color: var(--mute); margin-left: 4px; }
 .seg { display: flex; padding: 3px; gap: 3px; border-radius: 12px; background: var(--soft); }
-.seg .chip { flex: 1; border-radius: 9px; background: none; text-align: center; }
+.seg .chip { flex: 1; border-radius: 9px; background: none; text-align: center; white-space: nowrap; padding-inline: 6px; }
 .seg .chip[aria-checked=true] { background: var(--bg-solid); border-color: transparent; box-shadow: 0 1px 3px rgba(0, 0, 0, .25); }
 .voices { max-height: 168px; overflow: auto; padding: 2px; }
 
@@ -155,3 +155,9 @@ pre.diag { margin: 0; padding: 10px; background: var(--soft); border-radius: 10p
 .mem span { flex: 1; min-width: 0; }
 .mem .x { border: 0; background: none; color: var(--mute); font-size: 16px; line-height: 1; width: 24px; height: 24px; border-radius: 50%; cursor: pointer; }
 .mem .x:hover { background: var(--card); color: var(--ink); }
+
+/* teclas y cumpleaños */
+input.keycap { width: 170px; text-align: center; cursor: pointer; font-variant-numeric: tabular-nums; }
+input.keycap:focus { color: var(--accent); }
+.bday { display: flex; gap: 6px; }
+.bday select { width: auto; }

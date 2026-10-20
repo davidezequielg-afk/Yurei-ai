@@ -113,6 +113,17 @@ function playPcm(b64) {
   return new Promise((r) => { src.onended = r; });
 }
 
+// Campo que captura una combinación de teclas ("Control+Shift+Space").
+const KEYNAMES = { ' ': 'Space', ArrowUp: 'Up', ArrowDown: 'Down', ArrowLeft: 'Left', ArrowRight: 'Right', Enter: 'Enter', Tab: 'Tab', Home: 'Home', End: 'End', PageUp: 'PageUp', PageDown: 'PageDown', Insert: 'Insert', Delete: 'Delete' };
+function accelFrom(e) {
+  const mods = [e.ctrlKey && 'Control', e.altKey && 'Alt', e.shiftKey && 'Shift', e.metaKey && 'Super'].filter(Boolean);
+  let k = KEYNAMES[e.key] || (/^F([1-9]|1[0-2])$/.test(e.key) ? e.key : /^[a-z0-9]$/i.test(e.key) ? e.key.toUpperCase() : null);
+  if (/^Key[A-Z]$/.test(e.code) && !k) k = e.code.slice(3);
+  if (/^Digit\d$/.test(e.code) && !k) k = e.code.slice(5);
+  return mods.length && k ? [...mods, k].join('+') : null;
+}
+const prettyKeys = (a) => a.replace('Control', 'Ctrl').replace('Super', 'Win').replace('Space', 'Espacio').split('+').join(' + ');
+
 /* ---------- páginas ---------- */
 
 (async () => {
@@ -134,6 +145,12 @@ function playPcm(b64) {
   const eye = el('button', { className: 'btn small', type: 'button', textContent: 'Ver', onclick: () => { const show = key.type === 'password'; key.type = show ? 'text' : 'password'; eye.textContent = show ? 'Ocultar' : 'Ver'; } });
   const soul = text(s.soul, 'soul', { placeholder: 'Yurei', map: (v) => v.trim() || 'Yurei' });
   soul.addEventListener('input', () => setName(soul.value.trim()));
+  const startCard = card('Inicio', null,
+    row('Abrir con Windows', 'Yurei arranca sola al prender la PC.', toggle(s.openAtLogin !== false, (v) => save({ openAtLogin: v }))),
+    row('Resumen de la mañana', 'La primera vez que abres la PC entre las 5 y las 12, te cuenta el clima, tus pendientes y lo programado.', toggle(s.morningBrief, (v) => save({ morningBrief: v }))));
+  const wellCard = card('Bienestar', 'Cada tanto te sugiere una pausa: estirarte, tomar agua o mirar lejos. Cuenta solo el tiempo que de verdad usas la PC.',
+    el('div', { className: 'row stack' }, choice('seg', [[0, 'Nunca'], [30, '30 min'], [60, '1 h'], [90, '1 h 30'], [120, '2 h']].map(([v, l]) => ({ value: v, node: el('button', { className: 'chip', textContent: l }) })),
+      [0, 30, 60, 90, 120].includes(s.breakEvery) ? s.breakEvery : 60, (v) => save({ breakEvery: v }))));
   const general = [
     card('Conexión', s.keyEncrypted ? 'Tu clave se guarda cifrada con el almacén seguro de Windows: solo tu usuario, en este equipo, puede leerla.' : 'Este sistema no ofrece almacén seguro: la clave se guarda en un archivo sin cifrar.',
       row('API key de Gemini', 'Se consigue gratis en Google AI Studio.', el('div', { className: 'with-btn' }, key, eye), true),
@@ -146,7 +163,9 @@ function playPcm(b64) {
       row('Nombre', 'También es la palabra para llamarla por voz.', soul, true),
       row('Forma de ser', null, text(s.personality, 'personality', { rows: 2 }), true),
       row('Habilidades extra', 'Una instrucción por línea, p. ej. "cuando diga modo cine, baja el volumen a 20".',
-        text((s.abilities || []).join('\n'), 'abilities', { rows: 3, map: (v) => v.split('\n').map((x) => x.trim()).filter(Boolean) }), true))
+        text((s.abilities || []).join('\n'), 'abilities', { rows: 3, map: (v) => v.split('\n').map((x) => x.trim()).filter(Boolean) }), true)),
+    startCard,
+    wellCard
   ];
 
   // --- Voz y charla ---
@@ -167,6 +186,30 @@ function playPcm(b64) {
     text((s.fillerPhrases || []).join('\n'), 'fillerPhrases', { rows: 3, map: (v) => v.split('\n') }), true);
   phrases.hidden = s.fillers === false;
   const secs = slider(5, 120, s.conversationSeconds || 20, ' s', (v) => save({ conversationSeconds: v }, 300));
+  // Teclas: mantener apretado para hablar y atajos.
+  const ptt = choice('seg', [['off', 'Apagado'], ['rctrl', 'Ctrl der.'], ['ralt', 'Alt der.'], ['f8', 'F8'], ['f9', 'F9']].map(([v, l]) => ({ value: v, node: el('button', { className: 'chip', textContent: l }) })),
+    s.pushToTalk || 'off', (v) => save({ pushToTalk: v }));
+  const hk = { ...(s.hotkeys || { talk: 'Control+Shift+Space', dictate: 'Control+Alt+D', circle: 'Control+Shift+C' }) };
+  const hkInput = (name) => {
+    const inp = el('input', { className: 'keycap', readOnly: true, value: prettyKeys(hk[name]) });
+    inp.onfocus = () => { inp.value = 'Aprieta la combinación…'; };
+    inp.onblur = () => { inp.value = prettyKeys(hk[name]); };
+    inp.onkeydown = async (e) => {
+      e.preventDefault();
+      if (e.key === 'Escape') { inp.blur(); return; }
+      const a = accelFrom(e);
+      if (!a) return; // falta un modificador (Ctrl, Alt, Shift o Win) o la tecla
+      const r = await window.yurei.setHotkeys({ ...hk, [name]: a });
+      if (r.ok) { Object.assign(hk, r.data); toast('Guardado ✓'); } else toast(r.error, true);
+      inp.blur();
+    };
+    return inp;
+  };
+  const keysCard = card('Teclas', null,
+    row('Mantener apretado para hablar', 'Mientras tengas apretada la tecla, te escucha; al soltarla, responde. Solo mira esa tecla.', ptt, true),
+    row('Hablar', 'Abre o cierra la charla.', hkInput('talk')),
+    row('Dictado', 'Escribe lo que dices en la ventana activa.', hkInput('dictate')),
+    row('Rodear y preguntar', 'Rodea algo de la pantalla y pregunta.', hkInput('circle')));
   const voicePage = [
     card('Voz', 'Toca una voz y pruébala.',
       el('div', { className: 'row stack' }, voices, el('div', {}, tryBtn)),
@@ -180,7 +223,8 @@ function playPcm(b64) {
         toggle(s.fillers !== false, (v) => { phrases.hidden = !v; save({ fillers: v }); })),
       phrases,
       row('Tiempo de charla abierta', 'Cuánto espera tu siguiente frase antes de dormirse.', secs.out),
-      el('div', { className: 'row tight' }, secs.input))
+      el('div', { className: 'row tight' }, secs.input)),
+    keysCard
   ];
 
   // --- Apariencia (se ve al instante) ---
@@ -201,8 +245,22 @@ function playPcm(b64) {
   const opSlider = el('div', { className: 'row tight' }, op.input);
   const accs = choice('chips', [['none', 'Nada'], ['gorro', '🎉 Gorrito'], ['lentes', '👓 Lentes'], ['mono', '🎀 Moño'], ['corona', '👑 Corona'], ['flor', '🌸 Flor']].map(([v, t]) => ({ value: v, node: el('button', { className: 'chip', textContent: t }) })),
     s.accessory || 'none', (v) => { applyAccessory(v); save({ accessory: v }); });
+  // Vida de la carita: reacciones y disfraces. Lo de batería y cargador depende de si es notebook o PC.
+  const device = s.device === 'notebook' ? 'notebook' : s.device === 'pc' ? 'pc' : null;
+  const months = ['enero', 'febrero', 'marzo', 'abril', 'mayo', 'junio', 'julio', 'agosto', 'septiembre', 'octubre', 'noviembre', 'diciembre'];
+  const [bm, bd] = (s.birthday || '').split('-');
+  const bMonth = el('select', {}, el('option', { value: '', textContent: 'Mes' }), ...months.map((m, i) => el('option', { value: String(i + 1).padStart(2, '0'), textContent: m, selected: bm === String(i + 1).padStart(2, '0') })));
+  const bDay = el('select', {}, el('option', { value: '', textContent: 'Día' }), ...Array.from({ length: 31 }, (_, i) => el('option', { value: String(i + 1).padStart(2, '0'), textContent: String(i + 1), selected: bd === String(i + 1).padStart(2, '0') })));
+  const saveBirthday = () => save({ birthday: bMonth.value && bDay.value ? `${bMonth.value}-${bDay.value}` : '' });
+  bMonth.onchange = saveBirthday;
+  bDay.onchange = saveBirthday;
+  const lifeCard = card('Vida de la carita', device === 'pc' ? 'Tu equipo: PC de escritorio. Sin batería, así que no hay avisos de cargador ni de batería baja.' : device === 'notebook' ? 'Tu equipo: notebook. Reacciona al cargador y a la batería baja.' : null,
+    row('Reacciones', device === 'pc' ? 'Se sorprende si la CPU está al máximo.' : 'Se alegra al enchufar el cargador, se preocupa con poca batería y se sorprende si la CPU está al máximo.', toggle(s.reactions !== false, (v) => save({ reactions: v }))),
+    row('Disfraces de temporada', 'Calabaza en Halloween, gorro navideño en diciembre y gorrito de fiesta en tu cumpleaños.', toggle(s.seasonal !== false, (v) => save({ seasonal: v }))),
+    row('Tu cumpleaños', 'Para festejarlo ese día.', el('div', { className: 'bday' }, bDay, bMonth)));
   const lookPage = [
     card('Tu Yurei', 'Ponle algo a la carita (mírala arriba).', el('div', { className: 'row stack' }, accs)),
+    lifeCard,
     card('Tema', null, el('div', { className: 'row stack' }, themes), customRow),
     card('Transparencia', null,
       el('div', { className: 'row stack' }, choice('seg', [['off', 'Opaco'], ['on', 'Translúcido'], ['system', 'Como Windows']].map(([v, t]) => ({ value: v, node: el('button', { className: 'chip', textContent: t }) })),

@@ -33,6 +33,21 @@ Asistente de voz de escritorio de **código abierto** (MIT), inspirado en la cat
 | **Música y video** | Detecta lo que suena en el PC (Spotify, YouTube en el navegador, etc.) y lo controlas por voz ("pausa", "siguiente", "retrocede 10 segundos", "sube el volumen") o desde los widgets *Reproduciendo* y *Volumen*. Solo Windows |
 | **Mis apps** | Widget con 4 accesos a apps o webs. Cada lugar vacío tiene un **+** que abre un selector con **179 sugeridas por categorías** (mensajería, redes, navegadores, música, streaming, productividad, IA, desarrollo, juegos, compras, finanzas, viajes, noticias, diseño, aprendizaje, salud, utilidades y tecnología; con su logo oficial) y tus apps instaladas; si una sugerida no está instalada se usa su versión web. También por voz: "pon WhatsApp en mis apps". Los iconos de las webs se piden a Google por el dominio y se guardan en disco |
 | **Apariencia** | Tema como el sistema (claro/oscuro, color de acento y transparencia de Windows), claro, oscuro o personalizado con tus colores; transparencia opcional. Se ve al instante en Ajustes |
+| **Abrir con Windows** | Arranca sola al prender la PC (se puede apagar) |
+| **Recordatorios hablados** | "Recuérdame en 20 minutos sacar la ropa", "mañana a las 9 llamar al médico": a la hora suena una campanita y te lo dice. Si la PC estaba apagada, avisa al volver |
+| **¿Qué tengo hoy?** | Resumen hablado: clima, pendientes, lo programado, recordatorios, concentración y, solo en notebooks, la batería. Opcional: que te lo cuente sola la primera vez que abres la PC a la mañana |
+| **Léeme esto** | Lee en voz alta, completo, el texto que copiaste |
+| **Notas rápidas** | "Anota que el código del wifi es…"; widget *Notas* en el panel |
+| **Brillo y luz nocturna** | "Baja el brillo" en notebooks; en una PC de escritorio explica que se usa el monitor. Abre la configuración de luz nocturna |
+| **Buscar archivos** | "Abre el PDF del contrato", "¿dónde guardé la foto de ayer?": busca en Escritorio, Documentos, Descargas, Imágenes, Videos y Música |
+| **Velocidad de internet** | "¿Qué tal anda internet?": bajada y latencia (servidor de prueba de Cloudflare, solo al pedirlo) |
+| **Juegos por voz** | Trivia, adivinanzas, piedra papel o tijera, dados… con sorteos realmente al azar |
+| **Pausas activas** | Cada 30 min a 2 h de uso real sugiere estirarte, tomar agua o mirar lejos (se puede apagar) |
+| **Concentración** | Pomodoros y minutos de cada día; widget con la semana |
+| **Ojitos que siguen al mouse** | Cuando el mouse pasa cerca del notch, la carita lo mira |
+| **Disfraces y reacciones** | Calabaza en Halloween, gorro navideño en diciembre y gorrito en tu cumpleaños. En notebooks se alegra al enchufar el cargador y se preocupa con poca batería; en PC y notebook se sorprende si la CPU está al máximo |
+| **Mantener apretado para hablar** | Elige una tecla (Ctrl o Alt derechos, F8, F9): mientras la aprietas te escucha. Solo mira esa tecla |
+| **Atajos configurables** | Cambia los atajos de hablar, dictado y rodear en Ajustes → Voz |
 | **Personalización** | Ventana de Ajustes (⚙️ del panel) con pestañas y guardado automático: API key, nombre, personalidad, voz (con botón para probarla), habilidades extra, idioma (español o inglés) |
 | **Bienvenida** | La primera vez, una guía de 5 pasos: qué hace, API key con comprobación, prueba de micrófono y elegir voz |
 | **Actualizaciones** | Busca versiones nuevas en GitHub (se puede apagar), baja el instalador, verifica su SHA-256 y lo instala con un toque |
@@ -108,6 +123,7 @@ Los logos de las apps sugeridas vienen de [Simple Icons](https://simpleicons.org
 | **Google Gemini** | Tu voz (audio) o texto, la captura que tú recortas con *Circle to Ask*, los resultados de las acciones y el texto a pronunciar | Solo cuando hablas, dictas o preguntas. Con la palabra de activación (desactivada por defecto) también los fragmentos con voz que oye |
 | **Open-Meteo** | Solo el nombre de tu ciudad | Si el widget de clima está puesto |
 | **Google (iconos)** | El dominio de las webs que añades a *Mis apps* | Solo si activas "descargar iconos" (desactivado por defecto) |
+| **Cloudflare** | Nada tuyo: se baja un archivo de prueba para medir la velocidad | Solo cuando pides la prueba de velocidad |
 | **GitHub** | Nada tuyo: solo se pide la información del último release (y el instalador si decides actualizar) | Al abrir y cada 6 horas, si "buscar actualizaciones" está activado |
 
 Nada más: **sin telemetría, sin analíticas, sin cuentas**. Las ventanas de la app ni siquiera pueden hacer peticiones de red; todo sale desde un único proceso y a destinos fijos.
@@ -126,8 +142,8 @@ El detalle, cómo se comprueba cada medida, los **límites conocidos** y cómo a
 
 - La palabra de activación no es local: con el micrófono abierto, cada fragmento con voz se envía a Gemini para comprobar si dijiste el nombre. Consume cuota y envía a Google lo que se hable cerca; por eso está desactivada por defecto.
 - La detección de fin de frase es por volumen: en un sitio ruidoso puede cortar tarde o pronto.
-- Mantener pulsado para hablar (como Hitodama) requeriría un componente nativo; aquí los atajos alternan iniciar/detener.
-- Faltan el test de velocidad de red, los fondos de pantalla y los interruptores de Wi-Fi/Bluetooth: contribuciones bienvenidas.
+- Faltan los fondos de pantalla y los interruptores de Wi-Fi/Bluetooth: contribuciones bienvenidas.
+- La luz nocturna de Windows no se puede encender desde otra app: Yurei abre su configuración.
 - Las partes propias de Windows (cifrado de la clave, volumen y reproductores) no se han ejecutado en un Windows real en las pruebas automáticas; el resto sí se ha probado ejecutando Electron.
 
 ## Licencia

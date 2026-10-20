@@ -1,6 +1,6 @@
 const fs = require('fs');
 const path = require('path');
-const { app, BrowserWindow, globalShortcut, ipcMain, screen, clipboard, shell, desktopCapturer, Notification, nativeTheme, nativeImage, systemPreferences, dialog, safeStorage, session, Tray, Menu } = require('electron');
+const { app, BrowserWindow, globalShortcut, ipcMain, screen, clipboard, shell, desktopCapturer, Notification, nativeTheme, nativeImage, systemPreferences, dialog, safeStorage, session, Tray, Menu, powerMonitor } = require('electron');
 const { createStore } = require('./src/store');
 const { createSystem } = require('./src/system');
 const { createTools } = require('./src/tools');
@@ -13,6 +13,8 @@ const { createUsage } = require('./src/usage');
 const { createReminders } = require('./src/reminders');
 const { findFiles } = require('./src/files');
 const { speedTest } = require('./src/speedtest');
+const { createKeyWatch } = require('./src/keywatch');
+const { nudges } = require('./src/nudges');
 const { spawn } = require('child_process');
 const { createTtsCache } = require('./src/ttscache');
 const { resolveAppearance } = require('./src/theme');
@@ -414,6 +416,7 @@ function start() {
     const clean = S.validateSettingsPatch(patch, { unavailable: unavailable() });
     store.updateSettings(clean);
     if ('openAtLogin' in clean) applyLogin();
+    if ('pushToTalk' in clean) syncKeys();
     win?.webContents.send('settings-changed', settingsView());
     syncTray();
     broadcastAppearance();
@@ -447,6 +450,49 @@ function start() {
     return true;
   });
   handle('diag:audio', () => system.diagnose());
+
+  // --- vida de la carita y avisos amables (ver src/nudges.js) ---
+  const nudge = (payload) => win?.webContents.send('nudge', payload);
+  const life = nudges({
+    settings: () => store.get('settings'),
+    get: (k) => store.get(k),
+    set: (k, v) => store.set(k, v),
+    idleSeconds: () => powerMonitor.getSystemIdleTime(),
+    cpu: () => system.stats().cpu,
+    onNudge: nudge
+  });
+  setInterval(life.minute, 60 * 1000);
+  setInterval(life.cpuTick, 5 * 1000);
+  setTimeout(life.maybeBrief, 12 * 1000);
+  powerMonitor.on('unlock-screen', life.maybeBrief);
+  powerMonitor.on('resume', life.maybeBrief);
+
+  // Los ojitos siguen al mouse cuando pasa cerca del notch (solo se manda la dirección, nunca dónde está).
+  let lastLook = null;
+  setInterval(() => {
+    if (!win || win.isDestroyed() || !win.isVisible()) return;
+    const c = screen.getCursorScreenPoint();
+    const b = win.getBounds();
+    const cx = b.x + b.width / 2;
+    const cy = b.y + 11;
+    const dx = c.x - cx;
+    const dy = c.y - cy;
+    const dist = Math.hypot(dx, dy);
+    const look = dist > 600 ? null : { x: +(dx / Math.max(dist, 60)).toFixed(2), y: +(dy / Math.max(dist, 60)).toFixed(2) };
+    const key = JSON.stringify(look);
+    if (key !== lastLook) { lastLook = key; win.webContents.send('cursor', look); }
+  }, 90);
+
+  // Mantener apretado para hablar (tecla elegida en Ajustes).
+  const keys = createKeyWatch({
+    spawn,
+    dataDir: userData,
+    onDown: () => win?.webContents.send('hotkey', 'ptt-down'),
+    onUp: () => win?.webContents.send('hotkey', 'ptt-up')
+  });
+  keys.start(store.get('settings').pushToTalk || 'off');
+  app.on('quit', () => keys.stop());
+  const syncKeys = () => { const k = store.get('settings').pushToTalk || 'off'; if (k !== keys.key) keys.start(k); };
 
   // --- actualizaciones (GitHub) ---
   const updater = createUpdater({ current: app.getVersion(), dir: path.join(app.getPath('temp'), 'yurei-update'), spawnImpl: process.platform === 'win32' ? spawn : null });
