@@ -3,6 +3,7 @@ const assert = require('node:assert/strict');
 const fs = require('fs');
 const os = require('os');
 const path = require('path');
+const { pathToFileURL } = require('url');
 const { createStore } = require('../src/store');
 const { createSystem } = require('../src/system');
 const { createTtsCache } = require('../src/ttscache');
@@ -13,17 +14,24 @@ const tmp = () => fs.mkdtempSync(path.join(os.tmpdir(), 'yurei-sec-'));
 const ROOT = path.join(__dirname, '..', 'renderer');
 
 test('solo las páginas locales de la app pueden usar el puente IPC', () => {
-  const url = (p) => `file://${p}`;
+  const url = (p) => pathToFileURL(p).href; // funciona igual en Windows (file:///C:/…) y en Linux
   assert.equal(S.isTrustedUrl(url(path.join(ROOT, 'index.html')), ROOT), true);
   assert.equal(S.isTrustedUrl(url(path.join(ROOT, 'sub', 'x.html')), ROOT), true);
   assert.equal(S.isTrustedUrl('https://evil.example/renderer/index.html', ROOT), false);
   assert.equal(S.isTrustedUrl('data:text/html,<script>1</script>', ROOT), false);
   assert.equal(S.isTrustedUrl('about:blank', ROOT), false);
+  assert.equal(S.isTrustedUrl('', ROOT), false);
   assert.equal(S.isTrustedUrl(url(path.join(ROOT, '..', 'main.js')), ROOT), false); // otro archivo local
-  assert.equal(S.isTrustedUrl(url(`${ROOT}-evil/index.html`), ROOT), false); // prefijo parecido
-  assert.equal(S.isTrustedUrl(url(`${ROOT}/../secret.html`), ROOT), false); // escape con ..
+  assert.equal(S.isTrustedUrl(url(`${ROOT}-evil${path.sep}index.html`), ROOT), false); // carpeta con prefijo parecido
   assert.equal(S.isTrustedUrl(undefined, ROOT), false);
   assert.equal(S.isTrustedUrl(12, ROOT), false);
+  if (process.platform !== 'win32') {
+    assert.equal(S.isTrustedUrl(`file://${ROOT}/../secret.html`, ROOT), false); // escape con .. en la URL sin normalizar
+    assert.equal(S.isTrustedUrl(`file://${ROOT}/%2e%2e/secret.html`, ROOT), false);
+  }
+  if (process.platform === 'win32') {
+    assert.equal(S.isTrustedUrl(url(path.join(ROOT, 'index.html')).replace(/file:\/\/\/(\w):/, (_m, d) => `file:///${d.toLowerCase()}:`), ROOT), true); // c:\ y C:\ son la misma ruta
+  }
 });
 
 test('las peticiones a la IA se validan: tipo, tamaño y formato', () => {

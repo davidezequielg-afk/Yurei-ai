@@ -85,20 +85,33 @@ Catálogo en `src/widgets.js` (reglas de los lugares y lógica de clima/agenda) 
 
 Los logos de las apps sugeridas vienen de [Simple Icons](https://simpleicons.org) (licencia CC0-1.0) y van incluidos en `renderer/brandicons.js`, sin depender de internet. Las marcas y logos pertenecen a sus dueños y se usan solo para identificar cada app. Para regenerarlos o añadir otros: `npm i --no-save simple-icons && node scripts/build-suggestions.js` (la lista de las 179 apps sugeridas está en ese script). Las apps instaladas usan su icono real de Windows.
 
+## Privacidad: qué sale de tu PC
+
+| Destino | Qué se envía | Cuándo |
+|---|---|---|
+| **Google Gemini** | Tu voz (audio) o texto, la captura que tú recortas con *Circle to Ask*, los resultados de las acciones y el texto a pronunciar | Solo cuando hablas, dictas o preguntas. Con la palabra de activación (desactivada por defecto) también los fragmentos con voz que oye |
+| **Open-Meteo** | Solo el nombre de tu ciudad | Si el widget de clima está puesto |
+| **Google (iconos)** | El dominio de las webs que añades a *Mis apps* | Solo si activas "descargar iconos" (desactivado por defecto) |
+
+Nada más: **sin telemetría, sin analíticas, sin cuentas, sin actualizaciones automáticas**. Las ventanas de la app ni siquiera pueden hacer peticiones de red; todo sale desde un único proceso y a destinos fijos.
+
+Lo tuyo vive solo en tu equipo (ajustes, pendientes, tareas y rutinas; la API key, cifrada) y puedes borrarlo todo desde Ajustes → *Borrar todos mis datos*.
+
+> Sobre el uso que hace Google de lo que le envías: depende de los términos del API de Gemini y del tipo de clave (gratuita o con facturación). Revisa sus términos vigentes antes de enviar información sensible.
+
 ## Seguridad
 
-- La API key nunca sale de tu PC salvo hacia `generativelanguage.googleapis.com`.
-- Solo se aceptan URLs `http/https`; los nombres de app se validan antes de lanzarlos.
-- Apagar/reiniciar/suspender/bloquear exigen `confirmed=true`, y el modelo tiene instrucción de preguntar antes.
-- Las tareas desatendidas se limitan a abrir apps/URLs/búsquedas.
+Resumen: interfaz aislada y sin Node, puente interno solo para páginas locales, entradas validadas con lista blanca, sin red en las ventanas, permisos mínimos, apertura de apps sin intérprete de comandos, confirmación del sistema para apagar/reiniciar/suspender, clave cifrada con Windows, ejecutable con fusibles, cero dependencias dentro de la app y compilación con versiones y acciones fijadas.
+
+El detalle, cómo se comprueba cada medida, los **límites conocidos** y cómo avisar de una vulnerabilidad están en [SECURITY.md](SECURITY.md).
 
 ## Limitaciones conocidas
 
 - La palabra de activación no es local: con el micrófono abierto, cada fragmento con voz se envía a Gemini para comprobar si dijiste el nombre. Consume cuota y envía a Google lo que se hable cerca; por eso está desactivada por defecto.
 - La detección de fin de frase es por volumen: en un sitio ruidoso puede cortar tarde o pronto.
-- El control del volumen usa teclas multimedia (pasos de 2 %).
-- Sin pestañas de clima, calendario, velocidad de red, música ni fondos de pantalla todavía: contribuciones bienvenidas.
-- No se ha probado el flujo de Electron en una máquina Windows real desde el entorno de desarrollo; se validó la lógica con tests.
+- Mantener pulsado para hablar (como Hitodama) requeriría un componente nativo; aquí los atajos alternan iniciar/detener.
+- Faltan el test de velocidad de red, los fondos de pantalla y los interruptores de Wi-Fi/Bluetooth: contribuciones bienvenidas.
+- Las partes propias de Windows (cifrado de la clave, volumen y reproductores) no se han ejecutado en un Windows real en las pruebas automáticas; el resto sí se ha probado ejecutando Electron.
 
 ## Licencia
 

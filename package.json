@@ -7,11 +7,13 @@
   "scripts": {
     "start": "electron .",
     "test": "node --test",
-    "dist": "electron-builder --win nsis --publish never"
+    "dist": "electron-builder --win nsis --publish never",
+    "audit": "npm audit --audit-level=high"
   },
   "devDependencies": {
-    "electron": "^33.2.0",
-    "electron-builder": "^25.1.8"
+    "@electron/fuses": "2.1.3",
+    "electron": "44.9.1",
+    "electron-builder": "26.15.3"
   },
   "author": "Yurei contributors",
   "build": {
@@ -20,6 +22,7 @@
     "files": [
       "main.js",
       "preload.js",
+      "preload-overlay.js",
       "src/**/*",
       "renderer/**/*",
       "package.json"
@@ -44,6 +47,10 @@
       "createDesktopShortcut": true,
       "createStartMenuShortcut": true,
       "artifactName": "Yurei-Setup-${version}.${ext}"
-    }
+    },
+    "afterPack": "scripts/after-pack.js"
+  },
+  "engines": {
+    "node": ">=20"
   }
 }

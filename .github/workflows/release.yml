@@ -1,35 +1,84 @@
 name: Build Windows installer
 
+# Compila el instalador. Solo se publica como release si se pide (al subir un tag v* o marcando "publish").
 on:
+  workflow_dispatch:
+    inputs:
+      publish:
+        description: 'Publicar el instalador como release (si no, solo se compila y queda como artefacto)'
+        type: boolean
+        default: false
   push:
     tags: ['v*']
-  workflow_dispatch:
 
-permissions:
-  contents: write
+permissions: {} # ningún permiso por defecto: cada trabajo pide solo lo que necesita
+
+concurrency:
+  group: release
+  cancel-in-progress: false
 
 jobs:
-  windows:
+  build:
     runs-on: windows-latest
+    permissions:
+      contents: read
+      id-token: write # firma de procedencia (de dónde y cómo se compiló)
+      attestations: write
+    outputs:
+      version: ${{ steps.ver.outputs.version }}
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-node@v4
+      # Las acciones van fijadas por su commit exacto, no por una etiqueta que alguien podría mover.
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
         with:
-          node-version: 20
-      - run: npm install
+          persist-credentials: false
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci --ignore-scripts # versiones exactas del lockfile y sin ejecutar scripts de instalación de terceros
       - run: npm test
       - run: npm run dist
-      - uses: actions/upload-artifact@v4
+      - id: ver
+        shell: bash
+        run: echo "version=$(node -p "require('./package.json').version")" >> "$GITHUB_OUTPUT"
+      - name: Huellas SHA-256 del instalador
+        shell: pwsh
+        run: |
+          Get-ChildItem dist\*.exe | ForEach-Object { '{0}  {1}' -f (Get-FileHash $_.FullName -Algorithm SHA256).Hash.ToLower(), $_.Name } | Set-Content -Encoding ascii dist\SHA256SUMS.txt
+          Get-Content dist\SHA256SUMS.txt
+      - uses: actions/attest-build-provenance@e8998f949152b193b063cb0ec769d69d929409be # v2.4.0
+        continue-on-error: ${{ github.event.repository.private }} # en repos privados GitHub no ofrece esta función
+        with:
+          subject-path: dist/*.exe
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
         with:
           name: Yurei-Setup
-          path: dist/*.exe
-      - name: Read version
-        id: ver
-        shell: bash
-        run: echo "tag=v$(node -p "require('./package.json').version")" >> "$GITHUB_OUTPUT"
-      - name: Publish release
-        uses: softprops/action-gh-release@v2
+          path: |
+            dist/*.exe
+            dist/SHA256SUMS.txt
+          if-no-files-found: error
+
+  publish:
+    needs: build
+    if: github.event_name == 'push' || inputs.publish == true
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write # lo único que necesita: crear el release
+    steps:
+      - uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4.3.0
         with:
-          tag_name: ${{ steps.ver.outputs.tag }}
-          name: Yurei ${{ steps.ver.outputs.tag }}
-          files: dist/*.exe
+          name: Yurei-Setup
+          path: dist
+      - uses: softprops/action-gh-release@da05d552573ad5aba039eaac05058a918a7bf631 # v2.2.2
+        with:
+          tag_name: ${{ github.ref_type == 'tag' && github.ref_name || format('v{0}', needs.build.outputs.version) }}
+          name: Yurei v${{ needs.build.outputs.version }}
+          files: |
+            dist/*.exe
+            dist/SHA256SUMS.txt
+          body: |
+            Instalador de Windows de Yurei. **No está firmado con un certificado de Microsoft**, así que Windows SmartScreen mostrará un aviso la primera vez.
+
+            ### Comprueba que es el archivo original
+            1. En PowerShell: `Get-FileHash .\Yurei-Setup-${{ needs.build.outputs.version }}.exe -Algorithm SHA256` y compara con `SHA256SUMS.txt`.
+            2. Si tienes la CLI de GitHub: `gh attestation verify .\Yurei-Setup-${{ needs.build.outputs.version }}.exe --repo ${{ github.repository }}` confirma que se compiló en GitHub Actions a partir de este repositorio.

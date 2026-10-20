@@ -1,2 +1,8 @@
-node_modules/
+*.key
+*.pem
+*.pfx
+.env
+.env.*
 dist/
+node_modules/
+yurei.json
