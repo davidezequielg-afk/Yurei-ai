@@ -5,8 +5,8 @@ const BASE = 'https://generativelanguage.googleapis.com/v1beta/models';
 const TIMEOUT_MS = 45000;
 const MAX_CALLS = 12; // tope de acciones por petición: una orden maliciosa no puede abrir 50 pestañas
 
-async function generate({ apiKey, model, body, fetchImpl = fetch, timeoutMs = TIMEOUT_MS }) {
-  if (!apiKey) throw new Error('Falta la API key de Gemini. Agrégala en Ajustes.');
+// Un solo intento. Si Google responde con error, el Error lleva su código en .status.
+async function request({ apiKey, model, body, fetchImpl, timeoutMs }) {
   const ctl = new AbortController();
   const timer = setTimeout(() => ctl.abort(), timeoutMs);
   try {
@@ -16,13 +16,40 @@ async function generate({ apiKey, model, body, fetchImpl = fetch, timeoutMs = TI
       body: JSON.stringify(body),
       signal: ctl.signal
     });
-    if (!res.ok) throw new Error(friendlyError(res.status, (await res.text()).replace(apiKey, '***')));
+    if (!res.ok) throw Object.assign(new Error(friendlyError(res.status, (await res.text()).replace(apiKey, '***'))), { status: res.status });
     return await res.json();
   } catch (e) {
+    if (e.status) throw e;
     throw new Error(e.name === 'AbortError' ? 'Gemini tardó demasiado en responder' : e.message);
   } finally {
     clearTimeout(timer);
   }
+}
+
+// Google a veces responde "saturado" (503) u otro error pasajero del servidor. Se reintenta un par de veces y,
+// si el modelo elegido sigue sin responder, se prueba una vez con los modelos de respaldo de Gemini.
+const TRANSIENT = new Set([500, 502, 503, 504]);
+const RETRY_DELAYS = [700, 1800];
+const FALLBACK_MODELS = ['gemini-flash-latest', 'gemini-flash-lite-latest'];
+
+async function generate({ apiKey, model, body, fetchImpl = fetch, timeoutMs = TIMEOUT_MS, fallback = true, sleep = (ms) => new Promise((r) => setTimeout(r, ms)) }) {
+  if (!apiKey) throw new Error('Falta la API key de Gemini. Agrégala en Ajustes.');
+  let last;
+  for (let i = 0; i <= RETRY_DELAYS.length; i++) {
+    try { return await request({ apiKey, model, body, fetchImpl, timeoutMs }); } catch (e) {
+      last = e;
+      if (!TRANSIENT.has(e.status)) throw e;
+      if (i < RETRY_DELAYS.length) await sleep(RETRY_DELAYS[i]);
+    }
+  }
+  if (fallback) {
+    for (const m of FALLBACK_MODELS.filter((x) => x !== model)) {
+      try { return await request({ apiKey, model: m, body, fetchImpl, timeoutMs }); } catch (e) {
+        if (!TRANSIENT.has(e.status) && e.status !== 404) throw e; // 404: ese respaldo no existe para esta clave; se prueba el siguiente
+      }
+    }
+  }
+  throw last;
 }
 
 // Convierte la respuesta de error de Google en un mensaje legible (el código queda para diagnosticar).
@@ -33,7 +60,7 @@ function friendlyError(status, body) {
   if (status === 429) return `Gemini 429: llegaste al límite gratis por ahora (${msg})`;
   if (status === 400 && /API key not valid|API_KEY_INVALID/i.test(msg)) return 'Gemini 400: la API key no es válida. Revísala en Ajustes.';
   if (status === 403) return `Gemini 403: la clave no tiene permiso para este modelo (${msg})`;
-  if (status >= 500) return `Gemini ${status}: el servicio de Google falló, prueba de nuevo en un momento`;
+  if (status >= 500) return `Gemini ${status}: Google está saturado o falló ahora mismo (reintenté y no respondió). Prueba de nuevo en un momento.`;
   return `Gemini ${status}: ${msg}`;
 }
 
@@ -110,6 +137,7 @@ async function synthesize({ apiKey, model, text, voiceName, fetchImpl }) {
     apiKey,
     model,
     fetchImpl,
+    fallback: false, // los modelos de respaldo no hablan; si falla, el notch usa la voz del sistema
     body: {
       contents: [{ role: 'user', parts: [{ text }] }],
       generationConfig: {

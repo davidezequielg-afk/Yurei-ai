@@ -272,3 +272,29 @@ test('los errores de Gemini se muestran legibles', () => {
   assert.match(friendlyError(503, 'boom'), /falló/);
   assert.match(friendlyError(429, '{}'), /límite/);
 });
+
+test('Gemini saturado (503): reintenta y, si sigue, prueba un modelo de respaldo; otros errores no se reintentan', async () => {
+  const { generate } = require('../src/gemini');
+  const ok = { ok: true, json: async () => ({ candidates: [{ content: { parts: [{ text: 'hola' }] } }] }) };
+  const fail = (status) => ({ ok: false, status, text: async () => JSON.stringify({ error: { message: 'The model is overloaded.' } }) });
+  const run = async (plan, opts = {}) => {
+    const urls = [];
+    const fetchImpl = async (url) => { urls.push(url.split('/models/')[1].split(':')[0]); const next = plan.shift(); return typeof next === 'number' ? fail(next) : ok; };
+    let out = null;
+    let err = null;
+    try { out = await generate({ apiKey: 'k', model: 'gemini-3.5-flash-lite', body: {}, fetchImpl, sleep: async () => {}, ...opts }); } catch (e) { err = e; }
+    return { urls, out, err };
+  };
+  let r = await run([503, 'ok']);
+  assert.ok(r.out); assert.deepEqual(r.urls, ['gemini-3.5-flash-lite', 'gemini-3.5-flash-lite']);
+  r = await run([503, 503, 503, 'ok']);
+  assert.ok(r.out); assert.equal(r.urls[3], 'gemini-flash-latest');
+  r = await run([503, 503, 503, 404, 'ok']); // el primer respaldo no existe para esta clave: se usa el siguiente
+  assert.ok(r.out); assert.equal(r.urls[4], 'gemini-flash-lite-latest');
+  r = await run([503, 503, 503, 503, 503]);
+  assert.match(r.err.message, /saturado/); assert.equal(r.err.status, 503);
+  r = await run([400]);
+  assert.equal(r.urls.length, 1); assert.equal(r.err.status, 400);
+  r = await run([503, 503, 503], { fallback: false }); // la voz no usa respaldo
+  assert.equal(r.urls.length, 3); assert.ok(r.err);
+});
