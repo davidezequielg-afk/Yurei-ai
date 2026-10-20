@@ -23,20 +23,93 @@ function setPhase(phase, label) {
   if (label) $('status').textContent = label;
 }
 
-// Habla y resuelve al terminar (con tope de seguridad) para no escucharse a sí mismo.
-function say(text) {
+/* ---------- voz ---------- */
+
+const GEMINI_VOICES = ['Kore', 'Puck', 'Charon', 'Zephyr', 'Fenrir', 'Leda', 'Orus', 'Aoede', 'Callirrhoe', 'Autonoe', 'Enceladus', 'Iapetus', 'Umbriel', 'Algieba', 'Despina', 'Erinome', 'Algenib', 'Rasalgethi', 'Laomedeia', 'Achernar', 'Alnilam', 'Schedar', 'Gacrux', 'Pulcherrima', 'Achird', 'Zubenelgenubi', 'Vindemiatrix', 'Sadachbia', 'Sadaltager', 'Sulafat'];
+const voice = { token: 0, ctx: null, source: null };
+
+function stopSpeaking() {
+  voice.token++;
+  speechSynthesis.cancel();
+  try { voice.source?.stop(); } catch { /* ya terminó */ }
+}
+
+// Trozos de 1-2 frases: el primero suena enseguida mientras se genera el siguiente.
+function chunkSentences(text) {
+  const sentences = text.match(/[^.!?¿¡\n]+[.!?]*\s*/g) || [text];
+  const chunks = [];
+  let cur = '';
+  for (const s of sentences) {
+    if (cur && (cur + s).length > 140) { chunks.push(cur.trim()); cur = ''; }
+    cur += s;
+  }
+  if (cur.trim()) chunks.push(cur.trim());
+  return chunks;
+}
+
+function playPcm(b64) {
   return new Promise((resolve) => {
-    if (!text) return resolve();
+    voice.ctx ||= new AudioContext();
+    const bin = atob(b64);
+    const n = bin.length >> 1;
+    const buf = voice.ctx.createBuffer(1, n, 24000);
+    const ch = buf.getChannelData(0);
+    for (let i = 0; i < n; i++) {
+      let v = bin.charCodeAt(2 * i) | (bin.charCodeAt(2 * i + 1) << 8);
+      if (v >= 0x8000) v -= 0x10000;
+      ch[i] = v / 32768;
+    }
+    const src = voice.ctx.createBufferSource();
+    src.buffer = buf;
+    src.connect(voice.ctx.destination);
+    src.onended = resolve;
+    voice.source = src;
+    src.start();
+  });
+}
+
+async function speakGemini(text, token) {
+  const chunks = chunkSentences(text);
+  const fetchChunk = async (t) => {
+    const r = await window.yurei.tts(t);
+    if (!r.ok) throw new Error(r.error);
+    return r.data;
+  };
+  let next = fetchChunk(chunks[0]);
+  await next; // si falla el primero, se propaga y se usa la voz del sistema
+  for (let i = 0; i < chunks.length; i++) {
+    let audio;
+    try { audio = await next; } catch { return; }
+    if (token !== voice.token) return;
+    if (i + 1 < chunks.length) {
+      next = fetchChunk(chunks[i + 1]);
+      next.catch(() => {}); // el fallo se maneja al esperarlo; esto evita un rechazo sin captura
+    }
+    await playPcm(audio);
+    if (token !== voice.token) return;
+  }
+}
+
+function speakSystem(text) {
+  return new Promise((resolve) => {
     const u = new SpeechSynthesisUtterance(text);
-    const voice = speechSynthesis.getVoices().find((v) => v.name === state.voice);
-    if (voice) u.voice = voice;
     const done = () => { clearTimeout(guard); resolve(); };
     const guard = setTimeout(done, 30000);
     u.onend = done;
     u.onerror = done;
-    speechSynthesis.cancel();
     speechSynthesis.speak(u);
   });
+}
+
+// Habla y resuelve al terminar, para no escucharse a sí mismo.
+async function say(text) {
+  if (!text) return;
+  stopSpeaking();
+  const token = voice.token;
+  if (!state.systemVoice) {
+    try { await speakGemini(text, token); return; } catch (e) { log('act', `⚠ voz de Gemini no disponible (${e.message}); uso la del sistema`); }
+  }
+  if (token === voice.token) await speakSystem(text);
 }
 
 function log(kind, text) {
@@ -79,7 +152,7 @@ async function ensureListening() {
 
 async function enterConversation() {
   if (!(await ensureListening())) return;
-  speechSynthesis.cancel();
+  stopSpeaking();
   conv.active = true;
   setMode('status');
   $('reply').textContent = 'Te escucho… (habla y haré una pausa para responder)';
@@ -159,7 +232,7 @@ async function toggleDictation() {
     showReply(`No pude acceder al micrófono: ${e.message}`);
     return;
   }
-  speechSynthesis.cancel();
+  stopSpeaking();
   state.recording = 'dictate';
   setMode('status');
   $('reply').textContent = 'Dictando… pulsa Ctrl+Alt+D para terminar.';
@@ -230,25 +303,25 @@ const views = {
 
   async soul() {
     const s = (await window.yurei.getSettings()).data || {};
-    const voices = speechSynthesis.getVoices();
     const field = (label, node) => [el('label', { textContent: label }), node];
     const key = el('input', { type: 'password', value: s.apiKey || '', placeholder: 'Pega tu API key de Google AI Studio' });
     const model = el('input', { value: s.model });
     const soul = el('input', { value: s.soul });
     const pers = el('textarea', { rows: 2, value: s.personality });
-    const voice = el('select', {}, el('option', { value: '', textContent: 'Predeterminada' }), ...voices.map((v) => el('option', { value: v.name, textContent: v.name, selected: v.name === s.voice })));
+    const voiceSel = el('select', {}, ...GEMINI_VOICES.map((v) => el('option', { value: v, textContent: v, selected: v === (s.voice || 'Kore') })));
+    const sysVoice = el('input', { type: 'checkbox', checked: !!s.systemVoice, style: 'width:auto' });
     const wake = el('input', { type: 'checkbox', checked: !!s.wakeWord, style: 'width:auto' });
     const convSecs = el('input', { type: 'number', min: 5, max: 120, value: s.conversationSeconds || 20 });
     const abil = el('textarea', { rows: 3, value: (s.abilities || []).join('\n'), placeholder: 'Una instrucción por línea, p. ej. "Cuando diga \'modo cine\' baja el volumen a 20"' });
     const save = el('button', {
       textContent: 'Guardar',
       onclick: async () => {
-        const r = await window.yurei.saveSettings({ apiKey: key.value, model: model.value.trim(), soul: soul.value.trim() || 'Yurei', personality: pers.value, voice: voice.value, wakeWord: wake.checked, conversationSeconds: Number(convSecs.value) || 20, abilities: abil.value.split('\n').map((x) => x.trim()).filter(Boolean) });
+        const r = await window.yurei.saveSettings({ apiKey: key.value, model: model.value.trim(), soul: soul.value.trim() || 'Yurei', personality: pers.value, voice: voiceSel.value, systemVoice: sysVoice.checked, wakeWord: wake.checked, conversationSeconds: Number(convSecs.value) || 20, abilities: abil.value.split('\n').map((x) => x.trim()).filter(Boolean) });
         if (r.ok) applySettings(r.data);
         save.textContent = r.ok ? 'Guardado ✓' : `Error: ${r.error}`;
       }
     });
-    $('soul').replaceChildren(...field('API key de Gemini (se guarda solo en este PC)', key), ...field('Modelo', model), ...field('Alma (nombre)', soul), ...field('Personalidad', pers), ...field('Voz', voice), el('label', {}, wake, ' Escuchar siempre mi nombre (manos libres). El micrófono queda abierto y los fragmentos con voz se envían a Google para detectar el nombre.'), ...field('Segundos de conversación abierta', convSecs), ...field('Habilidades', abil), el('p', {}, save));
+    $('soul').replaceChildren(...field('API key de Gemini (se guarda solo en este PC)', key), ...field('Modelo', model), ...field('Alma (nombre)', soul), ...field('Personalidad', pers), ...field('Voz (Gemini, natural y expresiva)', voiceSel), el('label', {}, sysVoice, ' Usar la voz del sistema (robótica, pero no gasta cuota)'), el('label', {}, wake, ' Escuchar siempre mi nombre (manos libres). El micrófono queda abierto y los fragmentos con voz se envían a Google para detectar el nombre.'), ...field('Segundos de conversación abierta', convSecs), ...field('Habilidades', abil), el('p', {}, save));
   },
 
   power() {
@@ -306,7 +379,7 @@ window.yurei.on('report', ({ label, results }) => {
 });
 
 function applySettings(cfg) {
-  state.voice = cfg.voice;
+  state.systemVoice = cfg.systemVoice;
   state.wakeWord = cfg.wakeWord;
   state.conversationSeconds = cfg.conversationSeconds;
   if (cfg.wakeWord) ensureListening();

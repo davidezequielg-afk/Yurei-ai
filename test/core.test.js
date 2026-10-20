@@ -133,3 +133,15 @@ test('assistant.wake llama a Gemini con el nombre configurado', async () => {
   assert.match(sent.contents[0].parts[0].text, /Kitsune/);
   assert.equal(sent.contents[0].parts[1].inlineData.mimeType, 'audio/wav');
 });
+
+test('synthesize pide audio con la voz elegida y devuelve el PCM', async () => {
+  const { synthesize } = require('../src/gemini');
+  let sent;
+  const fetchImpl = async (_u, init) => { sent = JSON.parse(init.body); return { ok: true, json: async () => ({ candidates: [{ content: { parts: [{ inlineData: { mimeType: 'audio/L16;rate=24000', data: 'UENN' } }] } }] }) }; };
+  assert.equal(await synthesize({ apiKey: 'k', model: 'm', text: 'hola', voiceName: 'Charon', fetchImpl }), 'UENN');
+  assert.deepEqual(sent.generationConfig.responseModalities, ['AUDIO']);
+  assert.equal(sent.generationConfig.speechConfig.voiceConfig.prebuiltVoiceConfig.voiceName, 'Charon');
+  assert.match(sent.contents[0].parts[0].text, /hola$/);
+  const empty = async () => ({ ok: true, json: async () => ({ candidates: [{ content: { parts: [{ text: 'x' }] } }] }) });
+  await assert.rejects(synthesize({ apiKey: 'k', model: 'm', text: 'a', voiceName: 'Kore', fetchImpl: empty }), /audio/);
+});

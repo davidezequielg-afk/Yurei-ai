@@ -72,4 +72,25 @@ const TRANSCRIBE_PROMPT = 'Transcribe este audio a texto limpio. Elimina muletil
 
 const transcribe = (opts) => askAudio({ ...opts, prompt: TRANSCRIBE_PROMPT });
 
-module.exports = { runAgent, transcribe, askAudio, generate };
+const STYLE = 'Di esto con una voz natural, expresiva y cercana, con entonación, énfasis y ritmo humanos, como en una conversación real:';
+
+// Devuelve PCM 16-bit mono a 24 kHz en base64.
+async function synthesize({ apiKey, model, text, voiceName, fetchImpl }) {
+  const data = await generate({
+    apiKey,
+    model,
+    fetchImpl,
+    body: {
+      contents: [{ role: 'user', parts: [{ text: `${STYLE}\n${text}` }] }],
+      generationConfig: {
+        responseModalities: ['AUDIO'],
+        speechConfig: { voiceConfig: { prebuiltVoiceConfig: { voiceName } } }
+      }
+    }
+  });
+  const audio = data.candidates?.[0]?.content?.parts?.find((p) => p.inlineData)?.inlineData?.data;
+  if (!audio) throw new Error('Gemini no devolvió audio');
+  return audio;
+}
+
+module.exports = { runAgent, transcribe, askAudio, synthesize, generate };

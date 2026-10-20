@@ -7,7 +7,9 @@ const DEFAULTS = {
     model: 'gemini-2.5-flash',
     soul: 'Yurei',
     personality: 'Amable, directo y breve. Responde en el idioma del usuario.',
-    voice: '',
+    voice: 'Kore',
+    ttsModel: 'gemini-2.5-flash-preview-tts',
+    systemVoice: false,
     abilities: [],
     wakeWord: false,
     conversationSeconds: 20

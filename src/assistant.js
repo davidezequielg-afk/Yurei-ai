@@ -1,4 +1,4 @@
-const { runAgent, transcribe, askAudio } = require('./gemini');
+const { runAgent, transcribe, askAudio, synthesize } = require('./gemini');
 
 function buildSystemPrompt(settings, now = new Date()) {
   const abilities = settings.abilities?.length ? `\nHabilidades extra del usuario:\n- ${settings.abilities.join('\n- ')}` : '';
@@ -59,6 +59,11 @@ function createAssistant({ store, tools, fetchImpl }) {
       const s = store.get('settings');
       const out = await askAudio({ apiKey: s.apiKey, model: s.model, audioB64, prompt: wakePrompt(s.soul), fetchImpl });
       return parseWake(out);
+    },
+
+    async speak(text) {
+      const s = store.get('settings');
+      return synthesize({ apiKey: s.apiKey, model: s.ttsModel, text, voiceName: s.voice || 'Kore', fetchImpl });
     },
 
     reset() { history = []; }

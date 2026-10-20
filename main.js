@@ -114,6 +114,7 @@ app.whenReady().then(() => {
     if (text) { win.blur(); await system.pasteText(text); }
     return text;
   }));
+  ipcMain.handle('tts', safe((_e, text) => assistant.speak(String(text).slice(0, 1500))));
   ipcMain.handle('wake', safe((_e, audioB64) => assistant.wake(audioB64)));
   ipcMain.handle('settings:get', safe(() => settingsView()));
   ipcMain.handle('settings:save', safe((_e, patch) => {
