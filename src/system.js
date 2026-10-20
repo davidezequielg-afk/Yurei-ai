@@ -1,5 +1,6 @@
 // Integración con el SO (pensada para Windows; en otros sistemas degrada con gracia).
 const { spawn, execFile } = require('child_process');
+const os = require('os');
 
 const isWin = process.platform === 'win32';
 const SAFE_NAME = /^[\w .\-()&+]{1,80}$/;
@@ -45,7 +46,26 @@ function createSystem({ shell, clipboard }) {
     async pasteText(text) {
       clipboard.writeText(text);
       if (isWin) await ps('(New-Object -ComObject WScript.Shell).SendKeys("^v")');
-    }
+    },
+
+    stats: (() => {
+      let prev = os.cpus();
+      return () => {
+        const cur = os.cpus();
+        let idle = 0;
+        let total = 0;
+        cur.forEach((c, i) => {
+          for (const k of Object.keys(c.times)) total += c.times[k] - prev[i].times[k];
+          idle += c.times.idle - prev[i].times.idle;
+        });
+        prev = cur;
+        return {
+          cpu: total ? Math.round(100 * (1 - idle / total)) : 0,
+          ramUsedGb: +((os.totalmem() - os.freemem()) / 2 ** 30).toFixed(1),
+          ramTotalGb: +(os.totalmem() / 2 ** 30).toFixed(1)
+        };
+      };
+    })()
   };
 }
 

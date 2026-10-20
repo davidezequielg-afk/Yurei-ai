@@ -1,5 +1,7 @@
 // Herramientas que Gemini puede invocar. `system` abstrae todo lo que toca el SO.
 
+const { CATALOG, setWidget, DEFAULT_LAYOUT } = require('./widgets');
+
 const SITES = {
   youtube: 'https://www.youtube.com/results?search_query=%s',
   google: 'https://www.google.com/search?q=%s',
@@ -33,6 +35,8 @@ const declarations = [
   { name: 'cancel_schedule', description: 'Cancela una tarea programada o rutina por id o etiqueta.', parameters: { type: 'OBJECT', properties: { ref: str('Id o etiqueta') }, required: ['ref'] } },
   { name: 'set_volume', description: 'Ajusta el volumen del sistema de 0 a 100.', parameters: { type: 'OBJECT', properties: { level: { type: 'NUMBER', description: 'Nivel 0-100' } }, required: ['level'] } },
   { name: 'power_action', description: 'Bloquea, suspende, reinicia o apaga el PC. Pide confirmación verbal al usuario ANTES de llamar con confirmed=true.', parameters: { type: 'OBJECT', properties: { action: { type: 'STRING', enum: POWER_ACTIONS, description: 'Acción' }, confirmed: { type: 'BOOLEAN', description: 'true solo si el usuario ya confirmó' } }, required: ['action', 'confirmed'] } },
+  { name: 'set_widget', description: `Cambia el widget de uno de los 3 lugares fijos del panel (izquierda, centro, derecha). Widgets: ${CATALOG.map((w) => `${w.id} (${w.name})`).join(', ')}. Si el widget ya estaba en otro lugar, intercambian lugares.`, parameters: { type: 'OBJECT', properties: { slot: { type: 'STRING', enum: ['izquierda', 'centro', 'derecha'], description: 'Lugar' }, widget: { type: 'STRING', enum: CATALOG.map((w) => w.id), description: 'Widget a mostrar' } }, required: ['slot', 'widget'] } },
+  { name: 'set_city', description: 'Guarda la ciudad para el widget del clima.', parameters: { type: 'OBJECT', properties: { city: str('Nombre de la ciudad') }, required: ['city'] } },
   { name: 'read_clipboard', description: 'Lee el texto actual del portapapeles.', parameters: { type: 'OBJECT', properties: {} } }
 ];
 
@@ -155,6 +159,18 @@ function createTools({ store, system, now = () => new Date() }) {
       if (confirmed !== true) return { executed: false, message: 'Pide confirmación al usuario y vuelve a llamar con confirmed=true.' };
       await system.power(action);
       return { executed: true, action };
+    },
+    set_widget: ({ slot, widget }) => {
+      const current = store.get('settings').widgets || DEFAULT_LAYOUT;
+      const widgets = setWidget(current, slot, widget);
+      store.updateSettings({ widgets });
+      return { widgets };
+    },
+    set_city: ({ city }) => {
+      const c = String(city || '').trim().slice(0, 80);
+      if (!c) throw new Error('Falta la ciudad');
+      store.updateSettings({ city: c });
+      return { city: c };
     },
     read_clipboard: () => ({ text: system.readClipboard() })
   };

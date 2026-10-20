@@ -18,6 +18,10 @@ const el = (tag, props = {}, ...kids) => {
   const wake = el('input', { type: 'checkbox', checked: !!s.wakeWord });
   const convSecs = el('input', { type: 'number', min: 5, max: 120, value: s.conversationSeconds || 20 });
   const abil = el('textarea', { rows: 3, value: (s.abilities || []).join('\n'), placeholder: 'Una instrucción por línea, p. ej. "Cuando diga \'modo cine\' baja el volumen a 20"' });
+  const catalog = s.widgetCatalog || [];
+  const layout = s.widgets || ['yurei', 'clock', 'todos'];
+  const slotSel = ['Izquierda', 'Centro', 'Derecha'].map((_, i) => el('select', {}, ...catalog.map((w) => el('option', { value: w.id, textContent: w.name, selected: w.id === layout[i] }))));
+  const city = el('input', { value: s.city || '', placeholder: 'p. ej. Buenos Aires (para el widget del clima)' });
   const save = el('button', {
     textContent: 'Guardar',
     onclick: async () => {
@@ -25,6 +29,7 @@ const el = (tag, props = {}, ...kids) => {
         apiKey: key.value, model: model.value.trim(), soul: soul.value.trim() || 'Yurei', personality: pers.value,
         voice: voiceSel.value, systemVoice: sysVoice.checked, wakeWord: wake.checked,
         conversationSeconds: Number(convSecs.value) || 20,
+        widgets: slotSel.map((x) => x.value), city: city.value,
         abilities: abil.value.split('\n').map((x) => x.trim()).filter(Boolean)
       });
       save.textContent = r.ok ? 'Guardado ✓' : `Error: ${r.error}`;
@@ -39,6 +44,9 @@ const el = (tag, props = {}, ...kids) => {
     el('label', { className: 'check' }, sysVoice, 'Usar la voz del sistema (robótica, pero no gasta cuota)'),
     el('label', { className: 'check' }, wake, 'Escuchar siempre mi nombre (manos libres). El micrófono queda abierto y los fragmentos con voz se envían a Google para detectar el nombre.'),
     ...field('Segundos de conversación abierta', convSecs),
+    el('h2', { textContent: 'Widgets del panel' }),
+    ...field('Lugar izquierdo', slotSel[0]), ...field('Lugar central', slotSel[1]), ...field('Lugar derecho', slotSel[2]),
+    ...field('Ciudad (clima)', city),
     ...field('Habilidades', abil),
     save
   );

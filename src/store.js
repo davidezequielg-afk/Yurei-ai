@@ -12,6 +12,8 @@ const DEFAULTS = {
     systemVoice: false,
     abilities: [],
     wakeWord: false,
+    widgets: ['yurei', 'clock', 'todos'],
+    city: '',
     conversationSeconds: 20
   },
   todos: [],

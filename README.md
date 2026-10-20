@@ -19,6 +19,7 @@ Asistente de voz de escritorio de **código abierto** (MIT), inspirado en la cat
 | **Búsqueda por sitio** | YouTube, Google, Wikipedia, GitHub, Amazon, Spotify, Maps, Reddit |
 | **Control del PC** | Abrir apps/URLs, volumen, bloquear/suspender/reiniciar/apagar (con confirmación) |
 | **Isla en pantalla** | Notch mínimo que solo se mueve con la voz. Al hacer clic se despliega un panel de 3 widgets fijos: icono de Yurei (tócalo para hablar), hora y pendientes |
+| **Widgets intercambiables** | El panel tiene 3 lugares fijos (izquierda, centro, derecha) y cada uno muestra el widget que elijas: Yurei, hora y fecha, pendientes, clima, próximas tareas, estado del PC, calendario o batería. Cámbialos por voz ("pon el clima a la derecha") o en Ajustes. El icono de Yurei no se puede quitar, pero sí mover |
 | **Personalización** | Ventana de Ajustes (⚙️ del panel): API key, nombre (*alma*), personalidad, voz y habilidades extra |
 | **Operación desatendida** | Las tareas y rutinas se ejecutan solas y notifican lo que hicieron |
 
@@ -71,6 +72,10 @@ renderer/          UI de la isla, grabación WAV 16 kHz, overlay de Circle to As
 ## Modelos
 
 Por defecto usa `gemini-3.5-flash-lite` para entender y actuar, y `gemini-3.8-flash-tts` para la voz (no hay TTS de la serie 3.5). Ambos se cambian en **Alma** (modelo) o en `yurei.json` (`ttsModel`). Para respuestas más finas prueba `gemini-3.8-flash`. Los modelos 2.5 ya solo se sirven a cuentas que los usaron antes, así que las instalaciones antiguas se migran solas. Lista vigente: <https://ai.google.dev/gemini-api/docs/models>.
+
+## Widgets
+
+Catálogo en `src/widgets.js` (reglas de los lugares y lógica de clima/agenda) y `renderer/app.js` (`WIDGETS`). Para añadir uno nuevo: agrégalo al `CATALOG` y define su `build`/`update` en `WIDGETS`. El clima usa [Open-Meteo](https://open-meteo.com/) y no necesita API key; solo se envía el nombre de la ciudad.
 
 ## Seguridad
 

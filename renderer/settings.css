@@ -1,5 +1,6 @@
 * { box-sizing: border-box; }
 body { margin: 0; padding: 18px 20px; background: #101114; color: #eee; font: 13px/1.4 "Segoe UI", system-ui, sans-serif; }
+h2 { margin: 22px 0 0; font-size: 14px; color: #9ab; }
 h1 { margin: 0 0 8px; font-size: 16px; }
 label { display: block; margin: 12px 0 4px; color: #9aa; }
 label.check { display: flex; gap: 8px; align-items: flex-start; color: #ccc; }

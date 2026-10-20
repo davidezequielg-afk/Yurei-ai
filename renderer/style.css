@@ -24,7 +24,7 @@ html, body { margin: 0; height: 100%; padding: 0 12px; background: transparent; 
 
 /* panel de widgets: 3 lugares fijos */
 #panel { position: relative; flex: 1; min-height: 0; padding: 2px 10px 10px; }
-#widgets { display: grid; grid-template-columns: 1fr 1.25fr 1fr; gap: 8px; height: 100%; }
+#widgets { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 8px; height: 100%; }
 .widget { background: #0d0d0d; border: 1px solid #1c1c1c; border-radius: 14px; padding: 8px 10px; display: flex; flex-direction: column; align-items: center; justify-content: center; min-height: 0; overflow: hidden; }
 #gear { position: absolute; top: -20px; right: 12px; background: none; border: 0; cursor: pointer; font-size: 12px; opacity: .6; padding: 2px; }
 #gear:hover { opacity: 1; }
@@ -33,14 +33,27 @@ html, body { margin: 0; height: 100%; padding: 0 12px; background: transparent; 
 .listening #orb { background: radial-gradient(circle at 35% 30%, #ffd6d6, #f55 60%, #8a1f1f); box-shadow: 0 0 18px #f55a; animation-duration: .9s; }
 .speaking #orb { background: radial-gradient(circle at 35% 30%, #fff, #cfd8ff 60%, #6a78c8); box-shadow: 0 0 18px #cfd8ff99; }
 .thinking #orb { background: radial-gradient(circle at 35% 30%, #fff1c9, #fc6 60%, #a8741b); box-shadow: 0 0 18px #fc6a; animation-duration: 1.2s; }
-#wName { margin-top: 6px; font-weight: 600; font-size: 12px; }
-#wState { color: #888; font-size: 10px; }
-#wClock { font-size: 30px; font-weight: 600; letter-spacing: .02em; line-height: 1; }
-#wDate { margin-top: 6px; color: #9aa; }
-#wDate::first-letter { text-transform: uppercase; }
-#wTodos { align-items: stretch; justify-content: flex-start; }
-#wTodos h4 { margin: 0 0 2px; color: #888; font-weight: 600; text-transform: uppercase; font-size: 10px; letter-spacing: .06em; }
-#wTodoCount { font-size: 13px; font-weight: 600; margin-bottom: 4px; }
-#wTodoList { margin: 0; padding: 0; list-style: none; color: #bbb; }
-#wTodoList li { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-#wTodoList li::before { content: "• "; color: #4aa8e8; }
+.name { margin-top: 6px; font-weight: 600; font-size: 12px; }
+.sub { color: #888; font-size: 10px; text-align: center; }
+.sub.date { margin-top: 6px; color: #9aa; }
+.sub.date::first-letter { text-transform: uppercase; }
+.dim { color: #666; }
+.big { font-size: 30px; font-weight: 600; letter-spacing: .02em; line-height: 1; }
+.icon { font-size: 26px; line-height: 1.1; }
+.w-weather .big, .w-battery .big { font-size: 24px; margin: 2px 0; }
+.widget.list { align-items: stretch; justify-content: flex-start; }
+.widget.list h4 { margin: 0 0 2px; color: #888; font-weight: 600; text-transform: uppercase; font-size: 10px; letter-spacing: .06em; }
+.widget.list .head { font-size: 13px; font-weight: 600; margin-bottom: 4px; }
+.widget.list ul { margin: 0; padding: 0; list-style: none; color: #bbb; }
+.widget.list li { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.widget.list li::before { content: "• "; color: #4aa8e8; }
+.widget.list .sub { text-align: left; }
+.gauge { height: 6px; background: #181818; border-radius: 3px; overflow: hidden; margin: 2px 0 8px; }
+.gauge i { display: block; height: 100%; width: 0; background: #6cf; transition: width .6s; }
+.widget.cal { justify-content: flex-start; padding: 6px 8px; }
+.calTitle { font-size: 10px; font-weight: 600; margin-bottom: 3px; }
+.calTitle::first-letter { text-transform: uppercase; }
+.calGrid { display: grid; grid-template-columns: repeat(7, 1fr); gap: 1px 0; font-size: 9px; text-align: center; width: 100%; }
+.calGrid b { color: #666; font-weight: 600; }
+.calGrid span { color: #bbb; border-radius: 50%; }
+.calGrid span.today { background: #4aa8e8; color: #000; font-weight: 700; }

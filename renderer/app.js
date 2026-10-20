@@ -6,7 +6,7 @@ const el = (tag, props = {}, ...kids) => {
   return n;
 };
 
-const state = { mode: 'idle', recording: null, pendingImage: null, autoStop: null };
+const state = { mode: 'idle', recording: null, pendingImage: null, autoStop: null, soul: 'Yurei', stateText: 'Toca para hablar', layout: ['yurei', 'clock', 'todos'], city: '' };
 
 const isPanel = (m) => m === 'peek';
 
@@ -22,46 +22,218 @@ function setMode(mode) {
   if (!isPanel(mode) && wasPanel) stopWidgets();
 }
 
-/* ---------- widgets (3 lugares fijos: Yurei · hora · pendientes) ---------- */
+/* ---------- widgets: 3 lugares fijos, cada uno con el widget que elijas ---------- */
 
+const toggleConversation = () => (conv.active ? wakeIdle() : enterConversation());
+const fmtTime = (iso) => {
+  const d = new Date(iso);
+  const hm = d.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+  return d.toDateString() === new Date().toDateString() ? hm : `${d.toLocaleDateString(undefined, { weekday: 'short' })} ${hm}`;
+};
+const gauge = (label) => {
+  const txt = el('div', { className: 'sub', textContent: label });
+  const fill = el('i');
+  return { txt, fill, nodes: [txt, el('div', { className: 'gauge' }, fill)] };
+};
+
+const WIDGETS = {
+  yurei: {
+    build(c) {
+      c.append(
+        el('button', { id: 'orb', title: 'Hablar con Yurei', onclick: toggleConversation }),
+        el('div', { id: 'wName', className: 'name', textContent: state.soul }),
+        el('div', { id: 'wState', className: 'sub', textContent: state.stateText })
+      );
+    }
+  },
+
+  clock: {
+    every: 1,
+    build(c) {
+      const t = el('div', { className: 'big' });
+      const d = el('div', { className: 'sub date' });
+      c.append(t, d);
+      return { t, d };
+    },
+    update(r) {
+      const n = new Date();
+      r.t.textContent = n.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+      r.d.textContent = n.toLocaleDateString(undefined, { weekday: 'long', day: 'numeric', month: 'long' });
+    }
+  },
+
+  todos: {
+    every: 5,
+    build(c) {
+      c.classList.add('list');
+      const head = el('div', { className: 'head' });
+      const ul = el('ul');
+      c.append(el('h4', { textContent: 'Pendientes' }), head, ul);
+      return { head, ul };
+    },
+    async update(r) {
+      const open = ((await window.yurei.todos()).data || []).filter((t) => !t.done);
+      r.head.textContent = open.length ? `${open.length} pendiente${open.length === 1 ? '' : 's'}` : 'Sin pendientes';
+      r.ul.replaceChildren(...open.slice(0, 3).map((t) => el('li', { textContent: t.text })));
+    }
+  },
+
+  weather: {
+    every: 600,
+    build(c) {
+      const icon = el('div', { className: 'icon' });
+      const temp = el('div', { className: 'big' });
+      const desc = el('div', { className: 'sub' });
+      const place = el('div', { className: 'sub dim' });
+      c.append(icon, temp, desc, place);
+      return { icon, temp, desc, place };
+    },
+    async update(r) {
+      const res = await window.yurei.widgetData('weather');
+      if (!res.ok) {
+        r.icon.textContent = '🌡️';
+        r.temp.textContent = '';
+        r.desc.textContent = res.error;
+        r.place.textContent = '';
+        return;
+      }
+      const w = res.data;
+      r.icon.textContent = w.emoji;
+      r.temp.textContent = `${w.temp}°`;
+      r.desc.textContent = w.desc;
+      r.place.textContent = `${w.city} · ${w.min}° / ${w.max}°`;
+    }
+  },
+
+  schedule: {
+    every: 30,
+    build(c) {
+      c.classList.add('list');
+      const ul = el('ul');
+      c.append(el('h4', { textContent: 'Próximo' }), ul);
+      return { ul };
+    },
+    async update(r) {
+      const items = (await window.yurei.widgetData('schedule')).data || [];
+      r.ul.replaceChildren(...(items.length
+        ? items.map((i) => el('li', { textContent: `${fmtTime(i.when)} · ${i.label}` }))
+        : [el('li', { className: 'dim', textContent: 'Nada programado. Pídeselo a Yurei.' })]));
+    }
+  },
+
+  stats: {
+    every: 2,
+    build(c) {
+      c.classList.add('list');
+      const cpu = gauge('CPU');
+      const ram = gauge('RAM');
+      c.append(el('h4', { textContent: 'Tu PC' }), ...cpu.nodes, ...ram.nodes);
+      return { cpu, ram };
+    },
+    async update(r) {
+      const res = await window.yurei.widgetData('stats');
+      if (!res.ok) return;
+      const { cpu, ramUsedGb, ramTotalGb } = res.data;
+      r.cpu.txt.textContent = `CPU · ${cpu}%`;
+      r.cpu.fill.style.width = `${cpu}%`;
+      r.ram.txt.textContent = `RAM · ${ramUsedGb} / ${ramTotalGb} GB`;
+      r.ram.fill.style.width = `${Math.round((ramUsedGb / ramTotalGb) * 100)}%`;
+    }
+  },
+
+  calendar: {
+    every: 3600,
+    build(c) {
+      c.classList.add('cal');
+      const title = el('div', { className: 'calTitle' });
+      const grid = el('div', { className: 'calGrid' });
+      c.append(title, grid);
+      return { title, grid };
+    },
+    update(r) {
+      const now = new Date();
+      r.title.textContent = now.toLocaleDateString(undefined, { month: 'long', year: 'numeric' });
+      const first = new Date(now.getFullYear(), now.getMonth(), 1);
+      const days = new Date(now.getFullYear(), now.getMonth() + 1, 0).getDate();
+      const offset = (first.getDay() + 6) % 7; // semana desde lunes
+      const cells = ['L', 'M', 'X', 'J', 'V', 'S', 'D'].map((d) => el('b', { textContent: d }));
+      for (let i = 0; i < offset; i++) cells.push(el('span'));
+      for (let d = 1; d <= days; d++) cells.push(el('span', { textContent: d, className: d === now.getDate() ? 'today' : '' }));
+      r.grid.replaceChildren(...cells);
+    }
+  },
+
+  battery: {
+    every: 30,
+    build(c) {
+      const icon = el('div', { className: 'icon' });
+      const pct = el('div', { className: 'big' });
+      const sub = el('div', { className: 'sub' });
+      c.append(icon, pct, sub);
+      return { icon, pct, sub };
+    },
+    async update(r) {
+      const b = await navigator.getBattery?.().catch(() => null);
+      if (!b) {
+        r.icon.textContent = '🔌';
+        r.pct.textContent = '';
+        r.sub.textContent = 'Sin batería';
+        return;
+      }
+      r.icon.textContent = b.charging ? '⚡' : '🔋';
+      r.pct.textContent = `${Math.round(b.level * 100)}%`;
+      r.sub.textContent = b.charging ? 'Cargando' : 'En batería';
+    }
+  }
+};
+
+let slots = [];
 let widgetTimer = null;
+let tickN = 0;
 
-function renderClock() {
-  const d = new Date();
-  $('wClock').textContent = d.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
-  $('wDate').textContent = d.toLocaleDateString(undefined, { weekday: 'long', day: 'numeric', month: 'long' });
+function tickWidgets(force) {
+  tickN++;
+  slots.forEach(({ def, refs }) => {
+    if (!def.update) return;
+    if (force || (def.every && tickN % def.every === 0)) Promise.resolve(def.update(refs)).catch(() => {});
+  });
 }
 
-async function renderTodos() {
-  const r = await window.yurei.todos();
-  const open = (r.data || []).filter((t) => !t.done);
-  $('wTodoCount').textContent = open.length ? `${open.length} pendiente${open.length === 1 ? '' : 's'}` : 'Sin pendientes';
-  $('wTodoList').replaceChildren(...open.slice(0, 3).map((t) => el('li', { textContent: t.text })));
+function buildWidgets() {
+  const box = $('widgets');
+  box.replaceChildren();
+  slots = state.layout.map((id) => {
+    const def = WIDGETS[id] || WIDGETS.clock;
+    const node = el('div', { className: `widget w-${id}` });
+    box.append(node);
+    return { def, refs: def.build(node) || {} };
+  });
+  tickWidgets(true);
 }
 
 function startWidgets() {
-  renderClock();
-  renderTodos();
-  let tick = 0;
-  widgetTimer = setInterval(() => { renderClock(); if (++tick % 5 === 0) renderTodos(); }, 1000);
+  buildWidgets();
+  widgetTimer = setInterval(() => tickWidgets(false), 1000);
 }
 
 function stopWidgets() {
   clearInterval(widgetTimer);
+  slots = [];
 }
 
 function setPhase(phase, label) {
   island.dataset.phase = phase;
   island.className = `${state.mode} ${phase}`.trim();
   if (label) $('status').textContent = label;
-  $('wState').textContent = phase ? label : 'Toca para hablar';
+  state.stateText = phase ? label : 'Toca para hablar';
+  const ws = $('wState');
+  if (ws) ws.textContent = state.stateText;
   animateBars();
 }
 
 /* ---------- barras del notch (reaccionan a la voz) ---------- */
 
 const bars = [...document.querySelectorAll('#bars i')];
-const orb = $('orb');
 let barsRaf = null;
 
 function currentLevel(phase) {
@@ -77,11 +249,13 @@ function animateBars() {
     if (!['listening', 'speaking', 'thinking'].includes(phase)) {
       barsRaf = null;
       bars.forEach((b) => { b.style.transform = ''; });
-      orb.style.transform = '';
+      const o = $('orb');
+      if (o) o.style.transform = '';
       return;
     }
     const lvl = Math.min(1, currentLevel(phase) * 5);
-    orb.style.transform = `scale(${1 + lvl * 0.3})`;
+    const o = $('orb');
+    if (o) o.style.transform = `scale(${1 + lvl * 0.3})`;
     bars.forEach((b, i) => {
       const wave = 0.55 + 0.45 * Math.sin(t / 110 + i * 1.3);
       b.style.transform = `scaleY(${Math.max(0.15, Math.min(1, lvl * wave * 1.4 + 0.12 * wave))})`;
@@ -320,7 +494,6 @@ async function toggleDictation() {
 /* ---------- eventos ---------- */
 
 $('bar').onclick = () => setMode(isPanel(state.mode) ? 'idle' : 'peek');
-$('orb').onclick = () => (conv.active ? wakeIdle() : enterConversation());
 $('gear').onclick = () => window.yurei.openSettings();
 window.addEventListener('keydown', (e) => { if (e.key === 'Escape') setMode('idle'); });
 
@@ -342,7 +515,14 @@ function applySettings(cfg) {
   state.systemVoice = cfg.systemVoice;
   state.wakeWord = cfg.wakeWord;
   state.conversationSeconds = cfg.conversationSeconds;
-  $('wName').textContent = cfg.soul || 'Yurei';
+  state.soul = cfg.soul || 'Yurei';
+  const wn = $('wName');
+  if (wn) wn.textContent = state.soul;
+  const layoutChanged = cfg.widgets && JSON.stringify(cfg.widgets) !== JSON.stringify(state.layout);
+  const cityChanged = (cfg.city || '') !== state.city;
+  if (cfg.widgets) state.layout = cfg.widgets;
+  state.city = cfg.city || '';
+  if (isPanel(state.mode) && (layoutChanged || cityChanged)) buildWidgets();
   if (cfg.wakeWord) ensureListening();
   else if (!conv.active) Listener.stop();
 }

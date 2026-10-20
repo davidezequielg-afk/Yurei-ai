@@ -5,6 +5,7 @@ const { createSystem } = require('./src/system');
 const { createTools } = require('./src/tools');
 const { createAssistant } = require('./src/assistant');
 const { createScheduler } = require('./src/scheduler');
+const { CATALOG, validateLayout, createWeather, nextSchedule } = require('./src/widgets');
 
 const MODES = { idle: [120, 22], status: [260, 60], peek: [567, 132] };
 const HOTKEYS = { talk: 'Control+Shift+Space', dictate: 'Control+Alt+D', circle: 'Control+Shift+C' };
@@ -80,6 +81,7 @@ app.whenReady().then(() => {
   const system = createSystem({ shell, clipboard });
   const tools = createTools({ store, system });
   const assistant = createAssistant({ store, tools });
+  const weather = createWeather();
   const scheduler = createScheduler({
     store, tools,
     report: (r) => {
@@ -100,9 +102,13 @@ app.whenReady().then(() => {
   const safe = (fn) => async (...a) => {
     try { return { ok: true, data: await fn(...a) }; } catch (e) { return { ok: false, error: e.message }; }
   };
-  const settingsView = () => ({ ...store.get('settings'), apiKey: store.get('settings').apiKey ? '••••••••' : '' });
+  const settingsView = () => ({ ...store.get('settings'), apiKey: store.get('settings').apiKey ? '••••••••' : '', widgetCatalog: CATALOG });
 
-  ipcMain.handle('ask', safe((_e, payload) => assistant.ask(payload)));
+  ipcMain.handle('ask', safe(async (_e, payload) => {
+    const out = await assistant.ask(payload);
+    win?.webContents.send('settings-changed', settingsView()); // por si Yurei cambió un widget o la ciudad
+    return out;
+  }));
   ipcMain.handle('dictate', safe(async (_e, audioB64) => {
     const text = await assistant.dictate(audioB64);
     if (text) { win.blur(); await system.pasteText(text); }
@@ -114,6 +120,9 @@ app.whenReady().then(() => {
   ipcMain.handle('settings:save', safe((_e, patch) => {
     const clean = { ...patch };
     if (clean.apiKey === '••••••••') delete clean.apiKey;
+    delete clean.widgetCatalog;
+    if ('widgets' in clean) clean.widgets = validateLayout(clean.widgets);
+    if ('city' in clean) clean.city = String(clean.city || '').trim().slice(0, 80);
     if ('wakeWord' in clean) clean.wakeWord = clean.wakeWord === true;
     if ('conversationSeconds' in clean) clean.conversationSeconds = Math.max(5, Math.min(120, Number(clean.conversationSeconds) || 20));
     store.updateSettings(clean);
@@ -121,6 +130,12 @@ app.whenReady().then(() => {
     return settingsView();
   }));
   ipcMain.handle('todos', safe(() => store.get('todos')));
+  ipcMain.handle('widget:data', safe(async (_e, name) => {
+    if (name === 'weather') return weather.get(store.get('settings').city);
+    if (name === 'stats') return system.stats();
+    if (name === 'schedule') return nextSchedule({ tasks: store.get('tasks'), routines: store.get('routines') }, new Date());
+    throw new Error('Widget desconocido');
+  }));
   ipcMain.handle('settings:open', safe(() => openSettings()));
   ipcMain.handle('island:mode', safe((_e, mode) => placeIsland(mode)));
 });

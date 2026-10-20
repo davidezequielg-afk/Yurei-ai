@@ -11,6 +11,7 @@ contextBridge.exposeInMainWorld('yurei', {
   saveSettings: invoke('settings:save'),
   openSettings: invoke('settings:open'),
   todos: invoke('todos'),
+  widgetData: invoke('widget:data'),
   setMode: invoke('island:mode'),
   on: (channel, cb) => {
     const allowed = ['hotkey', 'report', 'circle-image', 'settings-changed'];
