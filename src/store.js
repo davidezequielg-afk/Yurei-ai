@@ -37,6 +37,17 @@ const DEFAULTS = {
     birthday: '', // MM-DD
     reactions: true, // reacciona al cargador, batería baja y CPU al máximo
     pushToTalk: 'off', // tecla para mantener apretada y hablar: off | rctrl | ralt | f8 | f9
+    // Cerebro: con qué IA piensa Yurei. 'gemini' usa la clave de arriba; el resto, brainKey/brainBase/brainModel.
+    brainPreset: 'gemini',
+    brainProvider: 'gemini', // gemini | anthropic | openai (compatible)
+    brainBase: '',
+    brainModel: '',
+    brainKey: '',
+    hearing: 'auto', // voz → texto: auto | gemini | brain (transcripción del proveedor)
+    sttModel: '',
+    speech: 'auto', // texto → voz: auto | gemini | brain | system
+    brainTtsModel: '',
+    brainVoice: 'alloy',
     hotkeys: { talk: 'Control+Shift+Space', dictate: 'Control+Alt+D', circle: 'Control+Shift+C' },
     // Modos con nombre: "modo gamer" abre sus apps, ajusta el volumen, etc.
     modes: [
@@ -64,6 +75,9 @@ function clone(v) {
   return JSON.parse(JSON.stringify(v));
 }
 
+// Claves que nunca se escriben en claro: la de Gemini y la del "cerebro" elegido (Claude, OpenAI…).
+const SECRET_KEYS = ['apiKey', 'brainKey'];
+
 // `secret` (opcional): { encrypt(texto) → base64, decrypt(base64) → texto }, p. ej. el almacén seguro de Windows (DPAPI).
 // Con él, la API key nunca se escribe en disco en claro.
 function createStore(file, { secret = null } = {}) {
@@ -72,12 +86,14 @@ function createStore(file, { secret = null } = {}) {
   try {
     const saved = JSON.parse(fs.readFileSync(file, 'utf8'));
     const s = { ...(saved.settings || {}) };
-    if (typeof s.apiKeyEnc === 'string') {
-      try { s.apiKey = secret ? secret.decrypt(s.apiKeyEnc) : ''; } catch { s.apiKey = ''; } // otro usuario o equipo: hay que volver a escribirla
-    } else if (s.apiKey && secret) {
-      migrate = true; // venía en claro de una versión anterior: se reescribe cifrada
+    for (const k of SECRET_KEYS) {
+      if (typeof s[`${k}Enc`] === 'string') {
+        try { s[k] = secret ? secret.decrypt(s[`${k}Enc`]) : ''; } catch { s[k] = ''; } // otro usuario o equipo: hay que volver a escribirla
+      } else if (s[k] && secret) {
+        migrate = true; // venía en claro de una versión anterior: se reescribe cifrada
+      }
+      delete s[`${k}Enc`];
     }
-    delete s.apiKeyEnc;
     data = { ...data, ...saved, settings: { ...data.settings, ...s } };
     for (const [key, old] of Object.entries(LEGACY)) {
       if (old.includes(data.settings[key])) data.settings[key] = DEFAULTS.settings[key];
@@ -88,9 +104,11 @@ function createStore(file, { secret = null } = {}) {
 
   function save() {
     const out = clone(data);
-    if (secret && out.settings.apiKey) {
-      out.settings.apiKeyEnc = secret.encrypt(out.settings.apiKey);
-      delete out.settings.apiKey;
+    for (const k of SECRET_KEYS) {
+      if (secret && out.settings[k]) {
+        out.settings[`${k}Enc`] = secret.encrypt(out.settings[k]);
+        delete out.settings[k];
+      }
     }
     fs.mkdirSync(path.dirname(file), { recursive: true });
     const tmp = `${file}.${process.pid}.tmp`;

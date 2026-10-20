@@ -161,3 +161,6 @@ input.keycap { width: 170px; text-align: center; cursor: pointer; font-variant-n
 input.keycap:focus { color: var(--accent); }
 .bday { display: flex; gap: 6px; }
 .bday select { width: auto; }
+
+.d.okc { color: #5fcf8a; font-weight: 500; }
+.d.errc { color: #ef8a86; }

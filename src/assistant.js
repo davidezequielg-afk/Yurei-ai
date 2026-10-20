@@ -1,4 +1,5 @@
 const { runAgent, transcribe, askAudio, synthesize } = require('./gemini');
+const { PRESETS, runClaude, runOpenAI, transcribeOpenAI, speakOpenAI } = require('./brains');
 
 const MOODS = ['feliz', 'tierna', 'sorprendida', 'triste', 'pensativa', 'neutral'];
 const MOOD_TAG = new RegExp(`\\[(${MOODS.join('|')})\\]\\s*`, 'gi');
@@ -57,50 +58,100 @@ function parseWake(out = '') {
   return m ? { woke: true, command: m[1].trim() } : { woke: false, command: '' };
 }
 
-function createAssistant({ store, tools, fetchImpl, langFor = null, deviceFor = null }) {
+// Sin Gemini para oír, el saludo o el nombre se buscan en el texto transcrito, dentro de la PC.
+const LOCAL_GREETING = /^[\s¡!¿,.]*(hola|holi|buenas|buen d[ií]a|buenos d[ií]as|buenas tardes|buenas noches|hey|qu[eé] tal|hi|hello|good (morning|afternoon|evening))\b/i;
+const fold = (x) => String(x || '').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '');
+function localWake(text, name) {
+  const t = String(text || '').trim();
+  if (!t) return { woke: false, command: '' };
+  const n = fold(name || 'yurei');
+  const variants = new Set([n, n.replace(/y/g, 'j'), n.replace(/ei/g, 'ey'), n === 'yurei' ? 'shurei' : n]);
+  const words = fold(t);
+  for (const v of variants) {
+    const i = words.indexOf(v);
+    if (i >= 0) return { woke: true, command: t.slice(i + v.length).replace(/^[\s,.:]+/, '').trim() };
+  }
+  return LOCAL_GREETING.test(t) && t.length < 60 ? { woke: true, command: t } : { woke: false, command: '' };
+}
+
+// Qué IA piensa, con cuál se oye (voz → texto) y con cuál se habla (texto → voz), según Ajustes.
+function routing(s) {
+  const provider = s.brainProvider || 'gemini';
+  const hasGemini = !!s.apiKey;
+  const preset = PRESETS[s.brainPreset] || {};
+  const hearing = provider === 'gemini' ? 'gemini'
+    : s.hearing === 'gemini' || s.hearing === 'brain' ? s.hearing
+      : hasGemini ? 'gemini' : provider === 'openai' ? 'brain' : 'none';
+  const speech = provider === 'gemini' ? 'gemini'
+    : s.speech === 'gemini' || s.speech === 'brain' || s.speech === 'system' ? s.speech
+      : hasGemini ? 'gemini' : provider === 'openai' && (s.brainTtsModel || preset.tts) ? 'brain' : 'system';
+  return { provider, hearing, speech, preset };
+}
+
+function createAssistant({ store, tools, fetchImpl, langFor = null, deviceFor = null, anthropicClient = null }) {
   let history = [];
+
+  const brainOpts = (s) => ({ baseUrl: s.brainBase || (PRESETS[s.brainPreset] || {}).baseUrl, apiKey: s.brainKey, model: s.brainModel || (PRESETS[s.brainPreset] || {}).model, fetchImpl });
+
+  // Voz → texto con lo que corresponda.
+  async function hear(audioB64, s) {
+    const r = routing(s);
+    if (r.hearing === 'gemini') return transcribe({ apiKey: s.apiKey, model: s.model, audioB64, fetchImpl });
+    if (r.hearing === 'brain') {
+      if (r.provider !== 'openai') throw new Error('Para oírte con esta IA hace falta la clave de Gemini o un servicio compatible con OpenAI con transcripción. Revísalo en Ajustes → Cerebro.');
+      return transcribeOpenAI({ ...brainOpts(s), model: s.sttModel || r.preset.stt || 'whisper-1', audioB64 });
+    }
+    throw new Error('Para oírte con Claude hace falta también la clave de Gemini (gratis): agrégala en Ajustes → General.');
+  }
 
   return {
     async ask({ text, audioB64, imageB64 }) {
       const s = store.get('settings');
-      const userParts = [];
-      if (imageB64) userParts.push({ inlineData: { mimeType: 'image/png', data: imageB64 } });
-      if (audioB64) userParts.push({ inlineData: { mimeType: 'audio/wav', data: audioB64 } });
-      if (text) userParts.push({ text });
-      if (!userParts.length) throw new Error('Nada que procesar');
-
-      const { text: raw, actions } = await runAgent({
-        apiKey: s.apiKey,
-        model: s.model,
-        system: buildSystemPrompt({ ...s, lang: langFor?.(), device: deviceFor?.() }, new Date(), { memory: store.get('memory') || [], translator: tools.session?.translator }),
-        userParts,
-        history,
-        declarations: tools.declarations,
-        executeTool: tools.execute,
-        fetchImpl
-      });
-
-      let { mood, text: reply } = splitMood(raw);
+      if (!audioB64 && !text && !imageB64) throw new Error('Nada que procesar');
+      const r = routing(s);
+      const system = buildSystemPrompt({ ...s, lang: langFor?.(), device: deviceFor?.() }, new Date(), { memory: store.get('memory') || [], translator: tools.session?.translator });
+      let heard = text || '';
+      let out;
+      if (r.provider === 'gemini') {
+        const userParts = [];
+        if (imageB64) userParts.push({ inlineData: { mimeType: 'image/png', data: imageB64 } });
+        if (audioB64) userParts.push({ inlineData: { mimeType: 'audio/wav', data: audioB64 } });
+        if (text) userParts.push({ text });
+        out = await runAgent({ apiKey: s.apiKey, model: s.model, system, userParts, history, declarations: tools.declarations, executeTool: tools.execute, fetchImpl });
+      } else {
+        if (audioB64) heard = [text, await hear(audioB64, s)].filter(Boolean).join(' ');
+        if (!heard && !imageB64) return { reply: '', mood: 'neutral', actions: [], heard: '', translator: tools.session?.translator || null };
+        const args = { system, text: heard, imageB64, history, declarations: tools.declarations, executeTool: tools.execute };
+        out = r.provider === 'anthropic'
+          ? await runClaude({ ...args, apiKey: s.brainKey, model: s.brainModel || PRESETS.claude.model, client: anthropicClient })
+          : await runOpenAI({ ...args, ...brainOpts(s) });
+      }
+      let { mood, text: reply } = splitMood(out.text);
       // "Léeme esto": se lee el texto copiado completo, tal cual (no lo que el modelo diga sobre él).
       if (tools.session?.readAloud) { reply = tools.session.readAloud; tools.session.readAloud = null; mood = 'neutral'; }
-      // El historial conserva solo texto para mantener las peticiones pequeñas (cuota gratuita).
-      history = [...history, { role: 'user', parts: [{ text: text || '(mensaje de voz)' }] }, { role: 'model', parts: [{ text: (reply || '(listo)').slice(0, 600) }] }].slice(-12);
-      return { reply, mood, actions, translator: tools.session?.translator || null };
+      // El historial conserva solo texto para mantener las peticiones pequeñas.
+      history = [...history, { role: 'user', parts: [{ text: heard || '(mensaje de voz)' }] }, { role: 'model', parts: [{ text: (reply || '(listo)').slice(0, 600) }] }].slice(-12);
+      return { reply, mood, actions: out.actions, heard, translator: tools.session?.translator || null };
     },
 
     async dictate(audioB64) {
-      const s = store.get('settings');
-      return transcribe({ apiKey: s.apiKey, model: s.model, audioB64, fetchImpl });
+      return hear(audioB64, store.get('settings'));
     },
 
     async wake(audioB64) {
       const s = store.get('settings');
-      const out = await askAudio({ apiKey: s.apiKey, model: s.model, audioB64, prompt: wakePrompt(s.soul), fetchImpl });
-      return parseWake(out);
+      if (routing(s).hearing === 'gemini') {
+        const out = await askAudio({ apiKey: s.apiKey, model: s.model, audioB64, prompt: wakePrompt(s.soul), fetchImpl });
+        return parseWake(out);
+      }
+      return localWake(await hear(audioB64, s), s.soul);
     },
 
     async speak(text) {
       const s = store.get('settings');
+      const r = routing(s);
+      if (r.speech === 'brain') return speakOpenAI({ ...brainOpts(s), model: s.brainTtsModel || r.preset.tts || 'tts-1', voice: s.brainVoice || 'alloy', text });
+      if (r.speech === 'system') throw new Error('Sin voz natural configurada: se usa la de Windows');
       return synthesize({ apiKey: s.apiKey, model: s.ttsModel, text, voiceName: s.voice || 'Kore', fetchImpl });
     },
 
@@ -108,4 +159,4 @@ function createAssistant({ store, tools, fetchImpl, langFor = null, deviceFor = 
   };
 }
 
-module.exports = { createAssistant, buildSystemPrompt, parseWake, wakePrompt, partOfDay, splitMood, MOODS };
+module.exports = { createAssistant, buildSystemPrompt, parseWake, wakePrompt, partOfDay, splitMood, MOODS, localWake, routing };

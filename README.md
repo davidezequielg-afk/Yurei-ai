@@ -33,6 +33,7 @@ Asistente de voz de escritorio de **código abierto** (MIT), inspirado en la cat
 | **Música y video** | Detecta lo que suena en el PC (Spotify, YouTube en el navegador, etc.) y lo controlas por voz ("pausa", "siguiente", "retrocede 10 segundos", "sube el volumen") o desde los widgets *Reproduciendo* y *Volumen*. Solo Windows |
 | **Mis apps** | Widget con 4 accesos a apps o webs. Cada lugar vacío tiene un **+** que abre un selector con **179 sugeridas por categorías** (mensajería, redes, navegadores, música, streaming, productividad, IA, desarrollo, juegos, compras, finanzas, viajes, noticias, diseño, aprendizaje, salud, utilidades y tecnología; con su logo oficial) y tus apps instaladas; si una sugerida no está instalada se usa su versión web. También por voz: "pon WhatsApp en mis apps". Los iconos de las webs se piden a Google por el dominio y se guardan en disco |
 | **Apariencia** | Tema como el sistema (claro/oscuro, color de acento y transparencia de Windows), claro, oscuro o personalizado con tus colores; transparencia opcional. Se ve al instante en Ajustes |
+| **Cualquier IA** | Ajustes → General → *Cerebro*: Gemini (gratis, por defecto), Claude (SDK oficial de Anthropic) o cualquier servicio compatible con OpenAI: OpenAI, OmniRoute, OpenRouter, Groq, DeepSeek, Mistral, Grok, Ollama, LM Studio u otro. Botón para probar la conexión. Para oír y hablar usa Gemini si tienes su clave, la transcripción y la voz del propio servicio, o la voz de Windows |
 | **Abrir con Windows** | Arranca sola al prender la PC (se puede apagar) |
 | **Recordatorios hablados** | "Recuérdame en 20 minutos sacar la ropa", "mañana a las 9 llamar al médico": a la hora suena una campanita y te lo dice. Si la PC estaba apagada, avisa al volver |
 | **¿Qué tengo hoy?** | Resumen hablado: clima, pendientes, lo programado, recordatorios, concentración y, solo en notebooks, la batería. Opcional: que te lo cuente sola la primera vez que abres la PC a la mañana |
@@ -120,7 +121,8 @@ Los logos de las apps sugeridas vienen de [Simple Icons](https://simpleicons.org
 
 | Destino | Qué se envía | Cuándo |
 |---|---|---|
-| **Google Gemini** | Tu voz (audio) o texto, la captura que tú recortas con *Circle to Ask*, los resultados de las acciones y el texto a pronunciar | Solo cuando hablas, dictas o preguntas. Con la palabra de activación (desactivada por defecto) también los fragmentos con voz que oye |
+| **Google Gemini** | Tu voz (audio) o texto, la captura que tú recortas con *Circle to Ask*, los resultados de las acciones y el texto a pronunciar | Solo cuando hablas, dictas o preguntas. Con la palabra de activación (desactivada por defecto) también los fragmentos con voz que oye. Si eliges otro cerebro, Gemini solo se usa para oír o hablar si así lo configuras |
+| **La IA que elijas como cerebro** (Anthropic, OpenAI, OmniRoute, OpenRouter, Groq, Ollama…) | Lo mismo que a Gemini: tu pedido en texto (o tu voz, si también transcribe), la captura y los resultados de las acciones | Solo si la eliges en Ajustes → Cerebro. Con OmniRoute, Ollama o LM Studio la petición va a un programa en tu propia PC, que a su vez puede reenviarla a los proveedores que conectes ahí |
 | **Open-Meteo** | Solo el nombre de tu ciudad | Si el widget de clima está puesto |
 | **Google (iconos)** | El dominio de las webs que añades a *Mis apps* | Solo si activas "descargar iconos" (desactivado por defecto) |
 | **Cloudflare** | Nada tuyo: se baja un archivo de prueba para medir la velocidad | Solo cuando pides la prueba de velocidad |
@@ -131,6 +133,15 @@ Nada más: **sin telemetría, sin analíticas, sin cuentas**. Las ventanas de la
 Lo tuyo vive solo en tu equipo (ajustes, pendientes, tareas y rutinas; la API key, cifrada) y puedes borrarlo todo desde Ajustes → *Borrar todos mis datos*.
 
 > Sobre el uso que hace Google de lo que le envías: depende de los términos del API de Gemini y del tipo de clave (gratuita o con facturación). Revisa sus términos vigentes antes de enviar información sensible.
+
+## Usar otra IA (Claude, OmniRoute, Ollama…)
+
+1. Ajustes → General → **Cerebro**: elige la IA. Se completan solos la dirección y un modelo sugerido (puedes cambiarlo).
+2. Pega la clave del servicio (no hace falta para OmniRoute, Ollama o LM Studio en tu PC) y toca **Probar conexión**.
+3. **Oír y hablar:** Claude no entiende audio ni genera voz, así que con Claude Yurei usa tu clave de Gemini (gratis) para oírte y hablarte; sin ella, habla con la voz de Windows. Los servicios compatibles con OpenAI pueden oír con su transcripción (Whisper) y hablar con su voz si los tienen.
+4. **OmniRoute:** instálalo y ábrelo en tu PC (queda en `http://localhost:20128/v1`). Cambia la contraseña del panel (por defecto `CHANGEME`), haz que solo escuche en tu PC (`OMNIROUTE_SERVER_HOST=127.0.0.1`) y conecta ahí tus proveedores. Usar suscripciones mediante inicio de sesión puede ir contra los términos de esos servicios.
+
+La clave del cerebro se guarda cifrada como la de Gemini y nunca llega a las ventanas. Las direcciones tienen que ser `https`, salvo las de tu propia PC.
 
 ## Seguridad
 

@@ -18,6 +18,7 @@ contextBridge.exposeInMainWorld('yurei', {
   usageGet: invoke('usage:get'),
   setHotkeys: invoke('hotkeys:set'),
   testKey: invoke('key:test'),
+  testBrain: invoke('brain:test'),
   openKeyPage: invoke('key:page'),
   updateGet: invoke('update:get'),
   updateCheck: invoke('update:check'),

@@ -26,7 +26,7 @@ function createUsage({ load = () => null, save = () => {}, now = () => new Date(
         if (isLimit(e)) {
           today().limitedAt = now().toISOString();
           save(u);
-          throw new Error('Llegaste al límite gratis de Gemini por ahora. Se renueva solo: prueba en un rato.');
+          throw new Error('Llegaste al límite gratis o de uso de la IA por ahora. Se renueva solo: prueba en un rato.');
         }
         throw e;
       }

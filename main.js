@@ -10,6 +10,8 @@ const { createFocus } = require('./src/focus');
 const { createUpdater } = require('./src/updater');
 const { generate } = require('./src/gemini');
 const { createUsage } = require('./src/usage');
+const { testBrain, PRESETS: BRAIN_PRESETS } = require('./src/brains');
+const { routing } = require('./src/assistant');
 const { createReminders } = require('./src/reminders');
 const { findFiles } = require('./src/files');
 const { speedTest } = require('./src/speedtest');
@@ -256,6 +258,10 @@ function start() {
     device: system.hasBattery() === true ? 'notebook' : system.hasBattery() === false ? 'pc' : 'unknown', // notebook (con batería) o PC de escritorio
     version: app.getVersion(),
     apiKey: store.get('settings').apiKey ? S.MASK : '', // la clave nunca sale del proceso principal
+    brainKey: store.get('settings').brainKey ? S.MASK : '',
+    voiceSource: routing(store.get('settings')).speech, // 'system' → el notch habla con la voz de Windows
+    hearingSource: routing(store.get('settings')).hearing,
+    brainPresets: Object.fromEntries(Object.entries(BRAIN_PRESETS).map(([k, p]) => [k, { label: p.label, provider: p.provider, baseUrl: p.baseUrl || '', model: p.model || '', models: p.models || [], local: !!p.local, stt: p.stt || '', tts: p.tts || '' }])),
     keyEncrypted: store.encrypted(),
     launcher: L.normalizeLauncher(store.get('settings').launcher),
     widgets: sanitizeLayout(store.get('settings').widgets, unavailable()),
@@ -439,6 +445,17 @@ function start() {
     return true;
   });
   handle('key:page', () => shell.openExternal('https://aistudio.google.com/apikey'));
+  // "Probar conexión" con el cerebro elegido (usa lo guardado; la clave nunca llega a la ventana).
+  handle('brain:test', async () => {
+    const st = store.get('settings');
+    const p = BRAIN_PRESETS[st.brainPreset] || {};
+    if ((st.brainProvider || 'gemini') === 'gemini') throw new Error('Con Gemini usa "Comprobar" en la API key de Gemini');
+    try {
+      return await testBrain({ provider: st.brainProvider, baseUrl: st.brainBase || p.baseUrl, apiKey: st.brainKey, model: st.brainModel || p.model });
+    } catch (e) {
+      throw new Error(/ECONNREFUSED|fetch failed/i.test(e.message) && p.local ? `No encuentro ${p.label}: ¿está abierto en tu PC?` : e.message);
+    }
+  });
   handle('data:wipe', async () => {
     const r = await dialog.showMessageBox({ type: 'warning', buttons: ['Cancelar', 'Borrar todo'], defaultId: 0, cancelId: 0, noLink: true, title: 'Yurei', message: '¿Borrar todos tus datos de Yurei?', detail: 'Se eliminan los ajustes, la API key, los pendientes, las tareas, las rutinas y las cachés de este equipo. Yurei se reiniciará.' });
     if (r.response !== 1) return false;

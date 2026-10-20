@@ -97,6 +97,19 @@ const I18N_EN = {
   'Se sorprende si la CPU está al máximo.': 'It gets surprised if the CPU is maxed out.', 'Se alegra al enchufar el cargador, se preocupa con poca batería y se sorprende si la CPU está al máximo.': 'It cheers when you plug in the charger, worries when the battery is low and gets surprised if the CPU is maxed out.',
   'Disfraces de temporada': 'Seasonal costumes', 'Calabaza en Halloween, gorro navideño en diciembre y gorrito de fiesta en tu cumpleaños.': 'A pumpkin on Halloween, a Santa hat in December and a party hat on your birthday.',
   'Tu cumpleaños': 'Your birthday', 'Para festejarlo ese día.': 'To celebrate that day.', Mes: 'Month', Día: 'Day', enero: 'January', febrero: 'February', marzo: 'March', abril: 'April', mayo: 'May', junio: 'June', julio: 'July', agosto: 'August', septiembre: 'September', octubre: 'October', noviembre: 'November', diciembre: 'December',
+  // cerebro
+  Cerebro: 'Brain', 'Con qué IA piensa Yurei. Funciona con Gemini, Claude o cualquier servicio compatible con OpenAI (incluidos OmniRoute, Ollama y LM Studio en tu PC).': 'Which AI Yurei thinks with. Works with Gemini, Claude or any OpenAI-compatible service (including OmniRoute, Ollama and LM Studio on your PC).',
+  'Usa tu API key de Gemini (arriba). Es gratis y también te escucha y te habla con voz natural.': 'Uses your Gemini API key (above). It\'s free and also listens and talks with a natural voice.',
+  'Elige uno de la lista o escribe otro.': 'Pick one from the list or type another.', 'El nombre exacto del modelo en ese servicio. Puedes cambiarlo.': 'The exact model name on that service. You can change it.',
+  Dirección: 'Address', 'Corre en tu PC: tiene que estar abierto mientras uses Yurei.': 'Runs on your PC: it must be open while you use Yurei.', 'La dirección del servicio (termina en /v1).': 'The service address (ends in /v1).',
+  Clave: 'Key', Opcional: 'Optional', 'Pega la clave': 'Paste the key', '•••••••• (guardada; pega otra para cambiarla)': '•••••••• (saved; paste another to change it)',
+  'Se guarda cifrada en este equipo, igual que la de Gemini.': 'Stored encrypted on this PC, like the Gemini key.', 'Probar conexión': 'Test connection', 'Probando…': 'Testing…',
+  'Oírte con': 'Hear you with', 'Claude no entiende audio: usa la clave de Gemini (gratis) para pasar tu voz a texto.': 'Claude doesn\'t understand audio: it uses the (free) Gemini key to turn your voice into text.',
+  'Para pasar tu voz a texto.': 'To turn your voice into text.', 'Este servicio': 'This service', 'Hablar con': 'Speak with', Windows: 'Windows',
+  'La voz de las respuestas. Si no hay voz natural disponible, usa la de Windows.': 'The voice of the answers. If no natural voice is available, it uses the Windows one.',
+  'Modelos de voz (opcional)': 'Voice models (optional)', Transcripción: 'Transcription', 'Modelo para pasar tu voz a texto en este servicio.': 'Model to turn your voice into text on this service.',
+  'Modelo de texto a voz en este servicio.': 'Text-to-speech model on this service.', 'nombre del modelo': 'model name', 'Otro (compatible con OpenAI)': 'Other (OpenAI-compatible)',
+  'OmniRoute (en tu PC)': 'OmniRoute (on your PC)', 'Ollama (en tu PC)': 'Ollama (on your PC)', 'LM Studio (en tu PC)': 'LM Studio (on your PC)',
   // elegir app
   'Elegir app': 'Choose app', 'Yurei · Elegir app': 'Yurei · Choose app', 'Yurei · Ajustes': 'Yurei · Settings', Sugeridas: 'Suggested', Instaladas: 'Installed',
   'Buscar…': 'Search…', 'No encontré nada con ese nombre.': 'Nothing found with that name.', 'No hay apps instaladas para listar (esto solo funciona en Windows).': 'No installed apps to list (this only works on Windows).',
@@ -129,7 +142,7 @@ const I18N_EN_PATTERNS = [
   [/^¡Bien hecho! Descansa (\d+) minutos\.$/, 'Well done! Take a $1-minute break.'],
   [/^Se terminó el descanso\. Vamos con el bloque (\d+) de (\d+)\.$/, 'Break\'s over. On to block $1 of $2.'],
   [/^¡Listo! Terminó el tiempo de (.+)\.$/, 'Done! Time\'s up for $1.'], [/^(.+) \(no disponible\)$/, (_, name) => `${t(name)} (unavailable)`], [/^(\d+) min$/, '$1 min'],
-  [/^(\d+) s$/, '$1 s'], [/^(\d+) min$/, '$1 min'], [/^Uf, la CPU está al (\d+)%$/, 'Whoa, the CPU is at $1%'], [/^⚡ ¡Gracias! Cargando · (\d+)%$/, '⚡ Thanks! Charging · $1%'], [/^🔋 En batería · (\d+)%$/, '🔋 On battery · $1%'],
+  [/^(\d+) s$/, '$1 s'], [/^¡Funciona! ✓ \((.+)\)$/, 'It works! ✓ ($1)'], [/^(\d+) min$/, '$1 min'], [/^Uf, la CPU está al (\d+)%$/, 'Whoa, the CPU is at $1%'], [/^⚡ ¡Gracias! Cargando · (\d+)%$/, '⚡ Thanks! Charging · $1%'], [/^🔋 En batería · (\d+)%$/, '🔋 On battery · $1%'],
   [/^Me queda poca batería, (\d+) por ciento\. ¿Enchufamos el cargador\?$/, 'My battery is low, $1 percent. Shall we plug in the charger?'], [/^🪫 Batería baja: (\d+)%\. ¿Enchufamos el cargador\?$/, '🪫 Low battery: $1%. Plug in the charger?'], [/^¡Te recuerdo! (.+)$/, 'Reminder! $1'], [/^Perdón, te lo tenía que recordar hace (\d+) minutos: (.+)$/, 'Sorry, I was supposed to remind you $1 minutes ago: $2'], [/^(\d+) min hoy$/, '$1 min today']
 ];
 

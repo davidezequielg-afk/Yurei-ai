@@ -134,7 +134,8 @@ const prettyKeys = (a) => a.replace('Control', 'Ctrl').replace('Super', 'Win').r
   };
   const setName = (n) => { $('hello').textContent = `Hola, soy ${n || 'Yurei'}`; };
   setName(s.soul);
-  setReady(!!s.apiKey);
+  const brainReady = () => (s.brainProvider && s.brainProvider !== 'gemini' ? !!s.brainKey || !!(s.brainPresets?.[s.brainPreset]?.local) : !!s.apiKey);
+  setReady(brainReady());
   // Primera vez: bienvenida paso a paso (renderer/welcome.js). Al terminar se recarga con los ajustes normales.
   if (!s.onboarded && typeof runWelcome === 'function') { runWelcome(s); return; }
 
@@ -151,6 +152,70 @@ const prettyKeys = (a) => a.replace('Control', 'Ctrl').replace('Super', 'Win').r
   const wellCard = card('Bienestar', 'Cada tanto te sugiere una pausa: estirarte, tomar agua o mirar lejos. Cuenta solo el tiempo que de verdad usas la PC.',
     el('div', { className: 'row stack' }, choice('seg', [[0, 'Nunca'], [30, '30 min'], [60, '1 h'], [90, '1 h 30'], [120, '2 h']].map(([v, l]) => ({ value: v, node: el('button', { className: 'chip', textContent: l }) })),
       [0, 30, 60, 90, 120].includes(s.breakEvery) ? s.breakEvery : 60, (v) => save({ breakEvery: v }))));
+  // --- Cerebro: con qué IA piensa (Gemini, Claude o cualquiera compatible con OpenAI) ---
+  const presets = s.brainPresets || {};
+  const brainBox = el('div', {});
+  const brain = { preset: s.brainPreset || 'gemini', provider: s.brainProvider || 'gemini', base: s.brainBase || '', model: s.brainModel || '', hasKey: !!s.brainKey };
+  function renderBrain() {
+    const p = presets[brain.preset] || {};
+    const rows = [];
+    if (brain.provider === 'gemini') {
+      rows.push(el('div', { className: 'd', textContent: 'Usa tu API key de Gemini (arriba). Es gratis y también te escucha y te habla con voz natural.' }));
+    } else {
+      const model = el('input', { value: brain.model, placeholder: p.model || 'nombre del modelo', spellcheck: false });
+      model.setAttribute('list', 'brainModels'); // `list` solo se puede poner como atributo
+      model.oninput = () => { brain.model = model.value.trim(); save({ brainModel: brain.model }, 700); };
+      const list = el('datalist', { id: 'brainModels' }, ...(p.models || []).map((m) => el('option', { value: m })));
+      rows.push(row('Modelo', p.models?.length ? 'Elige uno de la lista o escribe otro.' : 'El nombre exacto del modelo en ese servicio. Puedes cambiarlo.', el('div', {}, model, list), true));
+      if (brain.provider === 'openai') {
+        const base = el('input', { value: brain.base, placeholder: p.baseUrl || 'https://…/v1', spellcheck: false });
+        base.onchange = () => { brain.base = base.value.trim(); save({ brainBase: brain.base }); };
+        rows.push(row('Dirección', p.local ? 'Corre en tu PC: tiene que estar abierto mientras uses Yurei.' : 'La dirección del servicio (termina en /v1).', base, true));
+      }
+      const key = el('input', { type: 'password', placeholder: brain.hasKey ? '•••••••• (guardada; pega otra para cambiarla)' : p.local ? 'Opcional' : 'Pega la clave', autocomplete: 'off', spellcheck: false });
+      key.onchange = () => { if (key.value.trim()) { save({ brainKey: key.value.trim() }); brain.hasKey = true; s.brainKey = '•'; setReady(brainReady()); } };
+      rows.push(row('Clave', s.keyEncrypted ? 'Se guarda cifrada en este equipo, igual que la de Gemini.' : 'Se guarda solo en este equipo.', key, true));
+      const status = el('div', { className: 'd' });
+      const test = el('button', { className: 'btn small', type: 'button', textContent: 'Probar conexión' });
+      test.onclick = async () => {
+        test.disabled = true; status.textContent = 'Probando…'; status.className = 'd';
+        await flush();
+        const r = await window.yurei.testBrain();
+        test.disabled = false;
+        status.textContent = r.ok ? `¡Funciona! ✓ (${r.data.model})` : r.error;
+        status.className = r.ok ? 'd okc' : 'd errc';
+      };
+      rows.push(el('div', { className: 'row' }, status, test));
+      // Oído y voz cuando no piensa Gemini.
+      const needGemini = brain.provider === 'anthropic';
+      rows.push(row('Oírte con', needGemini ? 'Claude no entiende audio: usa la clave de Gemini (gratis) para pasar tu voz a texto.' : 'Para pasar tu voz a texto.',
+        choice('seg', [['auto', 'Automático'], ['gemini', 'Gemini'], ...(needGemini ? [] : [['brain', 'Este servicio']])].map(([v, l]) => ({ value: v, node: el('button', { className: 'chip', textContent: l }) })), s.hearing || 'auto', (v) => { s.hearing = v; save({ hearing: v }); }), true));
+      rows.push(row('Hablar con', 'La voz de las respuestas. Si no hay voz natural disponible, usa la de Windows.',
+        choice('seg', [['auto', 'Automático'], ['gemini', 'Gemini'], ...(needGemini ? [] : [['brain', 'Este servicio']]), ['system', 'Windows']].map(([v, l]) => ({ value: v, node: el('button', { className: 'chip', textContent: l }) })), s.speech || 'auto', (v) => { s.speech = v; save({ speech: v }); }), true));
+      if (!needGemini) {
+        const stt = el('input', { value: s.sttModel || '', placeholder: p.stt || 'whisper-1', spellcheck: false });
+        stt.oninput = () => save({ sttModel: stt.value.trim() }, 700);
+        const tts = el('input', { value: s.brainTtsModel || '', placeholder: p.tts || 'tts-1', spellcheck: false });
+        tts.oninput = () => save({ brainTtsModel: tts.value.trim() }, 700);
+        rows.push(el('details', { className: 'more' }, el('summary', { textContent: 'Modelos de voz (opcional)' }),
+          row('Transcripción', 'Modelo para pasar tu voz a texto en este servicio.', stt, true),
+          row('Voz', 'Modelo de texto a voz en este servicio.', tts, true)));
+      }
+    }
+    brainBox.replaceChildren(...rows);
+  }
+  const brainChips = choice('chips', Object.entries(presets).map(([k, p]) => ({ value: k, node: el('button', { className: 'chip', textContent: p.label }) })), brain.preset, (k) => {
+    const p = presets[k] || {};
+    Object.assign(brain, { preset: k, provider: p.provider, base: p.baseUrl || '', model: p.model || '' });
+    s.brainProvider = p.provider; s.brainPreset = k;
+    save({ brainPreset: k, brainProvider: p.provider, brainBase: brain.base, brainModel: brain.model });
+    renderBrain();
+    setReady(brainReady());
+  });
+  renderBrain();
+  const brainCard = card('Cerebro', 'Con qué IA piensa Yurei. Funciona con Gemini, Claude o cualquier servicio compatible con OpenAI (incluidos OmniRoute, Ollama y LM Studio en tu PC).',
+    el('div', { className: 'row stack' }, brainChips), brainBox);
+
   const general = [
     card('Conexión', s.keyEncrypted ? 'Tu clave se guarda cifrada con el almacén seguro de Windows: solo tu usuario, en este equipo, puede leerla.' : 'Este sistema no ofrece almacén seguro: la clave se guarda en un archivo sin cifrar.',
       row('API key de Gemini', 'Se consigue gratis en Google AI Studio.', el('div', { className: 'with-btn' }, key, eye), true),
@@ -167,6 +232,7 @@ const prettyKeys = (a) => a.replace('Control', 'Ctrl').replace('Super', 'Win').r
     startCard,
     wellCard
   ];
+  general.splice(1, 0, brainCard); // justo debajo de la API key de Gemini
 
   // --- Voz y charla ---
   let voice = s.voice || 'Kore';

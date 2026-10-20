@@ -59,6 +59,21 @@ const KEY = /^[\w.-]{10,200}$/;
 
 const ACCESSORIES = ['none', 'gorro', 'lentes', 'mono', 'corona', 'flor'];
 const PTT_KEYS = ['off', 'rctrl', 'ralt', 'f8', 'f9'];
+const { PRESETS: BRAIN_PRESETS } = require('./brains');
+
+// Dirección de la IA: https a cualquier sitio, o http solo a tu propia PC (OmniRoute, Ollama, LM Studio).
+// Nunca con usuario/contraseña dentro de la dirección.
+function validateBrainUrl(v) {
+  const raw = String(v ?? '').trim();
+  if (!raw) return '';
+  if (raw.length > 200) throw new Error('Dirección demasiado larga');
+  let u;
+  try { u = new URL(raw); } catch { throw new Error('Dirección no válida'); }
+  if (u.username || u.password) throw new Error('No pongas usuario ni contraseña en la dirección');
+  const local = ['localhost', '127.0.0.1', '[::1]'].includes(u.hostname);
+  if (!(u.protocol === 'https:' || (u.protocol === 'http:' && local))) throw new Error('Usa https (o http solo para algo que corre en tu PC)');
+  return u.href.replace(/\/+$/, '');
+}
 
 // Atajos: modificadores + una tecla, en el formato de Electron. Nada de teclas solas (romperían la escritura).
 const HOTKEY = /^(?:(?:Control|Alt|Shift|Super)\+){1,3}(?:[A-Z0-9]|F(?:[1-9]|1[0-2])|Space|Enter|Tab|Up|Down|Left|Right|Home|End|PageUp|PageDown|Insert|Delete|Plus|-|=|,|\.|\/|;|')$/;
@@ -134,6 +149,21 @@ function validateSettingsPatch(patch, { unavailable = [] } = {}) {
       case 'transparency': if (!TRANSPARENCY.includes(v)) throw new Error('Transparencia no válida'); out[k] = v; break;
       case 'customBg': case 'customAccent': if (!HEX.test(String(v))) throw new Error('Color no válido'); out[k] = String(v).toLowerCase(); break;
       case 'modes': out.modes = validateModes(v); break;
+      case 'brainPreset': if (!Object.hasOwn(BRAIN_PRESETS, v)) throw new Error('IA no válida'); out[k] = v; break;
+      case 'brainProvider': if (!['gemini', 'anthropic', 'openai'].includes(v)) throw new Error('Proveedor no válido'); out[k] = v; break;
+      case 'brainBase': out[k] = validateBrainUrl(v); break;
+      case 'brainModel': case 'sttModel': case 'brainTtsModel':
+        if (typeof v !== 'string' || !/^[\w.:@/-]{0,100}$/.test(v.trim())) throw new Error('Nombre de modelo no válido');
+        out[k] = v.trim();
+        break;
+      case 'brainKey':
+        if (v === MASK) break;
+        if (typeof v !== 'string' || v.length > 400 || /[\s\u0000-\u001f]/.test(v.trim())) throw new Error('Clave no válida');
+        out[k] = v.trim();
+        break;
+      case 'hearing': if (!['auto', 'gemini', 'brain'].includes(v)) throw new Error('Opción no válida'); out[k] = v; break;
+      case 'speech': if (!['auto', 'gemini', 'brain', 'system'].includes(v)) throw new Error('Opción no válida'); out[k] = v; break;
+      case 'brainVoice': if (typeof v !== 'string' || !/^[\w-]{1,30}$/.test(v)) throw new Error('Voz no válida'); out[k] = v; break;
       case 'language': if (!['auto', 'es', 'en'].includes(v)) throw new Error('Idioma no válido'); out[k] = v; break;
       case 'accessory': if (!ACCESSORIES.includes(v)) throw new Error('Accesorio no válido'); out[k] = v; break;
       case 'widgets': out.widgets = validateLayout(v, unavailable); break;
@@ -170,4 +200,4 @@ function coverDataUrl(cover, maxBytes = 716800) {
   return hit ? `data:${hit[0]};base64,${buf.toString('base64')}` : null;
 }
 
-module.exports = { validateHotkeys, PTT_KEYS, validateModes, coverDataUrl, isTrustedUrl, validateAudio, validateAskPayload, validateSettingsPatch, validateMediaAction, validateSlot, MASK, MAX_AUDIO_B64 };
+module.exports = { validateBrainUrl, validateHotkeys, PTT_KEYS, validateModes, coverDataUrl, isTrustedUrl, validateAudio, validateAskPayload, validateSettingsPatch, validateMediaAction, validateSlot, MASK, MAX_AUDIO_B64 };

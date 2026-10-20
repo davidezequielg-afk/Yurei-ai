@@ -1,6 +1,6 @@
 {
   "name": "yurei",
-  "version": "1.1.2",
+  "version": "1.2.0",
   "description": "Asistente de voz de escritorio de código abierto con Gemini: isla en pantalla, dictado, Circle to Ask, rutinas y control del escritorio.",
   "main": "main.js",
   "license": "MIT",
@@ -52,5 +52,8 @@
   },
   "engines": {
     "node": ">=20"
+  },
+  "dependencies": {
+    "@anthropic-ai/sdk": "0.135.0"
   }
 }

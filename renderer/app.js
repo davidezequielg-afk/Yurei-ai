@@ -1122,7 +1122,7 @@ function applySettings(cfg) {
   const voiceChanged = cfg.voice !== state.voiceName || cfg.lang !== state.lang || JSON.stringify(cfg.fillerPhrases || []) !== JSON.stringify(state.fillerPhrases || []);
   state.lang = cfg.lang;
   state.voiceName = cfg.voice;
-  state.systemVoice = cfg.systemVoice;
+  state.systemVoice = cfg.systemVoice || cfg.voiceSource === 'system'; // sin voz natural configurada, la de Windows
   state.fillers = cfg.fillers !== false;
   state.fillerPhrases = cfg.fillerPhrases || [];
   state.hasKey = !!cfg.apiKey;
