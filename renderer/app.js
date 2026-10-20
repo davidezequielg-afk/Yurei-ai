@@ -91,14 +91,14 @@ const WIDGETS = {
     async update(r) {
       const res = await window.yurei.widgetData('weather');
       if (!res.ok) {
-        r.icon.textContent = '🌡️';
+        r.icon.replaceChildren(window.icon('cloud', 28));
         r.temp.textContent = '';
         r.desc.textContent = res.error;
         r.place.textContent = '';
         return;
       }
       const w = res.data;
-      r.icon.textContent = w.emoji;
+      r.icon.replaceChildren(window.icon(w.icon, 28));
       r.temp.textContent = `${w.temp}°`;
       r.desc.textContent = w.desc;
       r.place.textContent = `${w.city} · ${w.min}° / ${w.max}°`;
@@ -172,20 +172,21 @@ const WIDGETS = {
       const artist = el('div', { className: 'sub dim' });
       const bar = el('div', { className: 'gauge thin' }, el('i'));
       const act = (action, arg) => () => { window.yurei.widgetAction('media', { action, arg }).then(() => setTimeout(() => this.update(refs), 500)); };
-      const toggle = el('button', { title: 'Pausar / reanudar', onclick: act('toggle') });
+      const btn = (title, name, onclick, size = 15) => el('button', { title, onclick }, window.icon(name, size));
+      const toggle = btn('Pausar / reanudar', 'play', act('toggle'), 17);
       const refs = { title, titleText, artist, bar, toggle };
       c.append(title, artist, bar, el('div', { className: 'ctrl' },
-        el('button', { title: 'Anterior', textContent: '⏮', onclick: act('prev') }),
-        el('button', { title: 'Retroceder 10 s', textContent: '⏪', onclick: act('seek', -10) }),
+        btn('Anterior', 'prev', act('prev')),
+        btn('Retroceder 10 s', 'rewind', act('seek', -10)),
         toggle,
-        el('button', { title: 'Adelantar 10 s', textContent: '⏩', onclick: act('seek', 10) }),
-        el('button', { title: 'Siguiente', textContent: '⏭', onclick: act('next') })));
+        btn('Adelantar 10 s', 'forward', act('seek', 10)),
+        btn('Siguiente', 'next', act('next'))));
       return refs;
     },
     async update(r) {
       const res = await window.yurei.widgetData('media');
       const m = res.ok ? res.data : { available: false };
-      r.toggle.textContent = m.available && m.status === 'Playing' ? '⏸' : '▶';
+      r.toggle.replaceChildren(window.icon(m.available && m.status === 'Playing' ? 'pause' : 'play', 17));
       const setTitle = (text) => {
         if (r.titleText.textContent === text) return;
         r.titleText.textContent = text;
@@ -208,7 +209,7 @@ const WIDGETS = {
   volume: {
     every: 3,
     build(c) {
-      const icon = el('div', { className: 'icon', style: 'cursor:pointer', title: 'Silenciar / reactivar' });
+      const icon = el('button', { className: 'ghost', title: 'Silenciar / reactivar' }, window.icon('volume', 20));
       const pct = el('div', { className: 'big' });
       const slider = el('input', { type: 'range', min: 0, max: 100, step: 1, className: 'slider' });
       const refs = { icon, pct, slider, dragging: false, muted: false };
@@ -217,11 +218,11 @@ const WIDGETS = {
         await window.yurei.widgetAction('volume', { level: Number(slider.value) });
         refs.dragging = false;
         refs.muted = false;
-        icon.textContent = '🔊';
+        icon.replaceChildren(window.icon('volume', 20));
       };
       icon.onclick = async () => {
         const res = await window.yurei.widgetAction('volume', { mute: !refs.muted });
-        if (res.ok) { refs.muted = res.data.muted; icon.textContent = refs.muted ? '🔇' : '🔊'; }
+        if (res.ok) { refs.muted = res.data.muted; icon.replaceChildren(window.icon(refs.muted ? 'mute' : 'volume', 20)); }
       };
       c.append(icon, pct, slider);
       return refs;
@@ -229,9 +230,9 @@ const WIDGETS = {
     async update(r) {
       if (r.dragging) return; // no pisar lo que el usuario está moviendo
       const res = await window.yurei.widgetData('volume');
-      if (!res.ok) { r.pct.textContent = ''; r.icon.textContent = '🔇'; return; }
+      if (!res.ok) { r.pct.textContent = ''; r.icon.replaceChildren(window.icon('mute', 20)); return; }
       r.muted = res.data.muted;
-      r.icon.textContent = r.muted ? '🔇' : '🔊';
+      r.icon.replaceChildren(window.icon(r.muted ? 'mute' : 'volume', 20));
       r.pct.textContent = `${res.data.volume}%`;
       r.slider.value = res.data.volume;
     }
@@ -249,12 +250,12 @@ const WIDGETS = {
     async update(r) {
       const b = await navigator.getBattery?.().catch(() => null);
       if (!b) {
-        r.icon.textContent = '🔌';
+        r.icon.replaceChildren(window.icon('plug', 26));
         r.pct.textContent = '';
         r.sub.textContent = 'Sin batería';
         return;
       }
-      r.icon.textContent = b.charging ? '⚡' : '🔋';
+      r.icon.replaceChildren(batteryIcon(b.level, b.charging));
       r.pct.textContent = `${Math.round(b.level * 100)}%`;
       r.sub.textContent = b.charging ? 'Cargando' : 'En batería';
     }
@@ -650,6 +651,7 @@ async function toggleDictation() {
 /* ---------- eventos ---------- */
 
 $('bar').onclick = () => setMode(isPanel(state.mode) ? 'idle' : 'peek');
+$('gear').replaceChildren(window.icon('settings', 14));
 $('gear').onclick = () => window.yurei.openSettings();
 window.addEventListener('keydown', (e) => { if (e.key === 'Escape') setMode('idle'); });
 

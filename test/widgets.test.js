@@ -37,7 +37,7 @@ test('clima: geocodifica, consulta y cachea', async () => {
   const clock = { t: 0 };
   const weather = createWeather({ fetchImpl, now: () => clock.t });
   const w = await weather.get('buenos aires');
-  assert.deepEqual(w, { city: 'Buenos Aires', temp: 22, min: 15, max: 24, desc: 'Nublado', emoji: '☁️' });
+  assert.deepEqual(w, { city: 'Buenos Aires', temp: 22, min: 15, max: 24, desc: 'Nublado', icon: 'cloud' });
   await weather.get('buenos aires');
   assert.equal(urls.length, 2); // el segundo llamado sale de la caché
   clock.t = 11 * 60 * 1000;
@@ -46,7 +46,9 @@ test('clima: geocodifica, consulta y cachea', async () => {
   await assert.rejects(weather.get(''), /ciudad/);
   const none = createWeather({ fetchImpl: async () => ({ ok: true, json: async () => ({}) }) });
   await assert.rejects(none.get('Zzzz'), /No encontré/);
-  assert.equal(describeWeather(0, false).emoji, '🌙');
+  assert.equal(describeWeather(0, false).icon, 'moon');
+  assert.equal(describeWeather(0, true).icon, 'sun');
+  assert.equal(describeWeather(95).icon, 'storm');
 });
 
 test('nextSchedule ordena tareas y rutinas futuras', () => {

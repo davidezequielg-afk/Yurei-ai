@@ -84,15 +84,15 @@ function setWidget(layout, slot, id, unavailable = []) {
 /* ---------- clima (Open-Meteo, sin API key) ---------- */
 
 const WEATHER = [
-  [[0], 'Despejado', '☀️'], [[1], 'Casi despejado', '🌤️'], [[2], 'Parcialmente nublado', '⛅'], [[3], 'Nublado', '☁️'],
-  [[45, 48], 'Niebla', '🌫️'], [[51, 53, 55, 56, 57], 'Llovizna', '🌦️'], [[61, 63, 65, 66, 67], 'Lluvia', '🌧️'],
-  [[71, 73, 75, 77, 85, 86], 'Nieve', '🌨️'], [[80, 81, 82], 'Chubascos', '🌧️'], [[95, 96, 99], 'Tormenta', '⛈️']
+  [[0], 'Despejado', 'sun'], [[1], 'Casi despejado', 'sun'], [[2], 'Parcialmente nublado', 'partly'], [[3], 'Nublado', 'cloud'],
+  [[45, 48], 'Niebla', 'fog'], [[51, 53, 55, 56, 57], 'Llovizna', 'rain'], [[61, 63, 65, 66, 67], 'Lluvia', 'rain'],
+  [[71, 73, 75, 77, 85, 86], 'Nieve', 'snow'], [[80, 81, 82], 'Chubascos', 'rain'], [[95, 96, 99], 'Tormenta', 'storm']
 ];
 
 function describeWeather(code, isDay = true) {
   const hit = WEATHER.find(([codes]) => codes.includes(code));
-  if (!hit) return { desc: 'Sin datos', emoji: '🌡️' };
-  return { desc: hit[1], emoji: code === 0 && !isDay ? '🌙' : hit[2] };
+  if (!hit) return { desc: 'Sin datos', icon: 'cloud' };
+  return { desc: hit[1], icon: hit[2] === 'sun' && !isDay ? 'moon' : hit[2] };
 }
 
 function createWeather({ fetchImpl = fetch, now = () => Date.now(), ttlMs = 10 * 60 * 1000 } = {}) {
