@@ -8,13 +8,17 @@ const el = (tag, props = {}, ...kids) => {
 
 const state = { mode: 'idle', recording: null, pendingImage: null, tab: 'chat', timers: [], autoStop: null };
 
+const isPanel = (m) => m === 'peek' || m === 'full';
+
+// idle: notch · status: aviso · peek: panel compacto · full: panel ampliado (al escribir)
 function setMode(mode) {
+  const entering = isPanel(mode) && !isPanel(state.mode);
   state.mode = mode;
   island.className = `${mode} ${island.dataset.phase || ''}`.trim();
-  $('panel').hidden = mode !== 'full';
+  $('panel').hidden = !isPanel(mode);
   $('reply').hidden = mode !== 'status';
   window.yurei.setMode(mode);
-  if (mode === 'full') showTab(state.tab);
+  if (entering) showTab(state.tab); // no re-renderizar al crecer: borraría lo que se está escribiendo
 }
 
 function setPhase(phase, label) {
@@ -396,7 +400,19 @@ function showTab(tab) {
 /* ---------- eventos ---------- */
 
 $('tabs').onclick = (e) => e.target.dataset.tab && showTab(e.target.dataset.tab);
-$('bar').onclick = () => setMode(state.mode === 'full' ? 'idle' : 'full');
+$('bar').onclick = () => setMode(isPanel(state.mode) ? 'idle' : 'peek');
+
+// Crece al escribir y vuelve a compacto al terminar.
+let shrinkTimer = null;
+document.addEventListener('focusin', (e) => {
+  if (!e.target.matches('input:not([type=checkbox]), textarea, select')) return;
+  clearTimeout(shrinkTimer);
+  if (isPanel(state.mode)) setMode('full');
+});
+document.addEventListener('focusout', () => {
+  clearTimeout(shrinkTimer);
+  shrinkTimer = setTimeout(() => { if (state.mode === 'full' && !document.activeElement?.matches?.('input:not([type=checkbox]), textarea, select')) setMode('peek'); }, 250);
+});
 $('chatForm').onsubmit = (e) => {
   e.preventDefault();
   const text = $('chatInput').value.trim();
