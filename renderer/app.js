@@ -698,7 +698,31 @@ async function toggleDictation() {
 
 /* ---------- eventos ---------- */
 
-$('bar').onclick = () => setMode(isPanel(state.mode) ? 'idle' : 'peek');
+// Al pasar el ratón por el notch se abre el panel (sin clic); al sacarlo, se cierra.
+const HOVER_OPEN_MS = 90; // evita que salte si solo pasas rápido por encima
+const HOVER_CLOSE_MS = 500; // margen para volver a entrar sin que parpadee
+const hover = { open: null, close: null, closedByClick: false };
+const root = document.documentElement;
+
+root.addEventListener('mouseenter', () => {
+  clearTimeout(hover.close);
+  if (hover.closedByClick || isPanel(state.mode)) return;
+  clearTimeout(hover.open);
+  hover.open = setTimeout(() => { if (!isPanel(state.mode)) setMode('peek'); }, HOVER_OPEN_MS);
+});
+root.addEventListener('mouseleave', (e) => {
+  clearTimeout(hover.open);
+  hover.closedByClick = false; // al salir, el siguiente paso por encima vuelve a abrirlo
+  if (e.buttons) return; // arrastrando algo (p. ej. el deslizador del volumen): no cerrar
+  clearTimeout(hover.close);
+  hover.close = setTimeout(() => { if (isPanel(state.mode)) setMode('idle'); }, HOVER_CLOSE_MS);
+});
+// Clic en el notch: abre o cierra a mano. Si lo cierras con el ratón encima, no se reabre hasta que salgas y vuelvas.
+$('bar').onclick = () => {
+  clearTimeout(hover.open);
+  clearTimeout(hover.close);
+  if (isPanel(state.mode)) { hover.closedByClick = true; setMode('idle'); } else setMode('peek');
+};
 $('gear').replaceChildren(window.icon('settings', 14));
 $('gear').onclick = () => window.yurei.openSettings();
 window.addEventListener('keydown', (e) => { if (e.key === 'Escape') setMode('idle'); });
