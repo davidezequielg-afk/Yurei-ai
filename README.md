@@ -66,6 +66,10 @@ src/store.js       ajustes y datos en JSON dentro de userData
 renderer/          UI de la isla, grabación WAV 16 kHz, overlay de Circle to Ask
 ```
 
+## Modelos
+
+Por defecto usa `gemini-3.5-flash-lite` para entender y actuar, y `gemini-3.8-flash-tts` para la voz (no hay TTS de la serie 3.5). Ambos se cambian en **Alma** (modelo) o en `yurei.json` (`ttsModel`). Para respuestas más finas prueba `gemini-3.8-flash`. Los modelos 2.5 ya solo se sirven a cuentas que los usaron antes, así que las instalaciones antiguas se migran solas. Lista vigente: <https://ai.google.dev/gemini-api/docs/models>.
+
 ## Seguridad
 
 - La API key nunca sale de tu PC salvo hacia `generativelanguage.googleapis.com`.

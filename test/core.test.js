@@ -145,3 +145,15 @@ test('synthesize pide audio con la voz elegida y devuelve el PCM', async () => {
   const empty = async () => ({ ok: true, json: async () => ({ candidates: [{ content: { parts: [{ text: 'x' }] } }] }) });
   await assert.rejects(synthesize({ apiKey: 'k', model: 'm', text: 'a', voiceName: 'Kore', fetchImpl: empty }), /audio/);
 });
+
+test('store migra modelos obsoletos a los actuales', () => {
+  const { DEFAULTS } = require('../src/store');
+  const file = path.join(fs.mkdtempSync(path.join(os.tmpdir(), 'yurei-')), 's.json');
+  fs.writeFileSync(file, JSON.stringify({ settings: { model: 'gemini-2.5-flash', ttsModel: 'gemini-2.5-flash-preview-tts', soul: 'X' } }));
+  const st = createStore(file).get('settings');
+  assert.equal(st.model, DEFAULTS.settings.model);
+  assert.equal(st.ttsModel, DEFAULTS.settings.ttsModel);
+  assert.equal(st.soul, 'X');
+  fs.writeFileSync(file, JSON.stringify({ settings: { model: 'gemini-3.8-flash' } }));
+  assert.equal(createStore(file).get('settings').model, 'gemini-3.8-flash');
+});

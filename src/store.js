@@ -4,11 +4,11 @@ const path = require('path');
 const DEFAULTS = {
   settings: {
     apiKey: '',
-    model: 'gemini-2.5-flash',
+    model: 'gemini-3.5-flash-lite',
     soul: 'Yurei',
     personality: 'Amable, directo y breve. Responde en el idioma del usuario.',
     voice: 'Kore',
-    ttsModel: 'gemini-2.5-flash-preview-tts',
+    ttsModel: 'gemini-3.8-flash-tts',
     systemVoice: false,
     abilities: [],
     wakeWord: false,
@@ -17,6 +17,12 @@ const DEFAULTS = {
   todos: [],
   tasks: [],
   routines: []
+};
+
+// Modelos que Google ya no ofrece a cuentas nuevas: se migran al guardar/cargar.
+const LEGACY = {
+  model: ['gemini-2.5-flash', 'gemini-2.0-flash'],
+  ttsModel: ['gemini-2.5-flash-preview-tts', 'gemini-3.1-flash-tts-preview']
 };
 
 function clone(v) {
@@ -28,6 +34,9 @@ function createStore(file) {
   try {
     const saved = JSON.parse(fs.readFileSync(file, 'utf8'));
     data = { ...data, ...saved, settings: { ...data.settings, ...(saved.settings || {}) } };
+    for (const [key, old] of Object.entries(LEGACY)) {
+      if (old.includes(data.settings[key])) data.settings[key] = DEFAULTS.settings[key];
+    }
   } catch {
     // primer arranque o archivo corrupto: se usan los valores por defecto
   }
