@@ -410,7 +410,25 @@ function stopSpeaking() {
   voice.token++;
   voice.head = 0;
   speechSynthesis.cancel();
-  voice.sources.splice(0).forEach((src) => { try { src.stop(); } catch { /* ya terminó */ } });
+  // Se apaga en ~20 ms en vez de cortar en seco: un corte brusco suena como un clic.
+  const t = voice.ctx ? voice.ctx.currentTime : 0;
+  voice.sources.splice(0).forEach((src) => {
+    try {
+      src.gain?.gain.setTargetAtTime(0, t, 0.006);
+      src.stop(t + 0.04);
+    } catch { /* ya terminó */ }
+  });
+}
+
+// Abre la salida de audio antes de que haga falta, con un instante de silencio: muchos equipos hacen "pop" al
+// encender el parlante, y así no coincide con el principio de la voz.
+function warmAudio() {
+  voice.ctx ||= new AudioContext();
+  if (voice.ctx.state === 'suspended') voice.ctx.resume().catch(() => {});
+  const src = voice.ctx.createBufferSource();
+  src.buffer = voice.ctx.createBuffer(1, Math.round(voice.ctx.sampleRate * 0.3), voice.ctx.sampleRate);
+  src.connect(voice.ctx.destination);
+  src.start();
 }
 
 // Trozos de 1-2 frases: el primero suena enseguida mientras se genera el siguiente.
@@ -454,7 +472,8 @@ function schedulePcm(b64, gap = 0) {
   const buf = decodePcm(voice.ctx, b64);
   const src = voice.ctx.createBufferSource();
   src.buffer = buf;
-  src.connect(voice.analyser);
+  src.gain = voice.ctx.createGain(); // para poder apagarlo suave si se interrumpe
+  src.connect(src.gain).connect(voice.analyser);
   const when = Math.max(voice.ctx.currentTime + 0.03, voice.head + gap);
   voice.head = when + buf.duration;
   voice.sources.push(src);
@@ -629,6 +648,7 @@ async function ensureListening() {
 async function enterConversation() {
   if (!(await ensureListening())) return;
   stopSpeaking();
+  warmAudio();
   if (!conv.active) conv.turns = 0; // conversación nueva: el primer turno (saludo) vuelve a ir sin relleno
   conv.active = true;
   setPhase('listening', 'Te escucho');
@@ -667,6 +687,7 @@ async function handleUtterance({ b64, seconds }) {
 
 async function handleAsk(payload, userLabel, greeting = false) {
   Listener.pause();
+  warmAudio(); // mientras piensa, la salida de audio ya queda abierta
   setPhase('thinking', 'Pensando…');
   log('user', userLabel);
   // Si la charla arranca con un saludo, esa respuesta va sin frases de relleno: si tarda, tarda. Al terminar de
