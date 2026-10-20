@@ -1,10 +1,17 @@
 * { box-sizing: border-box; }
-body { margin: 0; padding: 18px 20px; background: #101114; color: #eee; font: 13px/1.4 "Segoe UI", system-ui, sans-serif; }
-h2 { margin: 22px 0 0; font-size: 14px; color: #9ab; }
-h1 { margin: 0 0 8px; font-size: 16px; }
-label { display: block; margin: 12px 0 4px; color: #9aa; }
-label.check { display: flex; gap: 8px; align-items: flex-start; color: #ccc; }
+[hidden] { display: none !important; }
+:root { --bg-solid: #101114; --ink: #ececec; --ink2: #b5b9bf; --mute: #6d747d; --line: #25282d; --track: #1b1d21; --accent: #6cb8f0; }
+body { margin: 0; padding: 18px 20px 28px; background: var(--bg-solid); color: var(--ink); font: 13px/1.4 "Segoe UI Variable Text", "Segoe UI", system-ui, sans-serif; }
+h1 { margin: 0 0 4px; font-size: 16px; font-weight: 600; }
+h2 { margin: 20px 0 0; font-size: 11px; font-weight: 500; letter-spacing: .08em; text-transform: uppercase; color: var(--mute); }
+label { display: block; margin: 12px 0 4px; color: var(--mute); }
+label.check { display: flex; gap: 8px; align-items: flex-start; color: var(--ink2); }
 label.check input { width: auto; margin-top: 3px; }
-input, textarea, select { width: 100%; background: #181a1f; color: #eee; border: 1px solid #2b2e36; border-radius: 8px; padding: 7px 9px; font: inherit; }
-button { margin-top: 16px; background: #2b4a7a; color: #fff; border: 0; border-radius: 8px; padding: 8px 16px; font: inherit; cursor: pointer; }
-button:hover { background: #355a94; }
+.colors { display: flex; gap: 18px; }
+label.swatch { display: flex; align-items: center; gap: 8px; color: var(--ink2); }
+input[type=color] { width: 34px; height: 24px; padding: 0; border: 1px solid var(--line); border-radius: 6px; background: none; cursor: pointer; }
+input, textarea, select { width: 100%; background: var(--track); color: var(--ink); border: 1px solid var(--line); border-radius: 8px; padding: 7px 9px; font: inherit; }
+input[type=range] { padding: 0; accent-color: var(--accent); }
+input[type=color] { width: 34px; }
+button { margin-top: 18px; background: var(--accent); color: var(--bg-solid); border: 0; border-radius: 8px; padding: 8px 16px; font: inherit; font-weight: 500; cursor: pointer; }
+button:hover { filter: brightness(1.1); }

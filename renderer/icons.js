@@ -32,6 +32,6 @@ function batteryIcon(level, charging, size = 28) {
   const w = Math.max(0, Math.min(1, level)) * 13;
   const span = document.createElement('span');
   span.className = 'ico';
-  span.innerHTML = `<svg viewBox="0 0 24 24" width="${size}" height="${size}" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="2" y="7" width="18" height="10" rx="2.5"/><path d="M22 10.5v3"/><rect x="4.5" y="9.5" width="${w}" height="5" rx="1" fill="currentColor" stroke="none"/>${charging ? '<path d="M12.5 8.5l-2.2 3.5h3l-2.2 3.5" stroke="#000" stroke-width="1.8"/>' : ''}</svg>`;
+  span.innerHTML = `<svg viewBox="0 0 24 24" width="${size}" height="${size}" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="2" y="7" width="18" height="10" rx="2.5"/><path d="M22 10.5v3"/><rect x="4.5" y="9.5" width="${w}" height="5" rx="1" fill="currentColor" stroke="none"/>${charging ? '<path class="bolt" d="M12.5 8.5l-2.2 3.5h3l-2.2 3.5" stroke-width="1.8"/>' : ''}</svg>`;
   return span;
 }

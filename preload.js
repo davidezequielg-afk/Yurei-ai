@@ -10,12 +10,13 @@ contextBridge.exposeInMainWorld('yurei', {
   getSettings: invoke('settings:get'),
   saveSettings: invoke('settings:save'),
   openSettings: invoke('settings:open'),
+  getAppearance: invoke('appearance:get'),
   todos: invoke('todos'),
   widgetData: invoke('widget:data'),
   widgetAction: invoke('widget:action'),
   setMode: invoke('island:mode'),
   on: (channel, cb) => {
-    const allowed = ['hotkey', 'report', 'circle-image', 'settings-changed'];
+    const allowed = ['hotkey', 'report', 'circle-image', 'settings-changed', 'appearance'];
     if (!allowed.includes(channel)) return;
     ipcRenderer.on(channel, (_e, payload) => cb(payload));
   }

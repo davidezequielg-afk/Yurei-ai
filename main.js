@@ -1,11 +1,12 @@
 const path = require('path');
-const { app, BrowserWindow, globalShortcut, ipcMain, screen, clipboard, shell, desktopCapturer, Notification } = require('electron');
+const { app, BrowserWindow, globalShortcut, ipcMain, screen, clipboard, shell, desktopCapturer, Notification, nativeTheme, systemPreferences } = require('electron');
 const { createStore } = require('./src/store');
 const { createSystem } = require('./src/system');
 const { createTools } = require('./src/tools');
 const { createAssistant } = require('./src/assistant');
 const { createScheduler } = require('./src/scheduler');
 const { createTtsCache } = require('./src/ttscache');
+const { THEMES, TRANSPARENCY, HEX, resolveAppearance } = require('./src/theme');
 const { validateLayout, createWeather, nextSchedule, unavailableWidgets, sanitizeLayout, catalogFor } = require('./src/widgets');
 
 const MODES = { idle: [120, 22], status: [260, 60], peek: [567, 132] };
@@ -114,6 +115,27 @@ app.whenReady().then(() => {
   const safe = (fn) => async (...a) => {
     try { return { ok: true, data: await fn(...a) }; } catch (e) { return { ok: false, error: e.message }; }
   };
+  // --- apariencia: tema, color y transparencia (propios o del sistema) ---
+  let sysTransparency = null;
+  const currentAppearance = () => {
+    let accent = null;
+    try { accent = systemPreferences.getAccentColor(); } catch { /* solo Windows y macOS */ }
+    return resolveAppearance(store.get('settings'), { dark: nativeTheme.shouldUseDarkColors, accent, transparency: sysTransparency });
+  };
+  const broadcastAppearance = () => {
+    const a = currentAppearance();
+    for (const w of BrowserWindow.getAllWindows()) if (!w.isDestroyed()) w.webContents.send('appearance', a);
+  };
+  nativeTheme.on('updated', broadcastAppearance);
+  systemPreferences.on?.('accent-color-changed', broadcastAppearance);
+  const pollTransparency = async () => {
+    const t = await system.systemTransparency();
+    if (t !== sysTransparency) { sysTransparency = t; broadcastAppearance(); }
+  };
+  pollTransparency();
+  setInterval(pollTransparency, 10000);
+  ipcMain.handle('appearance:get', () => ({ ok: true, data: currentAppearance() }));
+
   const unavailable = () => unavailableWidgets({ hasBattery: system.hasBattery(), hasMedia: system.hasMediaControl() });
   const settingsView = () => ({ ...store.get('settings'), apiKey: store.get('settings').apiKey ? '••••••••' : '', widgets: sanitizeLayout(store.get('settings').widgets, unavailable()), widgetCatalog: catalogFor(unavailable()) });
 
@@ -141,12 +163,17 @@ app.whenReady().then(() => {
     delete clean.widgetCatalog;
     if ('widgets' in clean) clean.widgets = validateLayout(clean.widgets, unavailable());
     if ('city' in clean) clean.city = String(clean.city || '').trim().slice(0, 80);
+    if ('theme' in clean && !THEMES.includes(clean.theme)) clean.theme = 'dark';
+    if ('transparency' in clean && !TRANSPARENCY.includes(clean.transparency)) clean.transparency = 'off';
+    for (const k of ['customBg', 'customAccent']) if (k in clean && !HEX.test(String(clean[k]))) delete clean[k];
+    if ('opacity' in clean) clean.opacity = Math.max(30, Math.min(100, Math.round(Number(clean.opacity)) || 78));
     if ('fillers' in clean) clean.fillers = clean.fillers === true;
     if ('fillerPhrases' in clean) clean.fillerPhrases = (Array.isArray(clean.fillerPhrases) ? clean.fillerPhrases : []).map((x) => String(x).trim().slice(0, 80)).filter(Boolean).slice(0, 20);
     if ('wakeWord' in clean) clean.wakeWord = clean.wakeWord === true;
     if ('conversationSeconds' in clean) clean.conversationSeconds = Math.max(5, Math.min(120, Number(clean.conversationSeconds) || 20));
     store.updateSettings(clean);
     win?.webContents.send('settings-changed', settingsView());
+    broadcastAppearance();
     return settingsView();
   }));
   ipcMain.handle('todos', safe(() => store.get('todos')));

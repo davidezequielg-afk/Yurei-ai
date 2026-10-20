@@ -24,6 +24,26 @@ const el = (tag, props = {}, ...kids) => {
   const layout = s.widgets || ['yurei', 'clock', 'todos'];
   const slotSel = ['Izquierda', 'Centro', 'Derecha'].map((_, i) => el('select', {}, ...catalog.map((w) => el('option', { value: w.id, textContent: w.disabled ? `${w.name} — ${w.reason || 'no disponible'}` : w.name, disabled: !!w.disabled, selected: w.id === layout[i] }))));
   const city = el('input', { value: s.city || '', placeholder: 'p. ej. Buenos Aires (para el widget del clima)' });
+  // --- apariencia (se aplica al instante) ---
+  const opt = (pairs, current) => pairs.map(([v, t]) => el('option', { value: v, textContent: t, selected: v === current }));
+  const theme = el('select', {}, ...opt([['system', 'Como el sistema'], ['light', 'Claro'], ['dark', 'Oscuro'], ['custom', 'Personalizado']], s.theme || 'dark'));
+  const customBg = el('input', { type: 'color', value: s.customBg || '#101114' });
+  const customAccent = el('input', { type: 'color', value: s.customAccent || '#6cb8f0' });
+  const colors = el('div', { className: 'colors' },
+    el('label', { className: 'swatch' }, customBg, 'Color de fondo'),
+    el('label', { className: 'swatch' }, customAccent, 'Color de acento'));
+  const transp = el('select', {}, ...opt([['off', 'Opaco'], ['on', 'Translúcido'], ['system', 'Como el sistema (efectos de transparencia de Windows)']], s.transparency || 'off'));
+  const opacity = el('input', { type: 'range', min: 30, max: 100, value: s.opacity || 78 });
+  const opacityBox = el('div', {}, el('label', { textContent: 'Opacidad cuando es translúcido' }), opacity);
+  const syncVisibility = () => { colors.hidden = theme.value !== 'custom'; opacityBox.hidden = transp.value === 'off'; };
+  let timer = null;
+  const applyLive = () => {
+    syncVisibility();
+    clearTimeout(timer);
+    timer = setTimeout(() => window.yurei.saveSettings({ theme: theme.value, customBg: customBg.value, customAccent: customAccent.value, transparency: transp.value, opacity: Number(opacity.value) }), 120);
+  };
+  [theme, customBg, customAccent, transp, opacity].forEach((n) => { n.oninput = applyLive; });
+  syncVisibility();
   const save = el('button', {
     textContent: 'Guardar',
     onclick: async () => {
@@ -31,6 +51,7 @@ const el = (tag, props = {}, ...kids) => {
         apiKey: key.value, model: model.value.trim(), soul: soul.value.trim() || 'Yurei', personality: pers.value,
         voice: voiceSel.value, fillers: fillers.checked, fillerPhrases: fillerPhrases.value.split('\n'), systemVoice: sysVoice.checked, wakeWord: wake.checked,
         conversationSeconds: Number(convSecs.value) || 20,
+        theme: theme.value, customBg: customBg.value, customAccent: customAccent.value, transparency: transp.value, opacity: Number(opacity.value),
         widgets: slotSel.map((x) => x.value), city: city.value,
         abilities: abil.value.split('\n').map((x) => x.trim()).filter(Boolean)
       });
@@ -38,6 +59,9 @@ const el = (tag, props = {}, ...kids) => {
     }
   });
   document.getElementById('form').replaceChildren(
+    el('h2', { textContent: 'Apariencia' }),
+    ...field('Tema', theme), colors,
+    ...field('Transparencia', transp), opacityBox,
     ...field('API key de Gemini (se guarda solo en este PC)', key),
     ...field('Modelo', model),
     ...field('Alma (nombre y palabra de activación)', soul),

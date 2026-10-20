@@ -55,6 +55,14 @@ function createSystem({ shell, clipboard, dataDir = os.tmpdir() }) {
       spawn(cmd, args, { detached: true, stdio: 'ignore', windowsHide: true }).unref();
     },
 
+    // ¿Tiene Windows activados los "efectos de transparencia"? null = no se sabe / no es Windows
+    systemTransparency: () => new Promise((resolve) => {
+      if (!isWin) { resolve(null); return; }
+      execFile('reg.exe', ['query', 'HKCU\\Software\\Microsoft\\Windows\\CurrentVersion\\Themes\\Personalize', '/v', 'EnableTransparency'], { windowsHide: true }, (err, out) => {
+        const m = !err && /EnableTransparency\s+REG_DWORD\s+0x([0-9a-f]+)/i.exec(out);
+        resolve(m ? parseInt(m[1], 16) !== 0 : null);
+      });
+    }),
     hasMediaControl: () => isWin,
     getVolume: () => win().request('vol.get'),
     setVolume: (level) => win().request('vol.set', level),
