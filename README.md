@@ -33,6 +33,16 @@ npm install
 npm start
 ```
 
+### Instalador (.exe)
+
+Descárgalo desde la sección **Releases** del repositorio, o genéralo tú:
+
+```bash
+npm run dist   # crea dist/Yurei-Setup-<versión>.exe (hazlo en Windows)
+```
+
+El workflow `Build Windows installer` lo compila en GitHub Actions: al subir un tag `v*` (p. ej. `git tag v0.1.0 && git push --tags`) publica el instalador en Releases; también se puede lanzar a mano desde la pestaña *Actions* y bajar el artefacto. El instalador no está firmado, así que Windows SmartScreen mostrará un aviso la primera vez.
+
 1. Pulsa la flecha de la isla → pestaña **Alma** → pega tu API key → Guardar.
 2. Pulsa `Ctrl+Shift+Espacio` y habla.
 
