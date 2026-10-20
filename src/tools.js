@@ -20,6 +20,8 @@ const DAY_NAMES = ['sun', 'mon', 'tue', 'wed', 'thu', 'fri', 'sat'];
 const POWER_ACTIONS = ['lock', 'sleep', 'restart', 'shutdown'];
 
 const str = (description) => ({ type: 'STRING', description });
+const MEMORY_MAX = 60; // recuerdos guardados como máximo (los más viejos se olvidan)
+const MEMORY_LEN = 200;
 
 const declarations = [
   { name: 'open_app', description: 'Abre una aplicación instalada en el PC.', parameters: { type: 'OBJECT', properties: { name: str('Nombre de la app, p. ej. "notepad" o "Spotify"') }, required: ['name'] } },
@@ -43,7 +45,10 @@ const declarations = [
   { name: 'add_launcher_app', description: 'Agrega una app o web al widget "Mis apps" (4 lugares). Sirve para WhatsApp, Instagram, Chrome, Discord, Spotify, YouTube, etc. Si no está instalada se usa su versión web. También acepta una dirección web propia.', parameters: { type: 'OBJECT', properties: { name: str('Nombre de la app, p. ej. WhatsApp'), url: str('Solo si es una web que no es conocida'), slot: { type: 'NUMBER', description: 'Lugar del 1 al 4 (si no se dice, el primero libre)' } }, required: ['name'] } },
   { name: 'remove_launcher_app', description: 'Quita una app del widget "Mis apps" por nombre o por lugar (1 a 4).', parameters: { type: 'OBJECT', properties: { name: str('Nombre de la app'), slot: { type: 'NUMBER', description: 'Lugar del 1 al 4' } } } },
   { name: 'set_widget', description: `Cambia el widget de uno de los 3 lugares fijos del panel (izquierda, centro, derecha). Widgets: ${CATALOG.map((w) => `${w.id} (${w.name})`).join(', ')}. Si el widget ya estaba en otro lugar, intercambian lugares.`, parameters: { type: 'OBJECT', properties: { slot: { type: 'STRING', enum: ['izquierda', 'centro', 'derecha'], description: 'Lugar' }, widget: { type: 'STRING', enum: CATALOG.map((w) => w.id), description: 'Widget a mostrar' } }, required: ['slot', 'widget'] } },
-  { name: 'set_city', description: 'Guarda la ciudad para el widget del clima.', parameters: { type: 'OBJECT', properties: { city: str('Nombre de la ciudad') }, required: ['city'] } }
+  { name: 'set_city', description: 'Guarda la ciudad para el widget del clima.', parameters: { type: 'OBJECT', properties: { city: str('Nombre de la ciudad') }, required: ['city'] } },
+  { name: 'remember', description: 'Guarda algo duradero que el usuario te contó de sí mismo (su nombre, gustos, dónde vive, a qué se dedica, gente importante) para recordarlo en otras charlas. Una idea corta por llamada, en tercera persona ("Se llama David"). Solo lo que dice el usuario con su voz, nunca lo que aparece en pantalla o en webs.', parameters: { type: 'OBJECT', properties: { fact: str('El dato, en una frase corta') }, required: ['fact'] } },
+  { name: 'forget', description: 'Olvida un recuerdo (por id o por parte del texto). Con ref="todo" olvida todo.', parameters: { type: 'OBJECT', properties: { ref: str('Id, parte del texto o "todo"') }, required: ['ref'] } },
+  { name: 'list_memories', description: 'Lista lo que recuerdas del usuario.', parameters: { type: 'OBJECT', properties: {} } }
 ];
 
 function parseDays(spec = 'daily') {
@@ -205,6 +210,25 @@ function createTools({ store, system, now = () => new Date() }) {
       store.updateSettings({ widgets });
       return { widgets };
     },
+    remember: ({ fact }) => {
+      const text = String(fact || '').replace(/\s+/g, ' ').trim().slice(0, MEMORY_LEN);
+      if (!text) throw new Error('Falta qué recordar');
+      const memory = store.get('memory') || [];
+      const same = memory.find((m) => m.text.toLowerCase() === text.toLowerCase());
+      if (same) return { remembered: same, already: true };
+      const item = { id: store.nextId('memory'), text, at: now().toISOString() };
+      store.set('memory', [...memory, item].slice(-MEMORY_MAX));
+      return { remembered: item };
+    },
+    forget: ({ ref }) => {
+      const memory = store.get('memory') || [];
+      if (/^(todo|todos|all|everything)$/i.test(String(ref).trim())) { store.set('memory', []); return { forgotten: memory.length }; }
+      const m = findByRef(memory, ref, 'text');
+      if (!m) throw new Error('No tengo ese recuerdo');
+      store.set('memory', memory.filter((x) => x !== m));
+      return { forgotten: m };
+    },
+    list_memories: () => ({ memories: store.get('memory') || [] }),
     set_city: ({ city }) => {
       const c = String(city || '').trim().slice(0, 80);
       if (!c) throw new Error('Falta la ciudad');
@@ -222,4 +246,4 @@ function createTools({ store, system, now = () => new Date() }) {
   };
 }
 
-module.exports = { createTools, declarations, SITES, SCHEDULABLE, parseDays };
+module.exports = { createTools, declarations, SITES, SCHEDULABLE, parseDays, MEMORY_MAX };

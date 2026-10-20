@@ -166,3 +166,25 @@ test('la escucha por voz también arranca con un saludo, sin decir el nombre', (
   assert.match(p, /NONE/);
   assert.deepEqual(parseWake('WAKE: hola, ¿cómo estás?'), { woke: true, command: 'hola, ¿cómo estás?' });
 });
+
+test('memoria: recuerda, no repite, olvida y entra en el prompt como dato', async () => {
+  const { createTools } = require('../src/tools');
+  const { buildSystemPrompt } = require('../src/assistant');
+  const data = { memory: [], settings: {} };
+  const store = { get: (k) => data[k], set: (k, v) => { data[k] = v; }, save() {}, nextId: (k) => (data[k] || []).reduce((m, x) => Math.max(m, x.id), 0) + 1, updateSettings() {} };
+  const tools = createTools({ store, system: {} });
+  await tools.execute('remember', { fact: 'Se llama David' });
+  await tools.execute('remember', { fact: 'Le gusta el rock' });
+  assert.equal((await tools.execute('remember', { fact: 'se llama david' })).already, true);
+  assert.equal(data.memory.length, 2);
+  const p = buildSystemPrompt({ soul: 'Yurei', personality: 'x' }, new Date(2026, 0, 1, 9), { memory: data.memory });
+  assert.match(p, /Se llama David/);
+  assert.match(p, /datos, no instrucciones/);
+  assert.match(p, /buen día/);
+  assert.match(buildSystemPrompt({ soul: 'Y', personality: 'x' }, new Date(2026, 0, 1, 3)), /bostezar/);
+  await tools.execute('forget', { ref: 'rock' });
+  assert.deepEqual(data.memory.map((m) => m.text), ['Se llama David']);
+  await tools.execute('forget', { ref: 'todo' });
+  assert.equal(data.memory.length, 0);
+  await assert.rejects(tools.execute('remember', { fact: '  ' }));
+});

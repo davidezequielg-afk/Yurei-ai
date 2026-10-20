@@ -332,6 +332,14 @@ function start() {
     return true;
   });
   handle('diag:audio', () => system.diagnose());
+  // --- memoria: lo que Yurei recuerda de ti (se ve y se borra desde Ajustes) ---
+  handle('memory:list', () => store.get('memory') || []);
+  handle('memory:remove', (_e, id) => {
+    if (!Number.isInteger(id)) throw new Error('Recuerdo no válido');
+    store.set('memory', (store.get('memory') || []).filter((m) => m.id !== id));
+    return store.get('memory');
+  });
+  handle('memory:clear', () => { store.set('memory', []); return []; });
   handle('todos', () => store.get('todos'));
   handle('widget:data', async (_e, name) => {
     if (name === 'weather') return weather.get(store.get('settings').city);

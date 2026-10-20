@@ -27,7 +27,8 @@ const DEFAULTS = {
   },
   todos: [],
   tasks: [],
-  routines: []
+  routines: [],
+  memory: [] // lo que Yurei recuerda de ti: [{ id, text, at }]
 };
 
 // Modelos que Google ya no ofrece a cuentas nuevas: se migran al guardar/cargar.
@@ -87,7 +88,7 @@ function createStore(file, { secret = null } = {}) {
       save();
     },
     save,
-    nextId: (key) => data[key].reduce((m, x) => Math.max(m, x.id), 0) + 1,
+    nextId: (key) => (data[key] || []).reduce((m, x) => Math.max(m, x.id), 0) + 1,
     encrypted: () => !!secret,
     // Borra todo lo guardado y vuelve a los valores de fábrica.
     wipe() {

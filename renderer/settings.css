@@ -120,3 +120,11 @@ pre.diag { margin: 0; padding: 10px; background: var(--soft); border-radius: 10p
 .toast.err { background: #e5736f; color: #fff; }
 
 @media (prefers-reduced-motion: reduce) { *, *::before, *::after { animation: none !important; transition: none !important; } }
+
+/* recuerdos */
+.mems { display: flex; flex-direction: column; gap: 6px; max-height: 220px; overflow: auto; }
+.mems .d { color: var(--mute); font-size: 12px; }
+.mem { display: flex; align-items: center; gap: 8px; padding: 7px 8px 7px 12px; border-radius: 10px; background: var(--soft); animation: rise .25s var(--ease); }
+.mem span { flex: 1; min-width: 0; }
+.mem .x { border: 0; background: none; color: var(--mute); font-size: 16px; line-height: 1; width: 24px; height: 24px; border-radius: 50%; cursor: pointer; }
+.mem .x:hover { background: var(--card); color: var(--ink); }

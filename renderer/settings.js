@@ -226,7 +226,19 @@ function playPcm(b64) {
     diagOut.hidden = false;
     diagOut.textContent = r.ok ? JSON.stringify(r.data, null, 2) : `Error: ${r.error}`;
   };
+  // Lo que recuerda: cada recuerdo con su X para olvidarlo.
+  const memList = el('div', { className: 'mems' });
+  const renderMem = (items) => {
+    memList.replaceChildren(...(items.length
+      ? items.map((m) => el('div', { className: 'mem' }, el('span', { textContent: m.text }),
+        el('button', { className: 'x', type: 'button', title: 'Olvidar', textContent: '×', onclick: async () => { const r = await window.yurei.memoryRemove(m.id); if (r.ok) { renderMem(r.data); toast('Olvidado'); } } })))
+      : [el('div', { className: 'd', textContent: 'Todavía no recuerda nada. Cuéntale algo, p. ej. "me llamo…" o "me gusta…".' })]));
+  };
+  window.yurei.memoryList().then((r) => renderMem(r.ok ? r.data : []));
   const privacyPage = [
+    card('Lo que recuerda de ti', 'Para charlar mejor, guarda lo que le cuentas de ti. Vive solo en este equipo.',
+      el('div', { className: 'row stack' }, memList),
+      row('Olvidar todo', null, el('button', { className: 'btn', type: 'button', textContent: 'Olvidar todo', onclick: async () => { const r = await window.yurei.memoryClear(); if (r.ok) { renderMem([]); toast('Olvidé todo'); } } }))),
     card('Volumen y música', 'Si el volumen o los controles de música no responden, esto muestra qué falla.', row('Diagnóstico', null, diagBtn), el('div', { className: 'row stack tight' }, diagOut)),
     card('Tus datos', 'Todo lo tuyo vive solo en este equipo.',
       row('Borrar todo', 'Ajustes, API key, pendientes y cachés. Yurei se reinicia.', el('button', { className: 'btn danger', type: 'button', textContent: 'Borrar…', onclick: () => window.yurei.wipeData() })))
