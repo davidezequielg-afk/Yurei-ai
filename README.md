@@ -18,8 +18,8 @@ Asistente de voz de escritorio de **código abierto** (MIT), inspirado en la cat
 | **Rutinas** | "Todos los días laborales a las 8:30 abre Spotify" |
 | **Búsqueda por sitio** | YouTube, Google, Wikipedia, GitHub, Amazon, Spotify, Maps, Reddit |
 | **Control del PC** | Abrir apps/URLs, volumen, bloquear/suspender/reiniciar/apagar (con confirmación) |
-| **Isla en pantalla** | Notch superior que se expande: Chat, Hoy, Stats, Portapapeles, Apps, Alma, Energía |
-| **Personalización** | *Alma* (nombre), personalidad, voz y habilidades extra |
+| **Isla en pantalla** | Notch mínimo que solo se mueve con la voz. Al hacer clic se despliega un panel de 3 widgets fijos: icono de Yurei (tócalo para hablar), hora y pendientes |
+| **Personalización** | Ventana de Ajustes (⚙️ del panel): API key, nombre (*alma*), personalidad, voz y habilidades extra |
 | **Operación desatendida** | Las tareas y rutinas se ejecutan solas y notifican lo que hicieron |
 
 ## Requisitos
@@ -45,7 +45,7 @@ npm run dist   # crea dist/Yurei-Setup-<versión>.exe (hazlo en Windows)
 
 El workflow `Build Windows installer` lo compila en GitHub Actions: al subir un tag `v*` (p. ej. `git tag v0.1.0 && git push --tags`) publica el instalador en Releases; también se puede lanzar a mano desde la pestaña *Actions* y bajar el artefacto. El instalador no está firmado, así que Windows SmartScreen mostrará un aviso la primera vez.
 
-1. Pulsa la flecha de la isla → pestaña **Alma** → pega tu API key → Guardar.
+1. Al abrir por primera vez se abre la ventana de **Ajustes**: pega tu API key y pulsa Guardar (después, ⚙️ en el panel).
 2. Pulsa `Ctrl+Shift+Espacio` y habla.
 
 ```bash
@@ -65,6 +65,8 @@ src/system.js      integración con Windows (apps, volumen, energía, pegado, st
 src/store.js       ajustes y datos en JSON dentro de userData
 renderer/          UI de la isla, grabación WAV 16 kHz, overlay de Circle to Ask
 ```
+
+> Yurei es **solo por voz**: no hay chat de texto. El único teclado que se usa es el de la ventana de Ajustes.
 
 ## Modelos
 

@@ -1,8 +1,5 @@
 // Integración con el SO (pensada para Windows; en otros sistemas degrada con gracia).
 const { spawn, execFile } = require('child_process');
-const fs = require('fs');
-const os = require('os');
-const path = require('path');
 
 const isWin = process.platform === 'win32';
 const SAFE_NAME = /^[\w .\-()&+]{1,80}$/;
@@ -48,47 +45,7 @@ function createSystem({ shell, clipboard }) {
     async pasteText(text) {
       clipboard.writeText(text);
       if (isWin) await ps('(New-Object -ComObject WScript.Shell).SendKeys("^v")');
-    },
-
-    listApps() {
-      if (!isWin) return [];
-      const roots = [
-        path.join(process.env.ProgramData || 'C:\\ProgramData', 'Microsoft/Windows/Start Menu/Programs'),
-        path.join(process.env.APPDATA || '', 'Microsoft/Windows/Start Menu/Programs')
-      ];
-      const apps = new Map();
-      const walk = (dir) => {
-        let entries = [];
-        try { entries = fs.readdirSync(dir, { withFileTypes: true }); } catch { return; }
-        for (const e of entries) {
-          const full = path.join(dir, e.name);
-          if (e.isDirectory()) walk(full);
-          else if (e.name.toLowerCase().endsWith('.lnk')) apps.set(e.name.slice(0, -4), full);
-        }
-      };
-      roots.forEach(walk);
-      return [...apps].map(([name, file]) => ({ name, file })).sort((a, b) => a.name.localeCompare(b.name));
-    },
-
-    stats: (() => {
-      let prev = os.cpus();
-      return () => {
-        const cur = os.cpus();
-        let idle = 0;
-        let total = 0;
-        cur.forEach((c, i) => {
-          for (const k of Object.keys(c.times)) total += c.times[k] - prev[i].times[k];
-          idle += c.times.idle - prev[i].times.idle;
-        });
-        prev = cur;
-        return {
-          cpu: total ? Math.round(100 * (1 - idle / total)) : 0,
-          ramUsedGb: +((os.totalmem() - os.freemem()) / 2 ** 30).toFixed(1),
-          ramTotalGb: +(os.totalmem() / 2 ** 30).toFixed(1),
-          uptimeH: +(os.uptime() / 3600).toFixed(1)
-        };
-      };
-    })()
+    }
   };
 }
 

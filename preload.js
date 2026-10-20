@@ -9,18 +9,11 @@ contextBridge.exposeInMainWorld('yurei', {
   tts: invoke('tts'),
   getSettings: invoke('settings:get'),
   saveSettings: invoke('settings:save'),
+  openSettings: invoke('settings:open'),
   todos: invoke('todos'),
-  todoAction: invoke('todo:action'),
-  schedule: invoke('schedule'),
-  clipboardHistory: invoke('clipboard:history'),
-  clipboardCopy: invoke('clipboard:copy'),
-  apps: invoke('apps'),
-  launchApp: invoke('apps:launch'),
-  stats: invoke('stats'),
-  power: invoke('power'),
   setMode: invoke('island:mode'),
   on: (channel, cb) => {
-    const allowed = ['hotkey', 'report', 'circle-image'];
+    const allowed = ['hotkey', 'report', 'circle-image', 'settings-changed'];
     if (!allowed.includes(channel)) return;
     ipcRenderer.on(channel, (_e, payload) => cb(payload));
   }

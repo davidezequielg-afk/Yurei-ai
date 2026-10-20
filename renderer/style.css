@@ -11,44 +11,36 @@ html, body { margin: 0; height: 100%; padding: 0 12px; background: transparent; 
 #bar { display: flex; align-items: center; gap: 8px; padding: 0 12px; min-height: 22px; cursor: pointer; }
 #status { flex: 1; color: #bbb; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .eye { width: 6px; height: 6px; border-radius: 50%; background: #6cf; box-shadow: 0 0 6px #6cf8; animation: breathe 3.2s ease-in-out infinite; }
-.listening .eye { background: #f55; box-shadow: 0 0 14px #f55a; animation-duration: .8s; }
-.thinking .eye { background: #fc6; box-shadow: 0 0 14px #fc6a; animation-duration: 1.2s; }
 @keyframes breathe { 50% { transform: scale(1.35); opacity: .75; } }
-button { background: #181818; color: #ddd; border: 1px solid #2a2a2a; border-radius: 8px; padding: 4px 10px; cursor: pointer; font: inherit; }
-button:hover { background: #242424; }
-input, textarea, select { background: #111; color: #eee; border: 1px solid #2a2a2a; border-radius: 8px; padding: 6px 8px; font: inherit; width: 100%; user-select: text; }
 #reply { padding: 0 12px 8px; font-size: 11px; color: #ddd; user-select: text; overflow: auto; }
-#panel { display: flex; flex-direction: column; flex: 1; min-height: 0; padding: 0 10px 10px; }
-#tabs { display: flex; gap: 2px; margin-bottom: 5px; }
-#tabs::-webkit-scrollbar { display: none; }
-#tabs button { flex: 1; min-width: 0; padding: 2px 0; font-size: 10px; border-radius: 6px; white-space: nowrap; }
-#tabs .on { background: #2b2f3a; border-color: #4a5170; }
-#views { flex: 1; min-height: 0; }
-.view { height: 100%; overflow: auto; }
-#chat { display: flex; flex-direction: column; }
-#log { flex: 1; overflow: auto; padding-bottom: 6px; user-select: text; }
-.msg { margin: 4px 0; padding: 6px 10px; border-radius: 10px; max-width: 88%; width: fit-content; }
-.msg.user { background: #1d2a44; margin-left: auto; }
-.msg.bot { background: #161616; }
-.msg.act { background: none; color: #888; font-size: 11px; padding: 0 10px; }
-#chatForm { display: flex; gap: 6px; }
-.row { display: flex; align-items: center; gap: 8px; padding: 5px 2px; border-bottom: 1px solid #161616; }
-.row .grow { flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.row.done .grow { text-decoration: line-through; color: #777; }
-.gauge { height: 8px; background: #181818; border-radius: 4px; overflow: hidden; margin: 4px 0 12px; }
-.gauge i { display: block; height: 100%; background: #6cf; }
-h4 { margin: 10px 0 4px; color: #999; font-weight: 600; text-transform: uppercase; font-size: 11px; letter-spacing: .06em; }
-label { display: block; margin: 8px 0 3px; color: #999; }
-.tiles { display: grid; grid-template-columns: repeat(4, 1fr); gap: 8px; }
-.tiles button { padding: 16px 0; }
-.thumb { max-height: 60px; border-radius: 6px; }
 
+/* barras del notch */
 #bars { display: none; align-items: center; gap: 3px; height: 14px; }
 #bars i { display: block; width: 3px; height: 14px; border-radius: 2px; background: #6cf; transform: scaleY(.15); transform-origin: center; }
 .listening #bars, .speaking #bars, .thinking #bars { display: flex; }
 .listening .eye, .speaking .eye, .thinking .eye { display: none; }
 .speaking #bars i { background: #fff; }
 .thinking #bars i { background: #fc6; }
-#micBtn.on { background: #5a1f1f; border-color: #a44; }
-#chatForm button { padding: 3px 8px; }
-#tabs button { font-size: 12px; padding: 2px 0; }
+
+/* panel de widgets: 3 lugares fijos */
+#panel { position: relative; flex: 1; min-height: 0; padding: 2px 10px 10px; }
+#widgets { display: grid; grid-template-columns: 1fr 1.25fr 1fr; gap: 8px; height: 100%; }
+.widget { background: #0d0d0d; border: 1px solid #1c1c1c; border-radius: 14px; padding: 8px 10px; display: flex; flex-direction: column; align-items: center; justify-content: center; min-height: 0; overflow: hidden; }
+#gear { position: absolute; top: -20px; right: 12px; background: none; border: 0; cursor: pointer; font-size: 12px; opacity: .6; padding: 2px; }
+#gear:hover { opacity: 1; }
+
+#orb { width: 46px; height: 46px; padding: 0; border: 0; border-radius: 50%; cursor: pointer; background: radial-gradient(circle at 35% 30%, #c9efff, #4aa8e8 60%, #1b5f96); box-shadow: 0 0 18px #4aa8e866; animation: breathe 3.2s ease-in-out infinite; }
+.listening #orb { background: radial-gradient(circle at 35% 30%, #ffd6d6, #f55 60%, #8a1f1f); box-shadow: 0 0 18px #f55a; animation-duration: .9s; }
+.speaking #orb { background: radial-gradient(circle at 35% 30%, #fff, #cfd8ff 60%, #6a78c8); box-shadow: 0 0 18px #cfd8ff99; }
+.thinking #orb { background: radial-gradient(circle at 35% 30%, #fff1c9, #fc6 60%, #a8741b); box-shadow: 0 0 18px #fc6a; animation-duration: 1.2s; }
+#wName { margin-top: 6px; font-weight: 600; font-size: 12px; }
+#wState { color: #888; font-size: 10px; }
+#wClock { font-size: 30px; font-weight: 600; letter-spacing: .02em; line-height: 1; }
+#wDate { margin-top: 6px; color: #9aa; }
+#wDate::first-letter { text-transform: uppercase; }
+#wTodos { align-items: stretch; justify-content: flex-start; }
+#wTodos h4 { margin: 0 0 2px; color: #888; font-weight: 600; text-transform: uppercase; font-size: 10px; letter-spacing: .06em; }
+#wTodoCount { font-size: 13px; font-weight: 600; margin-bottom: 4px; }
+#wTodoList { margin: 0; padding: 0; list-style: none; color: #bbb; }
+#wTodoList li { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+#wTodoList li::before { content: "• "; color: #4aa8e8; }

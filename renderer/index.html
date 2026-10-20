@@ -15,26 +15,22 @@
     </header>
     <section id="reply" hidden></section>
     <section id="panel" hidden>
-      <nav id="tabs">
-        <button data-tab="chat" title="Chat" class="on">💬</button>
-        <button data-tab="today" title="Hoy">📅</button>
-        <button data-tab="stats" title="Stats">📊</button>
-        <button data-tab="clip" title="Portapapeles">📋</button>
-        <button data-tab="apps" title="Apps">🧩</button>
-        <button data-tab="soul" title="Alma y ajustes">⚙️</button>
-        <button data-tab="power" title="Energía">⏻</button>
-      </nav>
-      <div id="views">
-        <div id="chat" class="view">
-          <div id="log"></div>
-          <form id="chatForm"><input id="chatInput" placeholder="Escribe…" autocomplete="off"><button type="button" id="micBtn" title="Hablar (Ctrl+Shift+Espacio)">🎤</button><button title="Enviar">➤</button></form>
+      <button id="gear" title="Ajustes">⚙️</button>
+      <div id="widgets">
+        <div class="widget" id="wYurei">
+          <button id="orb" title="Hablar con Yurei"></button>
+          <div id="wName">Yurei</div>
+          <div id="wState">Toca para hablar</div>
         </div>
-        <div id="today" class="view" hidden></div>
-        <div id="stats" class="view" hidden></div>
-        <div id="clip" class="view" hidden></div>
-        <div id="apps" class="view" hidden></div>
-        <div id="soul" class="view" hidden></div>
-        <div id="power" class="view" hidden></div>
+        <div class="widget" id="wTime">
+          <div id="wClock">--:--</div>
+          <div id="wDate"></div>
+        </div>
+        <div class="widget" id="wTodos">
+          <h4>Pendientes</h4>
+          <div id="wTodoCount">…</div>
+          <ul id="wTodoList"></ul>
+        </div>
       </div>
     </section>
   </div>

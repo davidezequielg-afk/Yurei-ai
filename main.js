@@ -1,17 +1,17 @@
 const path = require('path');
-const { app, BrowserWindow, globalShortcut, ipcMain, screen, clipboard, shell, desktopCapturer, Notification, nativeImage } = require('electron');
+const { app, BrowserWindow, globalShortcut, ipcMain, screen, clipboard, shell, desktopCapturer, Notification } = require('electron');
 const { createStore } = require('./src/store');
 const { createSystem } = require('./src/system');
 const { createTools } = require('./src/tools');
 const { createAssistant } = require('./src/assistant');
 const { createScheduler } = require('./src/scheduler');
 
-const MODES = { idle: [120, 22], status: [260, 60], peek: [567, 132], full: [640, 244] };
+const MODES = { idle: [120, 22], status: [260, 60], peek: [567, 132] };
 const HOTKEYS = { talk: 'Control+Shift+Space', dictate: 'Control+Alt+D', circle: 'Control+Shift+C' };
 
 let win = null;
 let overlay = null;
-let clipHistory = [];
+let settingsWin = null;
 
 function placeIsland(mode) {
   const [w, h] = MODES[mode] || MODES.idle;
@@ -32,19 +32,14 @@ function createWindow() {
   win.webContents.setWindowOpenHandler(() => ({ action: 'deny' }));
 }
 
-function pollClipboard() {
-  let last = '';
-  setInterval(() => {
-    const text = clipboard.readText();
-    const img = text ? null : clipboard.readImage();
-    const key = text || (img && !img.isEmpty() ? `img:${img.getSize().width}x${img.getSize().height}:${img.toBitmap().length}` : '');
-    if (!key || key === last) return;
-    last = key;
-    const item = text
-      ? { kind: /^https?:\/\/\S+$/.test(text.trim()) ? 'link' : 'text', value: text.slice(0, 2000), at: Date.now() }
-      : { kind: 'image', value: img.resize({ width: 160 }).toDataURL(), at: Date.now() };
-    clipHistory = [item, ...clipHistory.filter((c) => c.value !== item.value)].slice(0, 50);
-  }, 800);
+function openSettings() {
+  if (settingsWin) { settingsWin.focus(); return; }
+  settingsWin = new BrowserWindow({
+    width: 460, height: 680, title: 'Yurei · Ajustes', autoHideMenuBar: true, backgroundColor: '#101114',
+    webPreferences: { preload: path.join(__dirname, 'preload.js'), contextIsolation: true, nodeIntegration: false, sandbox: true }
+  });
+  settingsWin.loadFile(path.join(__dirname, 'renderer/settings.html'));
+  settingsWin.on('closed', () => { settingsWin = null; });
 }
 
 async function startCircle() {
@@ -94,7 +89,6 @@ app.whenReady().then(() => {
   });
 
   createWindow();
-  pollClipboard();
   scheduler.start();
 
   for (const [name, accel] of Object.entries(HOTKEYS)) {
@@ -123,26 +117,11 @@ app.whenReady().then(() => {
     if ('wakeWord' in clean) clean.wakeWord = clean.wakeWord === true;
     if ('conversationSeconds' in clean) clean.conversationSeconds = Math.max(5, Math.min(120, Number(clean.conversationSeconds) || 20));
     store.updateSettings(clean);
+    win?.webContents.send('settings-changed', settingsView());
     return settingsView();
   }));
   ipcMain.handle('todos', safe(() => store.get('todos')));
-  ipcMain.handle('todo:action', safe(async (_e, { action, ref, text }) => {
-    const map = { add: ['add_todo', { text }], done: ['complete_todo', { ref }], remove: ['remove_todo', { ref }] };
-    if (!map[action]) throw new Error('Acción no válida');
-    return tools.execute(...map[action]);
-  }));
-  ipcMain.handle('schedule', safe(() => tools.execute('list_schedule')));
-  ipcMain.handle('clipboard:history', safe(() => clipHistory));
-  ipcMain.handle('clipboard:copy', safe((_e, i) => {
-    const item = clipHistory[i];
-    if (!item) return;
-    if (item.kind === 'image') clipboard.writeImage(nativeImage.createFromDataURL(item.value));
-    else clipboard.writeText(item.value);
-  }));
-  ipcMain.handle('apps', safe(() => system.listApps()));
-  ipcMain.handle('apps:launch', safe((_e, name) => system.launchApp(name)));
-  ipcMain.handle('stats', safe(() => system.stats()));
-  ipcMain.handle('power', safe((_e, action) => tools.execute('power_action', { action, confirmed: true })));
+  ipcMain.handle('settings:open', safe(() => openSettings()));
   ipcMain.handle('island:mode', safe((_e, mode) => placeIsland(mode)));
 });
 
