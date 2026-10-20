@@ -130,6 +130,10 @@ function createSystem({ shell, clipboard, dataDir = os.tmpdir(), confirm = async
       spawnImpl(cmd, args, { detached: true, stdio: 'ignore', windowsHide: true }).unref();
     },
 
+    // Portapapeles: solo se lee cuando el usuario lo pide ("resume lo que copié").
+    readClipboard: () => clipboard.readText(),
+    writeClipboard: (text) => clipboard.writeText(text),
+
     // Escribe en el portapapeles y envía Ctrl+V a la ventana activa.
     async pasteText(text) {
       const previous = clipboard.readText(); // se devuelve lo que el usuario tenía copiado: dictar no debe pisarle el portapapeles

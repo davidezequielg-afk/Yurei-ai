@@ -548,7 +548,7 @@ async function say(text) {
     }
     if (token === voice.token) await sleep(TAIL_MS); // que se apague el eco antes de volver a escuchar
   } finally {
-    if (token === voice.token) setPhase(conv.active ? 'listening' : '', conv.active ? 'Te escucho' : 'Yurei');
+    if (token === voice.token) setPhase(conv.active ? 'listening' : '', conv.active ? listenLabel() : 'Yurei');
   }
 }
 
@@ -614,6 +614,7 @@ function showReply(text) {
 /* ---------- conversación manos libres ---------- */
 
 const conv = { active: false, timer: null, busy: false, turns: 0 }; // turns: cuántas preguntas van en esta conversación
+const listenLabel = () => (state.translator ? `Traduciendo → ${state.translator}` : 'Te escucho');
 
 // ¿Es un saludo para arrancar la charla ("hola, ¿cómo estás?")? Con audio no hay texto: un primer mensaje muy corto cuenta como saludo.
 const GREETING = /^[\s¡!¿,.]*(hola|holi|buenas|buen d[ií]a|buenos d[ií]as|buenas tardes|buenas noches|hey|ey|qu[eé] tal|c[oó]mo (est[aá]s|and[aá]s|va))\b/i;
@@ -621,6 +622,7 @@ const isGreeting = ({ text, seconds }) => (text ? GREETING.test(text) && text.le
 
 function wakeIdle() {
   conv.active = false;
+  if (state.translator) { state.translator = null; window.yurei.translatorOff(); } // al terminar la charla se apaga el traductor
   state.pendingImage = null; // una captura de pantalla vieja no debe viajar con una pregunta posterior
   
   clearTimeout(conv.timer);
@@ -651,7 +653,7 @@ async function enterConversation() {
   warmAudio();
   if (!conv.active) conv.turns = 0; // conversación nueva: el primer turno (saludo) vuelve a ir sin relleno
   conv.active = true;
-  setPhase('listening', 'Te escucho');
+  setPhase('listening', listenLabel());
   armConversationTimeout();
 }
 
@@ -665,7 +667,7 @@ async function handleUtterance({ b64, seconds }) {
       state.pendingImage = null;
       await handleAsk({ audioB64: b64, imageB64: image || undefined }, image ? '🎤 (voz + captura)' : '🎤 (voz)', isGreeting({ seconds }));
       if (conv.active) {
-        setPhase('listening', 'Te escucho');
+        setPhase('listening', listenLabel());
         armConversationTimeout();
       }
       return;
@@ -678,7 +680,7 @@ async function handleUtterance({ b64, seconds }) {
     if (r.data.command) {
       clearTimeout(conv.timer);
       await handleAsk({ text: r.data.command }, r.data.command, isGreeting({ text: r.data.command }));
-      if (conv.active) { setPhase('listening', 'Te escucho'); armConversationTimeout(); }
+      if (conv.active) { setPhase('listening', listenLabel()); armConversationTimeout(); }
     }
   } finally {
     conv.busy = false;
@@ -694,14 +696,15 @@ async function handleAsk(payload, userLabel, greeting = false) {
   // responder, la charla sigue sola (manos libres). Si arranca con una pregunta directa, sí lleva relleno.
   const quiet = conv.turns === 0 && greeting;
   conv.turns += 1;
-  const stopFillers = quiet ? () => {} : startFillers();
+  const stopFillers = quiet || state.translator ? () => {} : startFillers(); // traduciendo no hay "mmm, déjame ver"
   const r = await window.yurei.ask(payload);
   stopFillers();
   if (!r.ok) {
-    setPhase(conv.active ? 'listening' : '', conv.active ? 'Te escucho' : 'Yurei');
+    setPhase(conv.active ? 'listening' : '', conv.active ? listenLabel() : 'Yurei');
     log('bot', `⚠ ${r.error}`);
     showReply(`⚠ ${r.error}`);
   } else {
+    state.translator = r.data.translator || null;
     r.data.actions.forEach((a) => log('act', `⚙ ${a.name}${a.result?.error ? ` — ${a.result.error}` : ''}`));
     log('bot', r.data.reply);
     showReply(r.data.reply);

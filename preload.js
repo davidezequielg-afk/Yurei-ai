@@ -6,6 +6,7 @@ contextBridge.exposeInMainWorld('yurei', {
   ask: invoke('ask'),
   dictate: invoke('dictate'),
   wake: invoke('wake'),
+  translatorOff: invoke('translator:off'),
   tts: invoke('tts'),
   getSettings: invoke('settings:get'),
   saveSettings: invoke('settings:save'),

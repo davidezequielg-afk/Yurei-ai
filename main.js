@@ -302,6 +302,7 @@ function start() {
     if (text) { win?.blur(); await system.pasteText(text); }
     return text;
   });
+  handle('translator:off', () => { tools.session.translator = null; });
   handle('wake', (_e, audioB64) => assistant.wake(S.validateAudio(audioB64)));
   handle('tts', (_e, text, opts) => {
     if (typeof text !== 'string' || !text.trim()) throw new Error('Texto no válido');
