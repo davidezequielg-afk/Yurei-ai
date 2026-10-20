@@ -6,7 +6,7 @@ const el = (tag, props = {}, ...kids) => {
   return n;
 };
 
-const state = { mode: 'idle', recording: null, pendingImage: null, autoStop: null, soul: 'Yurei', stateText: 'Toca para hablar', layout: ['yurei', 'clock', 'todos'], city: '', fillers: true, fillerPhrases: [], hasKey: false };
+const state = { mode: 'idle', recording: null, pendingImage: null, autoStop: null, soul: 'Yurei', stateText: 'Toca para hablar', layout: ['yurei', 'clock', 'todos'], launcher: [null, null, null, null], city: '', fillers: true, fillerPhrases: [], hasKey: false };
 
 const isPanel = (m) => m === 'peek';
 
@@ -35,6 +35,29 @@ const gauge = (label) => {
   const fill = el('i');
   return { txt, fill, nodes: [txt, el('div', { className: 'gauge' }, fill)] };
 };
+
+const iconCache = new Map(); // clave → dataURL | null
+
+async function appIcon(item) {
+  const key = `${item.kind}|${item.target}`;
+  if (!iconCache.has(key)) {
+    const r = await window.yurei.launcherIcon(item);
+    iconCache.set(key, r.ok ? r.data : null);
+  }
+  return iconCache.get(key);
+}
+
+function filledCell(item, i) {
+  const art = el('span', { className: 'tile', textContent: item.name[0].toUpperCase() });
+  appIcon(item).then((src) => { if (src) art.replaceWith(el('img', { src, alt: '' })); });
+  const remove = el('span', { className: 'x', title: 'Quitar', onclick: (e) => { e.stopPropagation(); window.yurei.launcherClear(i); } }, window.icon('close', 10));
+  return el('button', { className: 'cell', title: `Abrir ${item.name}`, onclick: () => window.yurei.launcherOpen(i) }, art, el('span', { className: 'cl', textContent: item.name }), remove);
+}
+
+function emptyCell(i) {
+  return el('button', { className: 'cell empty', title: 'Añadir una app', onclick: () => window.yurei.pickerOpen(i) },
+    el('span', { className: 'plus' }, window.icon('plus', 14)), el('span', { className: 'cl', textContent: 'Añadir' }));
+}
 
 const WIDGETS = {
   yurei: {
@@ -235,6 +258,16 @@ const WIDGETS = {
       r.icon.replaceChildren(window.icon(r.muted ? 'mute' : 'volume', 20));
       r.pct.textContent = `${res.data.volume}%`;
       r.slider.value = res.data.volume;
+    }
+  },
+
+  apps: {
+    build(c) {
+      c.classList.add('apps');
+      const grid = el('div', { className: 'appGrid' });
+      c.append(grid);
+      state.launcher.forEach((item, i) => grid.append(item ? filledCell(item, i) : emptyCell(i)));
+      return { grid };
     }
   },
 
@@ -684,9 +717,11 @@ function applySettings(cfg) {
   if (wn) wn.textContent = state.soul;
   const layoutChanged = cfg.widgets && JSON.stringify(cfg.widgets) !== JSON.stringify(state.layout);
   const cityChanged = (cfg.city || '') !== state.city;
+  const launcherChanged = JSON.stringify(cfg.launcher || []) !== JSON.stringify(state.launcher);
+  if (cfg.launcher) state.launcher = cfg.launcher;
   if (cfg.widgets) state.layout = cfg.widgets;
   state.city = cfg.city || '';
-  if (isPanel(state.mode) && (layoutChanged || cityChanged)) buildWidgets();
+  if (isPanel(state.mode) && (layoutChanged || cityChanged || (launcherChanged && state.layout.includes('apps')))) buildWidgets();
   if (cfg.wakeWord) ensureListening();
   else if (!conv.active) Listener.stop();
 }

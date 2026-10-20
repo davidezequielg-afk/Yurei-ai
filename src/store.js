@@ -12,6 +12,7 @@ const DEFAULTS = {
     systemVoice: false,
     abilities: [],
     wakeWord: false,
+    launcher: [null, null, null, null],
     theme: 'dark',
     customBg: '#101114',
     customAccent: '#6cb8f0',

@@ -1,6 +1,7 @@
 // Herramientas que Gemini puede invocar. `system` abstrae todo lo que toca el SO.
 
 const { CATALOG, setWidget, DEFAULT_LAYOUT, unavailableWidgets } = require('./widgets');
+const { SLOTS, normalizeLauncher, resolveByName, setSlot, firstFree, sanitizeItem } = require('./launcher');
 
 const SITES = {
   youtube: 'https://www.youtube.com/results?search_query=%s',
@@ -39,6 +40,8 @@ const declarations = [
   { name: 'mute_volume', description: 'Silencia o reactiva el sonido del sistema.', parameters: { type: 'OBJECT', properties: { mute: { type: 'BOOLEAN', description: 'true para silenciar, false para reactivar' } }, required: ['mute'] } },
   { name: 'media_control', description: 'Controla lo que se está reproduciendo (música, video, YouTube, Spotify…): pausar, reanudar, alternar, siguiente, anterior, retroceder o adelantar unos segundos.', parameters: { type: 'OBJECT', properties: { action: { type: 'STRING', enum: ['play', 'pause', 'toggle', 'next', 'previous', 'rewind', 'forward'], description: 'Acción' }, seconds: { type: 'NUMBER', description: 'Segundos para rewind/forward (por defecto 10)' } }, required: ['action'] } },
   { name: 'now_playing', description: 'Dice qué se está reproduciendo ahora (título, artista, app y si está en pausa).', parameters: { type: 'OBJECT', properties: {} } },
+  { name: 'add_launcher_app', description: 'Agrega una app o web al widget "Mis apps" (4 lugares). Sirve para WhatsApp, Instagram, Chrome, Discord, Spotify, YouTube, etc. Si no está instalada se usa su versión web. También acepta una dirección web propia.', parameters: { type: 'OBJECT', properties: { name: str('Nombre de la app, p. ej. WhatsApp'), url: str('Solo si es una web que no es conocida'), slot: { type: 'NUMBER', description: 'Lugar del 1 al 4 (si no se dice, el primero libre)' } }, required: ['name'] } },
+  { name: 'remove_launcher_app', description: 'Quita una app del widget "Mis apps" por nombre o por lugar (1 a 4).', parameters: { type: 'OBJECT', properties: { name: str('Nombre de la app'), slot: { type: 'NUMBER', description: 'Lugar del 1 al 4' } } } },
   { name: 'set_widget', description: `Cambia el widget de uno de los 3 lugares fijos del panel (izquierda, centro, derecha). Widgets: ${CATALOG.map((w) => `${w.id} (${w.name})`).join(', ')}. Si el widget ya estaba en otro lugar, intercambian lugares.`, parameters: { type: 'OBJECT', properties: { slot: { type: 'STRING', enum: ['izquierda', 'centro', 'derecha'], description: 'Lugar' }, widget: { type: 'STRING', enum: CATALOG.map((w) => w.id), description: 'Widget a mostrar' } }, required: ['slot', 'widget'] } },
   { name: 'set_city', description: 'Guarda la ciudad para el widget del clima.', parameters: { type: 'OBJECT', properties: { city: str('Nombre de la ciudad') }, required: ['city'] } },
   { name: 'read_clipboard', description: 'Lee el texto actual del portapapeles.', parameters: { type: 'OBJECT', properties: {} } }
@@ -178,6 +181,24 @@ function createTools({ store, system, now = () => new Date() }) {
       if (confirmed !== true) return { executed: false, message: 'Pide confirmación al usuario y vuelve a llamar con confirmed=true.' };
       await system.power(action);
       return { executed: true, action };
+    },
+    add_launcher_app: ({ name, url, slot }) => {
+      const current = store.get('settings').launcher;
+      let item = url ? sanitizeItem({ kind: 'url', name, target: url }) : resolveByName(name, system.listApps?.() || []);
+      if (!item) throw new Error(`No encontré "${name}". Dime su dirección web o ábrela desde el + del widget.`);
+      const i = slot ? Number(slot) - 1 : firstFree(current);
+      if (i < 0) throw new Error(`Los ${SLOTS} lugares están ocupados: quita una app primero`);
+      const launcher = setSlot(current, i, item);
+      store.updateSettings({ launcher });
+      return { slot: i + 1, app: launcher[i] };
+    },
+    remove_launcher_app: ({ name, slot }) => {
+      const current = normalizeLauncher(store.get('settings').launcher);
+      const i = slot ? Number(slot) - 1 : current.findIndex((x) => x && x.name.toLowerCase().includes(String(name || '').toLowerCase()) && name);
+      if (!Number.isInteger(i) || i < 0 || !current[i]) throw new Error('No encontré esa app en el widget');
+      const removed = current[i];
+      store.updateSettings({ launcher: setSlot(current, i, null) });
+      return { removed };
     },
     set_widget: ({ slot, widget }) => {
       const current = store.get('settings').widgets || DEFAULT_LAYOUT;

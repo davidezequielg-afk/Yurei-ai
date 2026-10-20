@@ -8,6 +8,8 @@ const ICONS = {
   pause: '<rect x="6.5" y="5" width="3.6" height="14" rx="1" fill="currentColor" stroke="none"/><rect x="13.9" y="5" width="3.6" height="14" rx="1" fill="currentColor" stroke="none"/>',
   rewind: '<path d="M11 7l-7 5 7 5z"/><path d="M20 7l-7 5 7 5z"/>',
   forward: '<path d="M13 7l7 5-7 5z"/><path d="M4 7l7 5-7 5z"/>',
+  plus: '<path d="M12 6v12M6 12h12"/>',
+  close: '<path d="M7 7l10 10M17 7L7 17"/>',
   settings: '<path d="M4 7h9"/><path d="M17 7h3"/><circle cx="15" cy="7" r="2"/><path d="M4 17h3"/><path d="M11 17h9"/><circle cx="9" cy="17" r="2"/>',
   plug: '<path d="M9 3v5"/><path d="M15 3v5"/><path d="M6 8h12v3a6 6 0 0 1-12 0z"/><path d="M12 17v4"/>',
   sun: '<circle cx="12" cy="12" r="4"/><path d="M12 2.5v2.5M12 19v2.5M2.5 12H5M19 12h2.5M5.3 5.3l1.8 1.8M16.9 16.9l1.8 1.8M5.3 18.7l1.8-1.8M16.9 7.1l1.8-1.8"/>',

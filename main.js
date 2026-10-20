@@ -7,6 +7,7 @@ const { createAssistant } = require('./src/assistant');
 const { createScheduler } = require('./src/scheduler');
 const { createTtsCache } = require('./src/ttscache');
 const { THEMES, TRANSPARENCY, HEX, resolveAppearance } = require('./src/theme');
+const L = require('./src/launcher');
 const { validateLayout, createWeather, nextSchedule, unavailableWidgets, sanitizeLayout, catalogFor } = require('./src/widgets');
 
 const MODES = { idle: [120, 22], status: [260, 60], peek: [567, 132] };
@@ -15,6 +16,7 @@ const HOTKEYS = { talk: 'Control+Shift+Space', dictate: 'Control+Alt+D', circle:
 let win = null;
 let overlay = null;
 let settingsWin = null;
+let pickerWin = null;
 
 function placeIsland(mode) {
   const [w, h] = MODES[mode] || MODES.idle;
@@ -43,6 +45,16 @@ function openSettings() {
   });
   settingsWin.loadFile(path.join(__dirname, 'renderer/settings.html'));
   settingsWin.on('closed', () => { settingsWin = null; });
+}
+
+function openPicker(slot) {
+  if (pickerWin) pickerWin.close();
+  pickerWin = new BrowserWindow({
+    width: 400, height: 560, title: 'Yurei · Elegir app', autoHideMenuBar: true, backgroundColor: '#101114',
+    webPreferences: { preload: path.join(__dirname, 'preload.js'), contextIsolation: true, nodeIntegration: false, sandbox: true }
+  });
+  pickerWin.loadFile(path.join(__dirname, 'renderer/picker.html'), { query: { slot: String(slot) } });
+  pickerWin.on('closed', () => { pickerWin = null; });
 }
 
 async function startCircle() {
@@ -136,8 +148,53 @@ app.whenReady().then(() => {
   setInterval(pollTransparency, 10000);
   ipcMain.handle('appearance:get', () => ({ ok: true, data: currentAppearance() }));
 
+  // --- accesos a apps (4 lugares) ---
+  let installedCache = null;
+  let installedAt = 0;
+  const installed = () => {
+    if (!installedCache || Date.now() - installedAt > 60000) { installedCache = system.listApps(); installedAt = Date.now(); }
+    return installedCache;
+  };
+  const iconCache = createTtsCache(path.join(app.getPath('userData'), 'icon-cache')); // guarda el icono (base64) de cada web
+  const iconFor = async (item) => {
+    if (item.kind === 'app') {
+      const img = await app.getFileIcon(item.target, { size: 'large' });
+      return img.isEmpty() ? null : img.toDataURL();
+    }
+    const host = new URL(item.target).hostname;
+    return iconCache.getOrCreate(`icon|${host}`, async () => {
+      const res = await fetch(`https://www.google.com/s2/favicons?domain=${encodeURIComponent(host)}&sz=64`);
+      if (!res.ok) throw new Error(`icono ${res.status}`);
+      return `data:image/png;base64,${Buffer.from(await res.arrayBuffer()).toString('base64')}`;
+    });
+  };
+  const saveLauncher = (launcher) => {
+    store.updateSettings({ launcher });
+    win?.webContents.send('settings-changed', settingsView());
+  };
+  ipcMain.handle('launcher:data', safe(() => ({ installed: installed(), suggestions: L.SUGGESTIONS.map((x) => L.resolveSuggestion(x, installed())) })));
+  ipcMain.handle('launcher:set', safe((_e, slot, item) => {
+    const clean = L.sanitizeItem(item);
+    if (!clean || !L.isAllowed(clean, installed())) throw new Error('App no válida');
+    saveLauncher(L.setSlot(store.get('settings').launcher, slot, clean));
+  }));
+  ipcMain.handle('launcher:clear', safe((_e, slot) => saveLauncher(L.setSlot(store.get('settings').launcher, slot, null))));
+  ipcMain.handle('launcher:open', safe(async (_e, slot) => {
+    const item = L.normalizeLauncher(store.get('settings').launcher)[Number(slot)];
+    if (!item) throw new Error('Lugar vacío');
+    if (item.kind === 'url') return shell.openExternal(item.target);
+    if (!L.isAllowed(item, installed())) throw new Error('Esa app ya no está instalada');
+    const err = await shell.openPath(item.target);
+    if (err) throw new Error(err);
+  }));
+  ipcMain.handle('launcher:icon', safe(async (_e, item) => {
+    const clean = L.sanitizeItem(item);
+    return clean && L.isAllowed(clean, installed()) ? iconFor(clean) : null;
+  }));
+  ipcMain.handle('picker:open', safe((_e, slot) => openPicker(Number(slot))));
+
   const unavailable = () => unavailableWidgets({ hasBattery: system.hasBattery(), hasMedia: system.hasMediaControl() });
-  const settingsView = () => ({ ...store.get('settings'), apiKey: store.get('settings').apiKey ? '••••••••' : '', widgets: sanitizeLayout(store.get('settings').widgets, unavailable()), widgetCatalog: catalogFor(unavailable()) });
+  const settingsView = () => ({ ...store.get('settings'), apiKey: store.get('settings').apiKey ? '••••••••' : '', launcher: L.normalizeLauncher(store.get('settings').launcher), widgets: sanitizeLayout(store.get('settings').widgets, unavailable()), widgetCatalog: catalogFor(unavailable()) });
 
   ipcMain.handle('ask', safe(async (_e, payload) => {
     const out = await assistant.ask(payload);
@@ -161,6 +218,7 @@ app.whenReady().then(() => {
     const clean = { ...patch };
     if (clean.apiKey === '••••••••') delete clean.apiKey;
     delete clean.widgetCatalog;
+    delete clean.launcher; // solo se cambia con los controles del widget (se valida allí)
     if ('widgets' in clean) clean.widgets = validateLayout(clean.widgets, unavailable());
     if ('city' in clean) clean.city = String(clean.city || '').trim().slice(0, 80);
     if ('theme' in clean && !THEMES.includes(clean.theme)) clean.theme = 'dark';

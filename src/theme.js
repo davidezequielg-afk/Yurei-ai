@@ -55,8 +55,8 @@ function resolveAppearance(settings = {}, system = {}) {
       '--bg-solid': bg,
       '--ink': ink,
       '--ink2': mix(ink, bg, 0.25),
-      '--mute': mix(ink, bg, 0.55),
-      '--faint': mix(ink, bg, 0.75),
+      '--mute': mix(ink, bg, 0.38),
+      '--faint': mix(ink, bg, 0.6),
       '--line': mix(ink, bg, 0.9),
       '--track': mix(ink, bg, 0.88),
       '--accent': accent

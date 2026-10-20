@@ -14,6 +14,12 @@ contextBridge.exposeInMainWorld('yurei', {
   todos: invoke('todos'),
   widgetData: invoke('widget:data'),
   widgetAction: invoke('widget:action'),
+  launcherData: invoke('launcher:data'),
+  launcherSet: invoke('launcher:set'),
+  launcherClear: invoke('launcher:clear'),
+  launcherOpen: invoke('launcher:open'),
+  launcherIcon: invoke('launcher:icon'),
+  pickerOpen: invoke('picker:open'),
   setMode: invoke('island:mode'),
   on: (channel, cb) => {
     const allowed = ['hotkey', 'report', 'circle-image', 'settings-changed', 'appearance'];

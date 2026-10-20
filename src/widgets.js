@@ -10,7 +10,8 @@ const CATALOG = [
   { id: 'calendar', name: 'Calendario del mes' },
   { id: 'battery', name: 'Batería' },
   { id: 'media', name: 'Reproduciendo (música y video)' },
-  { id: 'volume', name: 'Volumen' }
+  { id: 'volume', name: 'Volumen' },
+  { id: 'apps', name: 'Mis apps (4 accesos)' }
 ];
 
 const DEFAULT_LAYOUT = ['yurei', 'clock', 'todos'];

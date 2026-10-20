@@ -63,6 +63,27 @@ function createSystem({ shell, clipboard, dataDir = os.tmpdir() }) {
         resolve(m ? parseInt(m[1], 16) !== 0 : null);
       });
     }),
+    // Apps instaladas = accesos del menú Inicio (.lnk), sin desinstaladores ni ayudas
+    listApps() {
+      if (!isWin) return [];
+      const roots = [
+        path.join(process.env.ProgramData || 'C:\\ProgramData', 'Microsoft/Windows/Start Menu/Programs'),
+        path.join(process.env.APPDATA || '', 'Microsoft/Windows/Start Menu/Programs')
+      ];
+      const skip = /uninstall|desinstal|readme|l[eé]eme|\bhelp\b|ayuda|manual|license|licencia/i;
+      const apps = new Map();
+      const walk = (dir) => {
+        let entries = [];
+        try { entries = fs.readdirSync(dir, { withFileTypes: true }); } catch { return; }
+        for (const e of entries) {
+          const full = path.join(dir, e.name);
+          if (e.isDirectory()) walk(full);
+          else if (e.name.toLowerCase().endsWith('.lnk') && !skip.test(e.name)) apps.set(e.name.slice(0, -4), full);
+        }
+      };
+      roots.forEach(walk);
+      return [...apps].map(([name, file]) => ({ name, file })).sort((a, b) => a.name.localeCompare(b.name));
+    },
     hasMediaControl: () => isWin,
     getVolume: () => win().request('vol.get'),
     setVolume: (level) => win().request('vol.set', level),
