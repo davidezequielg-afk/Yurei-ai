@@ -5,6 +5,7 @@ const { createSystem } = require('./src/system');
 const { createTools } = require('./src/tools');
 const { createAssistant } = require('./src/assistant');
 const { createScheduler } = require('./src/scheduler');
+const { createTtsCache } = require('./src/ttscache');
 const { validateLayout, createWeather, nextSchedule, unavailableWidgets, sanitizeLayout, catalogFor } = require('./src/widgets');
 
 const MODES = { idle: [120, 22], status: [260, 60], peek: [567, 132] };
@@ -82,6 +83,7 @@ app.whenReady().then(() => {
   const tools = createTools({ store, system });
   const assistant = createAssistant({ store, tools });
   const weather = createWeather();
+  const ttsCache = createTtsCache(path.join(app.getPath('userData'), 'tts-cache'));
   const scheduler = createScheduler({
     store, tools,
     report: (r) => {
@@ -123,7 +125,12 @@ app.whenReady().then(() => {
     if (text) { win.blur(); await system.pasteText(text); }
     return text;
   }));
-  ipcMain.handle('tts', safe((_e, text) => assistant.speak(String(text).slice(0, 1500))));
+  ipcMain.handle('tts', safe((_e, text, opts = {}) => {
+    const t = String(text).slice(0, 1500);
+    if (!opts.cache) return assistant.speak(t); // las frases de relleno se guardan en disco por voz y modelo
+    const { voice, ttsModel } = store.get('settings');
+    return ttsCache.getOrCreate(`${ttsModel}|${voice || 'Kore'}|${t}`, () => assistant.speak(t));
+  }));
   ipcMain.handle('wake', safe((_e, audioB64) => assistant.wake(audioB64)));
   ipcMain.handle('settings:get', safe(() => settingsView()));
   ipcMain.handle('settings:save', safe((_e, patch) => {
@@ -132,6 +139,8 @@ app.whenReady().then(() => {
     delete clean.widgetCatalog;
     if ('widgets' in clean) clean.widgets = validateLayout(clean.widgets, unavailable());
     if ('city' in clean) clean.city = String(clean.city || '').trim().slice(0, 80);
+    if ('fillers' in clean) clean.fillers = clean.fillers === true;
+    if ('fillerPhrases' in clean) clean.fillerPhrases = (Array.isArray(clean.fillerPhrases) ? clean.fillerPhrases : []).map((x) => String(x).trim().slice(0, 80)).filter(Boolean).slice(0, 20);
     if ('wakeWord' in clean) clean.wakeWord = clean.wakeWord === true;
     if ('conversationSeconds' in clean) clean.conversationSeconds = Math.max(5, Math.min(120, Number(clean.conversationSeconds) || 20));
     store.updateSettings(clean);

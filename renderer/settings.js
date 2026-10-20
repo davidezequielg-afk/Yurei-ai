@@ -17,6 +17,8 @@ const el = (tag, props = {}, ...kids) => {
   const sysVoice = el('input', { type: 'checkbox', checked: !!s.systemVoice });
   const wake = el('input', { type: 'checkbox', checked: !!s.wakeWord });
   const convSecs = el('input', { type: 'number', min: 5, max: 120, value: s.conversationSeconds || 20 });
+  const fillers = el('input', { type: 'checkbox', checked: s.fillers !== false });
+  const fillerPhrases = el('textarea', { rows: 3, value: (s.fillerPhrases || []).join('\n'), placeholder: 'Una frase por línea. Vacío = las de por defecto ("A ver…", "Un segundo…")' });
   const abil = el('textarea', { rows: 3, value: (s.abilities || []).join('\n'), placeholder: 'Una instrucción por línea, p. ej. "Cuando diga \'modo cine\' baja el volumen a 20"' });
   const catalog = s.widgetCatalog || [];
   const layout = s.widgets || ['yurei', 'clock', 'todos'];
@@ -27,7 +29,7 @@ const el = (tag, props = {}, ...kids) => {
     onclick: async () => {
       const r = await window.yurei.saveSettings({
         apiKey: key.value, model: model.value.trim(), soul: soul.value.trim() || 'Yurei', personality: pers.value,
-        voice: voiceSel.value, systemVoice: sysVoice.checked, wakeWord: wake.checked,
+        voice: voiceSel.value, fillers: fillers.checked, fillerPhrases: fillerPhrases.value.split('\n'), systemVoice: sysVoice.checked, wakeWord: wake.checked,
         conversationSeconds: Number(convSecs.value) || 20,
         widgets: slotSel.map((x) => x.value), city: city.value,
         abilities: abil.value.split('\n').map((x) => x.trim()).filter(Boolean)
@@ -43,6 +45,8 @@ const el = (tag, props = {}, ...kids) => {
     ...field('Voz (Gemini, natural y expresiva)', voiceSel),
     el('label', { className: 'check' }, sysVoice, 'Usar la voz del sistema (robótica, pero no gasta cuota)'),
     el('label', { className: 'check' }, wake, 'Escuchar siempre mi nombre (manos libres). El micrófono queda abierto y los fragmentos con voz se envían a Google para detectar el nombre.'),
+    el('label', { className: 'check' }, fillers, 'Decir frases mientras pienso ("mmm, déjame ver…") para que la charla fluya'),
+    ...field('Frases de relleno propias', fillerPhrases),
     ...field('Segundos de conversación abierta', convSecs),
     el('h2', { textContent: 'Widgets del panel' }),
     ...field('Lugar izquierdo', slotSel[0]), ...field('Lugar central', slotSel[1]), ...field('Lugar derecho', slotSel[2]),

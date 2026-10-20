@@ -6,7 +6,7 @@ const el = (tag, props = {}, ...kids) => {
   return n;
 };
 
-const state = { mode: 'idle', recording: null, pendingImage: null, autoStop: null, soul: 'Yurei', stateText: 'Toca para hablar', layout: ['yurei', 'clock', 'todos'], city: '' };
+const state = { mode: 'idle', recording: null, pendingImage: null, autoStop: null, soul: 'Yurei', stateText: 'Toca para hablar', layout: ['yurei', 'clock', 'todos'], city: '', fillers: true, fillerPhrases: [], hasKey: false };
 
 const isPanel = (m) => m === 'peek';
 
@@ -267,7 +267,7 @@ function animateBars() {
 
 /* ---------- voz ---------- */
 
-const voice = { token: 0, ctx: null, sources: [], analyser: null, fake: false, head: 0 };
+const voice = { token: 0, ctx: null, sources: [], analyser: null, fake: false, head: 0, filler: false };
 const FADE_MS = 8; // fundido de entrada/salida de cada trozo: evita el clic al cortar el audio en seco
 const TAIL_MS = 350; // espera tras hablar antes de volver a escuchar (no oírse a sí mismo)
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
@@ -375,7 +375,8 @@ function speakSystem(text) {
 // Habla y resuelve al terminar, para no escucharse a sí mismo.
 async function say(text) {
   if (!text) return;
-  stopSpeaking();
+  if (voice.filler) voice.token++; // hay un "mmm, déjame ver" sonando: la respuesta se encola detrás sin cortarlo
+  else stopSpeaking();
   const token = voice.token;
   voice.fake = false;
   setPhase('speaking', 'Hablando');
@@ -394,6 +395,54 @@ async function say(text) {
   } finally {
     if (token === voice.token) setPhase(conv.active ? 'listening' : '', conv.active ? 'Te escucho' : 'Yurei');
   }
+}
+
+/* ---------- frases de relleno mientras piensa ---------- */
+
+const FILLERS = {
+  first: ['Mmm, déjame ver.', 'A ver…', 'Un segundo…', 'Claro, un momento.', 'Ahora mismo lo miro.', 'Buena pregunta, déjame pensar.'],
+  more: ['Sigo en ello, ya casi.', 'Un momentito más.', 'Perdona la espera, ya casi lo tengo.']
+};
+const FILLER_DELAY_MS = 1200; // si la respuesta llega antes, no se dice nada
+const FILLER_MORE_MS = 7000;
+const fillerAudio = new Map(); // frase → audio (base64); la voz se genera una vez y queda en disco
+let lastFiller = '';
+
+const fillerPool = (kind) => (kind === 'first' && state.fillerPhrases?.length ? state.fillerPhrases : FILLERS[kind]);
+
+// Precarga en segundo plano: la primera vez genera los audios; después salen del disco al instante.
+async function prefetchFillers() {
+  if (!state.fillers || state.systemVoice || !state.hasKey) return;
+  for (const text of [...fillerPool('first'), ...fillerPool('more')]) {
+    if (fillerAudio.has(text)) continue;
+    const r = await window.yurei.tts(text, { cache: true });
+    if (!r.ok) return; // sin red o sin cuota: no insistir
+    fillerAudio.set(text, r.data);
+  }
+}
+
+function pickFiller(kind) {
+  const ready = fillerPool(kind).filter((t) => fillerAudio.has(t) && t !== lastFiller);
+  return ready.length ? ready[Math.floor(Math.random() * ready.length)] : null;
+}
+
+// Devuelve una función para cancelar los rellenos cuando llega la respuesta.
+function startFillers() {
+  if (!state.fillers) return () => {};
+  let done = false;
+  const speak = (kind) => {
+    const text = done ? null : pickFiller(kind);
+    if (!text) return;
+    lastFiller = text;
+    voice.filler = true;
+    setPhase('speaking', 'Hablando');
+    schedulePcm(fillerAudio.get(text)).then(() => {
+      voice.filler = voice.sources.length > 0;
+      if (!done) setPhase('thinking', 'Pensando…');
+    });
+  };
+  const timers = [setTimeout(() => speak('first'), FILLER_DELAY_MS), setTimeout(() => speak('more'), FILLER_MORE_MS)];
+  return () => { done = true; timers.forEach(clearTimeout); };
 }
 
 const log = (kind, text) => console.debug(kind, text);
@@ -478,7 +527,9 @@ async function handleAsk(payload, userLabel) {
   Listener.pause();
   setPhase('thinking', 'Pensando…');
   log('user', userLabel);
+  const stopFillers = startFillers();
   const r = await window.yurei.ask(payload);
+  stopFillers();
   setPhase(conv.active ? 'listening' : '', conv.active ? 'Te escucho' : 'Yurei');
   if (!r.ok) {
     log('bot', `⚠ ${r.error}`);
@@ -543,7 +594,13 @@ window.yurei.on('report', ({ label, results }) => {
 });
 
 function applySettings(cfg) {
+  const voiceChanged = cfg.voice !== state.voiceName || JSON.stringify(cfg.fillerPhrases || []) !== JSON.stringify(state.fillerPhrases || []);
+  state.voiceName = cfg.voice;
   state.systemVoice = cfg.systemVoice;
+  state.fillers = cfg.fillers !== false;
+  state.fillerPhrases = cfg.fillerPhrases || [];
+  state.hasKey = !!cfg.apiKey;
+  if (voiceChanged) { fillerAudio.clear(); setTimeout(prefetchFillers, 3000); }
   state.wakeWord = cfg.wakeWord;
   state.conversationSeconds = cfg.conversationSeconds;
   state.soul = cfg.soul || 'Yurei';
