@@ -57,6 +57,10 @@ El workflow `Build Windows installer` lo compila en GitHub Actions: al subir un 
 npm test   # pruebas de la lógica central (sin Electron ni red)
 ```
 
+## Cerrar la app
+
+Yurei vive como un notch, sin ventana que cerrar. Usa el **icono de la bandeja del sistema** (junto al reloj): clic para abrir Ajustes, clic derecho → *Salir de Yurei*.
+
 ## Arquitectura
 
 ```

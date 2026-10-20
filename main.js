@@ -1,6 +1,6 @@
 const fs = require('fs');
 const path = require('path');
-const { app, BrowserWindow, globalShortcut, ipcMain, screen, clipboard, shell, desktopCapturer, Notification, nativeTheme, systemPreferences, dialog, safeStorage, session } = require('electron');
+const { app, BrowserWindow, globalShortcut, ipcMain, screen, clipboard, shell, desktopCapturer, Notification, nativeTheme, nativeImage, systemPreferences, dialog, safeStorage, session, Tray, Menu } = require('electron');
 const { createStore } = require('./src/store');
 const { createSystem } = require('./src/system');
 const { createTools } = require('./src/tools');
@@ -35,6 +35,7 @@ let settingsWin = null;
 let pickerWin = null;
 let system = null;
 let finishCircle = null;
+let tray = null;
 
 // Nada puede abrir ventanas nuevas, navegar fuera de las páginas locales ni incrustar <webview>.
 app.on('web-contents-created', (_e, contents) => {
@@ -42,6 +43,37 @@ app.on('web-contents-created', (_e, contents) => {
   contents.on('will-navigate', (e, url) => { if (!trustedUrl(url)) e.preventDefault(); });
   contents.on('will-attach-webview', (e) => e.preventDefault());
 });
+
+// Icono de la bandeja del sistema: un círculo azul dibujado aquí mismo (sin archivos de imagen).
+function trayIcon() {
+  const size = 32;
+  const px = Buffer.alloc(size * size * 4);
+  for (let y = 0; y < size; y++) {
+    for (let x = 0; x < size; x++) {
+      const d = Math.hypot(x - 15.5, y - 15.5);
+      const a = Math.max(0, Math.min(1, 13 - d + 0.5)); // borde suave
+      const i = (y * size + x) * 4;
+      px[i] = 0xf0 - Math.round(d * 4); px[i + 1] = 0xb8 - Math.round(d * 3); px[i + 2] = 0x6c; px[i + 3] = Math.round(a * 255); // BGRA
+    }
+  }
+  return nativeImage.createFromBitmap(px, { width: size, height: size, scaleFactor: 2 });
+}
+
+// Sin esto la app no tendría forma de cerrarse: la isla es solo un notch.
+function createTray() {
+  try {
+    tray = new Tray(trayIcon());
+    tray.setToolTip('Yurei');
+    tray.setContextMenu(Menu.buildFromTemplate([
+      { label: 'Ajustes', click: () => openSettings() },
+      { type: 'separator' },
+      { label: 'Salir de Yurei', click: () => app.quit() }
+    ]));
+    tray.on('click', () => openSettings());
+  } catch (e) {
+    console.warn('No se pudo crear el icono de la bandeja:', e.message);
+  }
+}
 
 function placeIsland(mode) {
   const [w, h] = MODES[mode] || MODES.idle;
@@ -195,6 +227,7 @@ function start() {
   handle('appearance:get', () => currentAppearance());
 
   createWindow();
+  createTray();
   scheduler.start();
 
   // Detectar si hay batería; si no (PC de escritorio), sacar ese widget del panel.
