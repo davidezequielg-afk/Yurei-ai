@@ -158,6 +158,8 @@ Object.assign(I18N_EN, {
 
 // Voz propia de Yurei
 Object.assign(I18N_EN, {
+  'Gemini no pudo seguir hablando ahora (límite de voz). La respuesta quedó escrita.': 'Gemini could not keep speaking right now (voice limit). The reply is written out.',
+  'Gemini no pudo hablar ahora (límite de voz). La respuesta quedó escrita.': 'Gemini could not speak right now (voice limit). The reply is written out.',
   Velocidad: 'Speed', Tono: 'Pitch', 'Más alta, habla más rápido. También se aplica a la voz de Windows.': 'Higher means faster speech. It also applies to the Windows voice.',
   'Negativo, más grave; positivo, más agudo. Sirve para acercar una voz femenina o masculina a como la querés.': 'Negative is deeper; positive is higher. Use it to bring a female or male voice closer to how you want it.',
   'Probar con estos valores': 'Try with these values', Restablecer: 'Reset', Normal: 'Normal',

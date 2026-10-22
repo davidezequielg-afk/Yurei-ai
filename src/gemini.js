@@ -134,7 +134,7 @@ const transcribe = (opts) => askAudio({ ...opts, prompt: TRANSCRIBE_PROMPT });
 // ("di esto con voz...") el modelo la lee en voz alta.
 // La voz de Gemini a veces responde sin audio (200 vacío) o con el límite por minuto (429). Se reintenta antes de rendirse:
 // cada vez que falla, el notch cambia a la voz de Windows y se nota el cambio de voz.
-const TTS_RETRY_DELAYS = [900, 2200];
+const TTS_RETRY_DELAYS = [900, 2200, 5000];
 async function synthesize({ apiKey, model, text, voiceName, fetchImpl, sleep = (ms) => new Promise((r) => setTimeout(r, ms)) }) {
   const body = {
     contents: [{ role: 'user', parts: [{ text }] }],

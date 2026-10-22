@@ -520,6 +520,13 @@ function chunkSentences(text) {
   return chunks;
 }
 
+// Gemini cobra y limita por pedido de voz (el plan gratis, pocos por minuto): para no quedarse sin voz a mitad de una respuesta
+// larga, se piden como mucho 2 audios: la primera frase (sale rápido) y todo lo demás junto.
+function chunkForGemini(text) {
+  const parts = chunkSentences(text);
+  return parts.length > 2 ? [parts[0], parts.slice(1).join(' ')] : parts;
+}
+
 // PCM 16-bit mono 24 kHz (base64) → AudioBuffer. Antes se limpia: la voz de Gemini trae silencio al principio
 // y ~140 ms de ruido al final de cada audio (ver renderer/pcm.js).
 function decodePcm(ctx, b64) {
@@ -564,7 +571,7 @@ function schedulePcm(b64, gap = 0) {
 }
 
 async function speakGemini(text, token, firstGap = 0) {
-  const chunks = chunkSentences(text);
+  const chunks = state.localVoice ? chunkSentences(text) : chunkForGemini(text); // la voz propia no tiene cuota: frase por frase
   const fetchChunk = async (t) => {
     const r = await window.yurei.tts(t);
     if (!r.ok) throw new Error(r.error);
@@ -576,9 +583,12 @@ async function speakGemini(text, token, firstGap = 0) {
   for (let i = 0; i < chunks.length; i++) {
     let audio;
     try { audio = await next; } catch {
-      // Si falla a mitad de la respuesta, lo que falta se dice con la voz de Windows en vez de cortarse en seco.
+      // Si falla a mitad de la respuesta: con Gemini elegido a propósito no se mezcla otra voz (solo se avisa); si no, lo que
+      // falta se dice con la voz de Windows en vez de cortarse en seco.
       await Promise.all(playing);
-      if (token === voice.token) await speakSystem(chunks.slice(i).join(' '));
+      if (token !== voice.token) return;
+      if (state.speechPick === 'gemini') notice(t('Gemini no pudo seguir hablando ahora (límite de voz). La respuesta quedó escrita.'), 6000);
+      else await speakSystem(chunks.slice(i).join(' '));
       return;
     }
     if (token !== voice.token) return;
@@ -626,8 +636,13 @@ async function say(text) {
       }
     }
     if (!spoken && token === voice.token) {
-      setPhase('speaking', 'Hablando');
-      await speakSystem(text);
+      if (state.speechPick === 'gemini' && !state.systemVoice) {
+        // Se eligió la voz de Gemini a propósito: no se la reemplaza por otra a escondidas.
+        notice(t('Gemini no pudo hablar ahora (límite de voz). La respuesta quedó escrita.'), 6000);
+      } else {
+        setPhase('speaking', 'Hablando');
+        await speakSystem(text);
+      }
     }
     if (token === voice.token) await sleep(TAIL_MS); // que se apague el eco antes de volver a escuchar
   } finally {
@@ -1175,6 +1190,8 @@ function applySettings(cfg) {
   startBatteryFeed();
   state.reactions = cfg.reactions !== false;
   state.timerSound = cfg.timerSound !== false;
+  state.speechPick = cfg.speech || 'auto';
+  state.localVoice = cfg.voiceSource === 'local';
   state.voiceSpeed = (cfg.voiceSpeed || 100) / 100;
   state.voicePitch = cfg.voicePitch || 0;
   watchBattery(cfg.device === 'notebook');
