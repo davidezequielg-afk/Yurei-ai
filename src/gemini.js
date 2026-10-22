@@ -132,23 +132,31 @@ const transcribe = (opts) => askAudio({ ...opts, prompt: TRANSCRIBE_PROMPT });
 
 // Devuelve PCM 16-bit mono a 24 kHz en base64. Solo se envía el texto a decir: cualquier instrucción añadida
 // ("di esto con voz...") el modelo la lee en voz alta.
-async function synthesize({ apiKey, model, text, voiceName, fetchImpl }) {
-  const data = await generate({
-    apiKey,
-    model,
-    fetchImpl,
-    fallback: false, // los modelos de respaldo no hablan; si falla, el notch usa la voz del sistema
-    body: {
-      contents: [{ role: 'user', parts: [{ text }] }],
-      generationConfig: {
-        responseModalities: ['AUDIO'],
-        speechConfig: { voiceConfig: { prebuiltVoiceConfig: { voiceName } } }
-      }
+// La voz de Gemini a veces responde sin audio (200 vacío) o con el límite por minuto (429). Se reintenta antes de rendirse:
+// cada vez que falla, el notch cambia a la voz de Windows y se nota el cambio de voz.
+const TTS_RETRY_DELAYS = [900, 2200];
+async function synthesize({ apiKey, model, text, voiceName, fetchImpl, sleep = (ms) => new Promise((r) => setTimeout(r, ms)) }) {
+  const body = {
+    contents: [{ role: 'user', parts: [{ text }] }],
+    generationConfig: {
+      responseModalities: ['AUDIO'],
+      speechConfig: { voiceConfig: { prebuiltVoiceConfig: { voiceName } } }
     }
-  });
-  const audio = data.candidates?.[0]?.content?.parts?.find((p) => p.inlineData)?.inlineData?.data;
-  if (!audio) throw new Error('Gemini no devolvió audio');
-  return audio;
+  };
+  let last;
+  for (let i = 0; i <= TTS_RETRY_DELAYS.length; i++) {
+    try {
+      const data = await generate({ apiKey, model, fetchImpl, fallback: false, sleep, body }); // los modelos de respaldo no hablan
+      const audio = data.candidates?.[0]?.content?.parts?.find((p) => p.inlineData)?.inlineData?.data;
+      if (audio) return audio;
+      last = new Error('Gemini no devolvió audio');
+    } catch (e) {
+      last = e;
+      if (e.status !== 429 && !TRANSIENT.has(e.status)) throw e; // clave, modelo o pedido mal: reintentar no ayuda
+    }
+    if (i < TTS_RETRY_DELAYS.length) await sleep(TTS_RETRY_DELAYS[i]);
+  }
+  throw last;
 }
 
 module.exports = { runAgent, transcribe, askAudio, synthesize, generate, friendlyError };

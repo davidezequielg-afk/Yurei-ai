@@ -143,7 +143,27 @@ test('synthesize pide audio con la voz elegida y devuelve el PCM', async () => {
   assert.equal(sent.generationConfig.speechConfig.voiceConfig.prebuiltVoiceConfig.voiceName, 'Charon');
   assert.equal(sent.contents[0].parts[0].text, 'hola'); // sin instrucciones: el modelo las leería en voz alta
   const empty = async () => ({ ok: true, json: async () => ({ candidates: [{ content: { parts: [{ text: 'x' }] } }] }) });
-  await assert.rejects(synthesize({ apiKey: 'k', model: 'm', text: 'a', voiceName: 'Kore', fetchImpl: empty }), /audio/);
+  await assert.rejects(synthesize({ apiKey: 'k', model: 'm', text: 'a', voiceName: 'Kore', fetchImpl: empty, sleep: async () => {} }), /audio/);
+});
+
+test('synthesize reintenta si Gemini responde sin audio o con el límite por minuto, y no reintenta errores de clave', async () => {
+  const { synthesize } = require('../src/gemini');
+  const good = { candidates: [{ content: { parts: [{ inlineData: { data: 'OK' } }] } }] };
+  const noAudio = { candidates: [{ content: { parts: [{ text: 'x' }] } }] };
+  const seq = (...steps) => { let n = 0; const f = async () => { const r = steps[Math.min(n++, steps.length - 1)]; return r; }; f.calls = () => n; return f; };
+  const ok = (j) => ({ ok: true, json: async () => j });
+  const limit = { ok: false, status: 429, text: async () => '{"error":{"message":"quota"}}' };
+  const badKey = { ok: false, status: 403, text: async () => '{"error":{"message":"no"}}' };
+  const sleep = async () => {};
+  const a = seq(ok(noAudio), ok(good));
+  assert.equal(await synthesize({ apiKey: 'k', model: 'm', text: 'a', voiceName: 'Kore', fetchImpl: a, sleep }), 'OK');
+  assert.equal(a.calls(), 2);
+  const b = seq(limit, limit, ok(good));
+  assert.equal(await synthesize({ apiKey: 'k', model: 'm', text: 'a', voiceName: 'Kore', fetchImpl: b, sleep }), 'OK');
+  assert.equal(b.calls(), 3);
+  const c = seq(badKey, ok(good));
+  await assert.rejects(synthesize({ apiKey: 'k', model: 'm', text: 'a', voiceName: 'Kore', fetchImpl: c, sleep }), /403/);
+  assert.equal(c.calls(), 1);
 });
 
 test('store migra modelos obsoletos a los actuales', () => {

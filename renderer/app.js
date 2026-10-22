@@ -575,7 +575,12 @@ async function speakGemini(text, token, firstGap = 0) {
   const playing = [];
   for (let i = 0; i < chunks.length; i++) {
     let audio;
-    try { audio = await next; } catch { break; }
+    try { audio = await next; } catch {
+      // Si falla a mitad de la respuesta, lo que falta se dice con la voz de Windows en vez de cortarse en seco.
+      await Promise.all(playing);
+      if (token === voice.token) await speakSystem(chunks.slice(i).join(' '));
+      return;
+    }
     if (token !== voice.token) return;
     if (i + 1 < chunks.length) {
       next = fetchChunk(chunks[i + 1]);

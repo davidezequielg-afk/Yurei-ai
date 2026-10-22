@@ -52,8 +52,6 @@ const Island = (() => {
 
   function collapsedWidth() {
     let w = Math.ceil(flowWidth());
-    if (st.phase) w = Math.max(w, 220);
-    if (st.pulse) w = Math.max(w, 210);
     if ((st.hot || st.view === '') && st.hot && widgetCount()) w = Math.max(w, Math.min(200 + 50 * widgetCount(), 380));
     return w;
   }
@@ -300,6 +298,8 @@ const Island = (() => {
   }
   const tickAndFit = () => { const n = $('clock').textContent.length; tickClock(); if ($('clock').textContent.length !== n) refresh(); };
   setInterval(tickAndFit, 1000);
+  // el texto de estado cambia el ancho natural de la píldora ("Te escucho", "Pensando…")
+  new MutationObserver(() => refresh()).observe($('status'), { childList: true, characterData: true, subtree: true });
   tickClock();
 
   /* ---------- arranque: sube desde arriba, se pega al borde y se estira ---------- */
