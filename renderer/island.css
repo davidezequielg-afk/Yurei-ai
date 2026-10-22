@@ -133,13 +133,13 @@
 #v-control[data-sub=""] .csub, #v-control:not([data-sub]) .csub { display: none; }
 #v-control[data-sub=wifi] .cmain, #v-control[data-sub=bt] .cmain { display: none; }
 .tgrid { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 6px; }
-.tile { position: relative; display: flex; align-items: center; gap: 8px; height: 40px; padding: 0 8px 0 7px; border-radius: 12px; background: var(--group); cursor: pointer; transition: background .2s ease, color .2s ease, transform .12s ease; min-width: 0; }
+.tile { position: relative; display: flex; align-items: center; gap: 6px; height: 40px; padding: 0 8px 0 7px; border-radius: 12px; background: var(--group); cursor: pointer; transition: background .2s ease, color .2s ease, transform .12s ease; min-width: 0; }
 .tile:hover { background: color-mix(in srgb, var(--ink) 11%, transparent); }
 .tile:active { transform: scale(.97); }
 .tile.active { background: var(--ink); color: var(--bg-solid); }
 .t-i { flex: none; width: 24px; height: 24px; border-radius: 50%; display: grid; place-items: center; background: color-mix(in srgb, currentColor 14%, transparent); }
 .t-txt { display: flex; flex-direction: column; min-width: 0; flex: 1; line-height: 1.2; }
-.t-t { font-size: 11.5px; font-weight: 600; }
+.t-t { font-size: 11px; font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .t-s { font-size: 9.5px; opacity: .65; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .t-more { flex: none; width: 18px; height: 18px; padding: 0; border: 0; border-radius: 50%; background: none; color: inherit; opacity: .55; display: grid; place-items: center; cursor: pointer; }
 .t-more:hover { opacity: 1; background: color-mix(in srgb, currentColor 14%, transparent); }

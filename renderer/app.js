@@ -1042,7 +1042,7 @@ async function pttUp() {
 window.yurei.on('timer-done', async ({ finished, next }) => {
   const ring = $('ring');
   ring.classList.remove('ding'); void ring.offsetWidth; ring.classList.add('ding');
-  chime();
+  if (state.timerSound !== false) chime();
   let text;
   if (finished.kind === 'pomodoro') {
     if (!next) text = '¡Pomodoro completo! Muy buen trabajo.';
@@ -1166,6 +1166,7 @@ function applySettings(cfg) {
   startStatusFeeds();
   startBatteryFeed();
   state.reactions = cfg.reactions !== false;
+  state.timerSound = cfg.timerSound !== false;
   watchBattery(cfg.device === 'notebook');
   applySeason(cfg);
   island.classList.toggle('dnd', state.dnd);

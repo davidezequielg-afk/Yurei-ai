@@ -669,7 +669,7 @@ function start() {
     win2.setBounds({ x: HUD_SIDE[kind] === 'left' ? b.x : b.x + b.width - nw, y: b.y, width: nw, height: nh });
     if (kind === 'volume') edges.setMixerOpen(nw > 100);
   });
-  ipcMain.on('hud:busy', (e, kind, on) => { if (kind in hudBusy) hudBusy[kind] = on === true; });
+  ipcMain.on('hud:busy', (e, kind, on) => { if (kind in hudBusy && hudWins[kind]?.webContents === e.sender) hudBusy[kind] = on === true; });
   handle('app:restart', () => { app.relaunch(); setTimeout(() => app.exit(0), 100); });
 
   // --- vida de la carita y avisos amables (ver src/nudges.js) ---
