@@ -109,6 +109,15 @@ function validateModes(v) {
   }).filter(Boolean);
 }
 
+const STATUS_WIDGETS = ['weather', 'battery', 'cpu', 'ram', 'disk', 'net'];
+function validateStatusWidgets(v) {
+  const clean = (a) => [...new Set((Array.isArray(a) ? a : []).filter((x) => STATUS_WIDGETS.includes(x)))];
+  const left = clean(v?.left);
+  const right = clean(v?.right).filter((x) => !left.includes(x));
+  if (left.length + right.length > 4) throw new Error('Como mucho 4 widgets en la isla');
+  return { left, right };
+}
+
 // Lista blanca de ajustes que pueden cambiar las ventanas. Lo demás (tareas, rutinas, accesos…) tiene sus propios canales.
 function validateSettingsPatch(patch, { unavailable = [] } = {}) {
   if (!patch || typeof patch !== 'object' || Array.isArray(patch)) throw new Error('Ajustes no válidos');
@@ -140,11 +149,23 @@ function validateSettingsPatch(patch, { unavailable = [] } = {}) {
         if (!Array.isArray(v)) throw new Error('Frases no válidas');
         out.fillerPhrases = v.slice(0, 20).map((x) => text(String(x), 80, 'Frase')).filter(Boolean);
         break;
-      case 'systemVoice': case 'wakeWord': case 'fillers': case 'fetchFavicons': case 'dnd': case 'bargeIn': case 'autoUpdate': case 'onboarded': case 'openAtLogin': case 'morningBrief': case 'seasonal': case 'reactions': out[k] = bool(v); break;
+      case 'systemVoice': case 'wakeWord': case 'fillers': case 'fetchFavicons': case 'dnd': case 'bargeIn': case 'autoUpdate': case 'onboarded': case 'time24': case 'hoverOpen': case 'notchRememberPanel': case 'calendarEnabled': case 'timerSound': case 'musicEnabled': case 'musicCompact': case 'mediaAmbience': case 'mediaCompactGlow': case 'mediaVisualizer': case 'mediaAlbumArt': case 'shelfPersist': case 'showUpdateDot': case 'volumeHud': case 'volumeEdge': case 'brightnessHud': case 'brightnessEdge': case 'dockEnabled': case 'dockPreview': case 'dockIconOnly': case 'dockSeparator': case 'dockTaskView': case 'dockWinNumber': case 'dockExtrasDrives': case 'dockExtrasRecycle': case 'dockAdaptive': case 'openAtLogin': case 'morningBrief': case 'seasonal': case 'reactions': out[k] = bool(v); break;
       case 'breakEvery': out[k] = [0, 30, 45, 60, 90, 120].includes(Number(v)) ? Number(v) : 60; break;
       case 'birthday': if (v !== '' && !/^(0[1-9]|1[0-2])-(0[1-9]|[12]\d|3[01])$/.test(String(v))) throw new Error('Cumpleaños no válido (MM-DD)'); out[k] = String(v); break;
       case 'pushToTalk': if (!PTT_KEYS.includes(v)) throw new Error('Tecla no válida'); out[k] = v; break;      case 'conversationSeconds': out[k] = Math.max(5, Math.min(120, Math.round(Number(v)) || 20)); break;
       case 'opacity': out[k] = Math.max(30, Math.min(100, Math.round(Number(v)) || 78)); break;
+      case 'notchMode': case 'dockMode': if (!['fixed', 'smart', 'peek'].includes(v)) throw new Error('Modo no válido'); out[k] = v; break;
+      case 'notchEdgeDelay': case 'dockEdgeDelay': out[k] = Math.max(0, Math.min(k === 'notchEdgeDelay' ? 800 : 2000, Math.round(Number(v) / 50) * 50 || 0)); break;
+      case 'notchDefaultPanel': if (!['calendar', 'control'].includes(v)) throw new Error('Panel no válido'); out[k] = v; break;
+      case 'notchLastPanel': if (!['yurei', 'calendar', 'control'].includes(v)) throw new Error('Panel no válido'); out[k] = v; break;
+      case 'mediaLayout': if (!['classic', 'compact'].includes(v)) throw new Error('Diseño no válido'); out[k] = v; break;
+      case 'lowBattery': out[k] = Math.max(5, Math.min(50, Math.round(Number(v) / 5) * 5 || 20)); break;
+      case 'dockExtras': if (!['off', 'left', 'right'].includes(v)) throw new Error('Opción no válida'); out[k] = v; break;
+      case 'statusWidgets': out[k] = validateStatusWidgets(v); break;
+      case 'dockExtrasFolders': out[k] = (Array.isArray(v) ? v : []).filter((x) => ['desktop', 'downloads', 'documents', 'pictures', 'music', 'videos'].includes(x)).slice(0, 6); break;
+      case 'timerDuration': out[k] = Math.max(1, Math.min(180 * 60, Math.round(Number(v)) || 1500)); break;
+      case 'uiScale': out[k] = [80, 90, 100, 110, 120, 130].includes(Math.round(Number(v))) ? Math.round(Number(v)) : 100; break;
+      case 'themeSat': case 'themeBright': out[k] = Math.max(0, Math.min(100, Math.round(Number(v)) || 0)); break;
       case 'theme': if (!THEMES.includes(v)) throw new Error('Tema no válido'); out[k] = v; break;
       case 'transparency': if (!TRANSPARENCY.includes(v)) throw new Error('Transparencia no válida'); out[k] = v; break;
       case 'customBg': case 'customAccent': if (!HEX.test(String(v))) throw new Error('Color no válido'); out[k] = String(v).toLowerCase(); break;
@@ -200,4 +221,4 @@ function coverDataUrl(cover, maxBytes = 716800) {
   return hit ? `data:${hit[0]};base64,${buf.toString('base64')}` : null;
 }
 
-module.exports = { validateBrainUrl, validateHotkeys, PTT_KEYS, validateModes, coverDataUrl, isTrustedUrl, validateAudio, validateAskPayload, validateSettingsPatch, validateMediaAction, validateSlot, MASK, MAX_AUDIO_B64 };
+module.exports = { validateStatusWidgets, validateBrainUrl, validateHotkeys, PTT_KEYS, validateModes, coverDataUrl, isTrustedUrl, validateAudio, validateAskPayload, validateSettingsPatch, validateMediaAction, validateSlot, MASK, MAX_AUDIO_B64 };

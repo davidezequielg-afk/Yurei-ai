@@ -1,4 +1,4 @@
-const { contextBridge, ipcRenderer } = require('electron');
+const { contextBridge, ipcRenderer, webUtils } = require('electron');
 
 const invoke = (channel) => (...args) => ipcRenderer.invoke(channel, ...args);
 
@@ -9,6 +9,9 @@ contextBridge.exposeInMainWorld('yurei', {
   translatorOff: invoke('translator:off'),
   timerGet: invoke('timer:get'),
   timerCancel: invoke('timer:cancel'),
+  timerStart: invoke('timer:start'),
+  timerPause: invoke('timer:pause'),
+  timerResume: invoke('timer:resume'),
   tts: invoke('tts'),
   getSettings: invoke('settings:get'),
   saveSettings: invoke('settings:save'),
@@ -16,6 +19,27 @@ contextBridge.exposeInMainWorld('yurei', {
   wipeData: invoke('data:wipe'),
   diagnoseAudio: invoke('diag:audio'),
   usageGet: invoke('usage:get'),
+  shelfList: invoke('shelf:list'),
+  shelfAdd: invoke('shelf:add'),
+  shelfText: invoke('shelf:text'),
+  shelfRemove: invoke('shelf:remove'),
+  shelfOpen: invoke('shelf:open'),
+  shelfThumb: invoke('shelf:thumb'),
+  shelfDrag: (id) => ipcRenderer.send('shelf:drag', id),
+  pathsFor: (files) => Array.from(files || []).map((f) => { try { return webUtils.getPathForFile(f); } catch { return ''; } }).filter(Boolean),
+  radioGet: invoke('radio:get'),
+  radioSet: invoke('radio:set'),
+  wifiStatus: invoke('wifi:status'),
+  wifiScan: invoke('wifi:scan'),
+  wifiConnect: invoke('wifi:connect'),
+  wifiDisconnect: invoke('wifi:disconnect'),
+  wifiForget: invoke('wifi:forget'),
+  btList: invoke('bt:list'),
+  sysOpen: invoke('sys:open'),
+  sysCombo: invoke('sys:combo'),
+  brightnessGet: invoke('brightness:get'),
+  brightnessSet: invoke('brightness:set'),
+  appRestart: invoke('app:restart'),
   setHotkeys: invoke('hotkeys:set'),
   testKey: invoke('key:test'),
   testBrain: invoke('brain:test'),
@@ -36,9 +60,10 @@ contextBridge.exposeInMainWorld('yurei', {
   launcherOpen: invoke('launcher:open'),
   launcherIcon: invoke('launcher:icon'),
   pickerOpen: invoke('picker:open'),
-  setMode: invoke('island:mode'),
+  islandRects: (r) => ipcRenderer.send('island:rects', r),
+  islandFocus: invoke('island:focus'),
   on: (channel, cb) => {
-    const allowed = ['hotkey', 'report', 'circle-image', 'settings-changed', 'appearance', 'timer', 'timer-done', 'update', 'reminder', 'cursor', 'nudge'];
+    const allowed = ['hotkey', 'report', 'circle-image', 'settings-changed', 'appearance', 'timer', 'timer-done', 'update', 'reminder', 'cursor', 'nudge', 'island-hover', 'shelf'];
     if (!allowed.includes(channel)) return;
     ipcRenderer.on(channel, (_e, payload) => cb(payload));
   }

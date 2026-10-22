@@ -6,12 +6,12 @@ function createFocus({ now = () => Date.now(), setTimer = setTimeout, clearTimer
   let cur = null; // { kind, label, total, endsAt, phase, cycle, cycles, focusMin, breakMin }
   let handle = null;
 
-  const view = () => (cur ? { ...cur, left: Math.max(0, cur.endsAt - now()) } : null);
+  const view = () => (cur ? { ...cur, left: cur.paused ? cur.pausedLeft : cur.finished ? 0 : Math.max(0, cur.endsAt - now()) } : null);
 
   function arm() {
     clearTimer(handle);
     handle = null;
-    if (cur) handle = setTimer(finish, Math.max(0, cur.endsAt - now()));
+    if (cur && !cur.paused && !cur.finished) handle = setTimer(finish, Math.max(0, cur.endsAt - now()));
     onChange(view());
   }
 
@@ -31,7 +31,7 @@ function createFocus({ now = () => Date.now(), setTimer = setTimeout, clearTimer
       } else if (done.cycle < done.cycles) {
         cur = phaseOf('pomodoro', done.label, done.focusMin, { ...pick(done), phase: 'focus', cycle: done.cycle + 1 });
       } else cur = null;
-    } else cur = null;
+    } else cur = { ...done, finished: true }; // el temporizador termina "en rojo" hasta que se reinicie o se cierre
     arm();
     onDone({ finished: done, next: view() });
   }
@@ -52,6 +52,22 @@ function createFocus({ now = () => Date.now(), setTimer = setTimeout, clearTimer
     pomodoro({ focus = 25, rest = 5, cycles = 4, label = 'Pomodoro' } = {}) {
       const f = minutes(focus, 25, 180);
       cur = phaseOf('pomodoro', String(label).slice(0, 60), f, { phase: 'focus', cycle: 1, cycles: Math.max(1, Math.min(12, Math.round(Number(cycles) || 4))), focusMin: f, breakMin: minutes(rest, 5, 60) });
+      arm();
+      return view();
+    },
+    // Pausa y reanudar (guarda cuánto faltaba).
+    pause() {
+      if (!cur || cur.paused || cur.finished) return view();
+      cur.pausedLeft = Math.max(0, cur.endsAt - now());
+      cur.paused = true;
+      arm();
+      return view();
+    },
+    resume() {
+      if (!cur || !cur.paused) return view();
+      cur.endsAt = now() + cur.pausedLeft;
+      cur.paused = false;
+      delete cur.pausedLeft;
       arm();
       return view();
     },

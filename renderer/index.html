@@ -2,25 +2,52 @@
 <html lang="es">
 <head>
   <meta charset="utf-8">
-  <meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'self'; style-src 'self'; img-src 'self' data:; base-uri 'none'; form-action 'none'; object-src 'none';">
+  <meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'self'; style-src 'self'; img-src 'self' data: blob:; media-src 'self' blob:; base-uri 'none'; form-action 'none'; object-src 'none';">
   <title>Yurei</title>
   <link rel="stylesheet" href="face.css">
   <link rel="stylesheet" href="style.css">
+  <link rel="stylesheet" href="island.css">
 </head>
 <body>
-  <div id="island" class="idle">
-    <header id="bar" title="Pasa el ratón para abrir · clic para cerrar">
-      <span id="ring"><span id="eye" class="face" aria-hidden="true"><i class="e l"></i><i class="e r"></i><i class="m"></i><i class="acc"></i></span></span>
-      <span id="tleft" class="tleft" hidden></span>
-      <span id="bars"><i></i><i></i><i></i><i></i><i></i><i></i><i></i></span>
-      <span id="status">Yurei</span>
-    </header>
-    <section id="reply" hidden></section>
-    <section id="panel" hidden>
-      <button id="gear" title="Ajustes"></button>
-      <button id="upd" class="upd" hidden></button>
-      <div id="widgets"></div>
-    </section>
+  <div id="stage">
+    <div id="island" class="idle" data-view="">
+      <div id="flareL" class="flare"></div>
+      <div id="flareR" class="flare"></div>
+      <div id="glow"></div>
+      <header id="bar" title="">
+        <div id="lslot" class="slot">
+          <span id="ring"><span id="eye" class="face" aria-hidden="true"><i class="e l"></i><i class="e r"></i><i class="m"></i><i class="acc"></i></span></span>
+          <span id="tleft" class="tleft" hidden></span>
+          <span id="mviz" class="viz" hidden></span>
+          <div id="lwidgets" class="swidgets"></div>
+        </div>
+        <div id="center">
+          <span id="clock"></span>
+          <span id="status"></span>
+          <span id="pulse"></span>
+          <span id="bars"><i></i><i></i><i></i><i></i><i></i><i></i><i></i></span>
+        </div>
+        <div id="rslot" class="slot">
+          <div id="rwidgets" class="swidgets"></div>
+          <img id="mart" class="mart" alt="" hidden>
+          <button id="chev" class="chev" title="" hidden></button>
+          <button id="gear" title="Ajustes"></button>
+          <button id="upd" class="upd" hidden></button>
+        </div>
+      </header>
+      <div id="views">
+        <section id="reply" class="view" hidden></section>
+        <section id="panel" class="view" data-v="yurei" hidden>
+          <div id="widgets"></div>
+        </section>
+        <section id="v-calendar" class="view" data-v="calendar" hidden></section>
+        <section id="v-control" class="view" data-v="control" hidden></section>
+        <section id="v-music" class="view" data-v="music" hidden></section>
+        <section id="v-shelf" class="view" data-v="shelf" hidden></section>
+      </div>
+    </div>
+    <div id="bubbleL" class="bubble" hidden></div>
+    <div id="bubbleR" class="bubble" hidden></div>
   </div>
   <script src="brandicons.js"></script>
   <script src="icons.js"></script>
@@ -29,6 +56,11 @@
   <script src="wav.js"></script>
   <script src="pcm.js"></script>
   <script src="vad.js"></script>
+  <script src="island.js"></script>
+  <script src="island-calendar.js"></script>
+  <script src="island-control.js"></script>
+  <script src="island-music.js"></script>
+  <script src="island-shelf.js"></script>
   <script src="app.js"></script>
 </body>
 </html>

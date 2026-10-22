@@ -16,6 +16,8 @@ const { createReminders } = require('./src/reminders');
 const { findFiles } = require('./src/files');
 const { speedTest } = require('./src/speedtest');
 const { createKeyWatch } = require('./src/keywatch');
+const { createWifi } = require('./src/wifi');
+const { createShelf } = require('./src/shelf');
 const { nudges } = require('./src/nudges');
 const { spawn } = require('child_process');
 const { createTtsCache } = require('./src/ttscache');
@@ -24,7 +26,9 @@ const L = require('./src/launcher');
 const S = require('./src/secure');
 const { createWeather, nextSchedule, unavailableWidgets, sanitizeLayout, catalogFor } = require('./src/widgets');
 
-const MODES = { idle: [120, 22], status: [260, 60], peek: [567, 132] };
+// La isla vive en una ventana fija y transparente arriba al centro; solo la píldora y sus burbujas reciben el
+// mouse (el resto deja pasar los clics al escritorio). Así la píldora puede crecer con animación de resorte.
+const ISLAND = { w: 560, h: 360 };
 const HOTKEYS = { talk: 'Control+Shift+Space', dictate: 'Control+Alt+D', circle: 'Control+Shift+C' };
 const PNG_SIGNATURE = Buffer.from([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a]);
 const POWER_TEXT = { shutdown: ['apagar', 'Apagar'], restart: ['reiniciar', 'Reiniciar'], sleep: ['suspender', 'Suspender'] };
@@ -48,6 +52,7 @@ const webPrefs = (preload = 'preload.js') => ({
 
 let win = null;
 let overlay = null;
+let edges = { tick() {} }; // indicadores de volumen y brillo en los bordes (se crea al iniciar)
 let settingsWin = null;
 let pickerWin = null;
 let system = null;
@@ -98,23 +103,61 @@ function refreshTray() {
   ]));
 }
 
-function placeIsland(mode) {
-  const [w, h] = MODES[mode] || MODES.idle;
-  const { x, y, width } = screen.getPrimaryDisplay().workArea;
-  win.setBounds({ x: Math.round(x + (width - w) / 2), y, width: w, height: h });
+let islandScale = 1;
+let hitRects = []; // zonas que reciben el mouse, en coordenadas de la ventana
+let mouseInside = false;
+
+function placeIsland() {
+  if (!win || win.isDestroyed()) return;
+  const { bounds } = screen.getPrimaryDisplay();
+  const w = Math.round(ISLAND.w * islandScale);
+  const h = Math.round(ISLAND.h * islandScale);
+  win.setBounds({ x: Math.round(bounds.x + (bounds.width - w) / 2), y: bounds.y, width: w, height: h });
+}
+
+function setIslandScale(scale) {
+  islandScale = Math.max(0.8, Math.min(1.3, Number(scale) || 1));
+  placeIsland();
+  win?.webContents.setZoomFactor(islandScale);
+}
+
+// ¿El cursor está sobre la píldora? Si sí, la ventana recibe el mouse; si no, lo deja pasar.
+function islandHitTest(cursor) {
+  if (!win || win.isDestroyed() || !win.isVisible()) return;
+  const b = win.getBounds();
+  const x = cursor.x - b.x;
+  const y = cursor.y - b.y;
+  const inside = hitRects.some((r) => x >= r.x - 2 && x <= r.x + r.w + 2 && y >= r.y - 2 && y <= r.y + r.h + 2);
+  if (inside !== mouseInside) {
+    mouseInside = inside;
+    win.setIgnoreMouseEvents(!inside, { forward: true });
+    win.webContents.send('island-hover', inside);
+  }
 }
 
 function createWindow() {
   win = new BrowserWindow({
-    width: MODES.idle[0], height: MODES.idle[1],
+    width: ISLAND.w, height: ISLAND.h,
     frame: false, transparent: true, resizable: false, alwaysOnTop: true,
-    skipTaskbar: true, hasShadow: false, show: false,
+    skipTaskbar: true, hasShadow: false, show: false, backgroundColor: '#00000000',
     webPreferences: webPrefs()
   });
   win.setAlwaysOnTop(true, 'screen-saver');
+  win.setIgnoreMouseEvents(true, { forward: true });
   win.loadFile(path.join(RENDERER_DIR, 'index.html'));
-  win.once('ready-to-show', () => { placeIsland('idle'); win.showInactive(); });
+  win.once('ready-to-show', () => { placeIsland(); win.showInactive(); });
+  win.webContents.on('did-finish-load', () => win.webContents.setZoomFactor(islandScale));
+  screen.on('display-metrics-changed', placeIsland);
 }
+
+// Zonas de la píldora que manda la ventana (como mucho 4 rectángulos dentro de la ventana).
+ipcMain.on('island:rects', (e, rects) => {
+  if (!win || e.sender !== win.webContents || !trustedUrl(e.senderFrame?.url) || !Array.isArray(rects)) return;
+  const k = islandScale;
+  hitRects = rects.slice(0, 4).filter((r) => r && [r.x, r.y, r.w, r.h].every(Number.isFinite))
+    .map((r) => ({ x: r.x * k, y: r.y * k, w: Math.min(r.w, ISLAND.w) * k, h: Math.min(r.h, ISLAND.h) * k }));
+  islandHitTest(screen.getCursorScreenPoint());
+});
 
 function openSettings() {
   if (settingsWin) { settingsWin.focus(); return; }
@@ -179,8 +222,19 @@ function hardenSession() {
   const ses = session.defaultSession;
   ses.setSpellCheckerEnabled?.(false); // el corrector descargaría diccionarios de internet
   // Único permiso: el micrófono, solo para las páginas de la app. Nada de cámara, ubicación, notificaciones, USB…
-  ses.setPermissionRequestHandler((wc, permission, cb, details) => cb(permission === 'media' && trustedUrl(wc.getURL()) && (details?.mediaTypes || ['audio']).every((t) => t === 'audio')));
-  ses.setPermissionCheckHandler((wc, permission, _origin, details) => permission === 'media' && !!wc && trustedUrl(wc.getURL()) && details?.mediaType !== 'video');
+  ses.setPermissionRequestHandler((wc, permission, cb, details) => {
+    // El visualizador de música escucha el audio del sistema (loopback); solo la ventana de la isla puede pedirlo.
+    if (permission === 'display-capture') { cb(!!win && wc === win.webContents && trustedUrl(wc.getURL())); return; }
+    cb(permission === 'media' && trustedUrl(wc.getURL()) && (details?.mediaTypes || ['audio']).every((t) => t === 'audio'));
+  });
+  ses.setDisplayMediaRequestHandler(async (request, cb) => {
+    try {
+      if (!win || request.frame?.top?.url === undefined || !trustedUrl(request.frame.top.url) || request.frame.processId !== win.webContents.mainFrame.processId) { cb({}); return; }
+      const sources = await desktopCapturer.getSources({ types: ['screen'], thumbnailSize: { width: 0, height: 0 } }); // sin capturar imágenes
+      cb(sources[0] ? { video: sources[0], audio: 'loopback' } : {});
+    } catch { cb({}); }
+  });
+  ses.setPermissionCheckHandler((wc, permission, _origin, details) => (permission === 'media' && !!wc && trustedUrl(wc.getURL()) && details?.mediaType !== 'video') || (permission === 'display-capture' && !!win && wc === win.webContents));
   ses.setDevicePermissionHandler(() => false);
   // Las ventanas no hacen NINGUNA petición de red (todo sale desde el proceso principal, a destinos fijos).
   ses.webRequest.onBeforeRequest({ urls: ['http://*/*', 'https://*/*', 'ws://*/*', 'wss://*/*', 'ftp://*/*'] }, (_details, cb) => cb({ cancel: true }));
@@ -297,6 +351,7 @@ function start() {
   // Abrir con Windows (solo en la app instalada; en desarrollo no se toca el inicio del sistema).
   const applyLogin = () => { if (app.isPackaged && process.platform === 'win32') app.setLoginItemSettings({ openAtLogin: store.get('settings').openAtLogin !== false, args: ['--autostart'] }); };
   applyLogin();
+  islandScale = Math.max(0.8, Math.min(1.3, (Number(store.get('settings').uiScale) || 100) / 100));
   createWindow();
   createTray();
   scheduler.start();
@@ -404,6 +459,14 @@ function start() {
   });
   handle('timer:get', () => focus.get());
   handle('timer:cancel', () => focus.cancel());
+  handle('timer:start', (_e, minutes, label) => {
+    const m = Number(minutes);
+    if (!Number.isFinite(m) || m <= 0 || m > 180) throw new Error('Duración no válida (hasta 180 minutos)');
+    store.updateSettings({ timerDuration: Math.round(m * 60) });
+    return focus.timer({ minutes: m, label: String(label || 'Temporizador').slice(0, 40) });
+  });
+  handle('timer:pause', () => focus.pause());
+  handle('timer:resume', () => focus.resume());
   handle('translator:off', () => { tools.session.translator = null; });
   handle('wake', (_e, audioB64) => { const audio = S.validateAudio(audioB64); return usage.track('wake', () => assistant.wake(audio)); });
   handle('tts', (_e, text, opts) => {
@@ -422,6 +485,7 @@ function start() {
     const clean = S.validateSettingsPatch(patch, { unavailable: unavailable() });
     store.updateSettings(clean);
     if ('openAtLogin' in clean) applyLogin();
+    if ('uiScale' in clean) setIslandScale(clean.uiScale / 100);
     if ('pushToTalk' in clean) syncKeys();
     win?.webContents.send('settings-changed', settingsView());
     syncTray();
@@ -468,6 +532,66 @@ function start() {
   });
   handle('diag:audio', () => system.diagnose());
 
+  // --- centro de control: radios, Wi-Fi, Bluetooth, brillo, teclas y páginas de Windows ---
+  const wifi = createWifi();
+  const str = (v, max = 100) => { if (typeof v !== 'string' || !v || v.length > max) throw new Error('Dato no válido'); return v; };
+  // --- bandeja de la isla: archivos, carpetas y textos (solo referencias; nada se copia) ---
+  const shelf = createShelf({ get: () => store.get('shelf'), set: (v) => store.set('shelf', v), persist: () => store.get('settings').shelfPersist === true });
+  shelf.prune({ startup: true });
+  const thumbs = new Map();
+  const pushShelf = () => win?.webContents.send('shelf', shelf.list());
+  handle('shelf:list', () => shelf.prune());
+  handle('shelf:add', (_e, paths) => { const r = shelf.addPaths((Array.isArray(paths) ? paths : []).slice(0, 20)); pushShelf(); return r; });
+  handle('shelf:text', (_e, text) => { const r = shelf.addText(typeof text === 'string' ? text.slice(0, 10000) : ''); pushShelf(); return r; });
+  handle('shelf:remove', (_e, id) => { const r = shelf.remove(str(id, 40)); pushShelf(); return r; });
+  handle('shelf:open', async (_e, id) => {
+    const it = shelf.find(str(id, 40));
+    if (!it) throw new Error('Ese elemento ya no está en la bandeja');
+    if (it.kind === 'text') { clipboard.writeText(it.text); return { copied: true }; }
+    const err = await shell.openPath(it.path);
+    if (err) throw new Error(err);
+    return { opened: true };
+  });
+  handle('shelf:thumb', async (_e, id) => {
+    const it = shelf.find(str(id, 40));
+    if (!it || it.kind === 'text') return null;
+    if (thumbs.has(it.id)) return thumbs.get(it.id);
+    let url = null;
+    try {
+      const img = await (nativeImage.createThumbnailFromPath ? nativeImage.createThumbnailFromPath(it.path, { width: 168, height: 168 }) : Promise.reject(new Error('sin miniaturas')));
+      if (!img.isEmpty()) url = img.toDataURL();
+    } catch { /* se usa el icono del archivo */ }
+    if (!url) { try { const ic = await app.getFileIcon(it.path, { size: 'large' }); if (!ic.isEmpty()) url = ic.toDataURL(); } catch { /* sin icono */ } }
+    thumbs.set(it.id, url);
+    return url;
+  });
+  // Sacar un archivo de la bandeja hacia otra app: solo archivos que están en ella y que siguen existiendo.
+  ipcMain.on('shelf:drag', (e, id) => {
+    if (!win || e.sender !== win.webContents || !trustedUrl(e.senderFrame?.url) || typeof id !== 'string') return;
+    const it = shelf.find(id);
+    if (!it || it.kind === 'text' || !fs.existsSync(it.path)) return;
+    const icon = thumbs.get(it.id) ? nativeImage.createFromDataURL(thumbs.get(it.id)) : nativeImage.createEmpty();
+    e.sender.startDrag({ file: it.path, icon: icon.isEmpty() ? nativeImage.createFromBuffer(Buffer.from('iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNkYPhfDwAChwGA60e6kgAAAABJRU5ErkJggg==', 'base64')) : icon });
+  });
+  handle('radio:get', () => system.radios());
+  handle('radio:set', (_e, kind, on) => system.setRadio(str(kind, 12), on === true));
+  handle('wifi:status', () => wifi.status());
+  handle('wifi:scan', () => wifi.scan());
+  handle('wifi:connect', (_e, p) => wifi.connect({ ssid: str(p?.ssid, 64), password: typeof p?.password === 'string' ? p.password.slice(0, 80) : '', secured: p?.secured !== false, wpa3: p?.wpa3 === true }));
+  handle('wifi:disconnect', () => wifi.disconnect());
+  handle('wifi:forget', (_e, ssid) => wifi.forget(str(ssid, 64)));
+  handle('bt:list', () => system.btDevices());
+  handle('sys:open', (_e, page) => system.openSettingsPage(str(page, 20)));
+  handle('sys:combo', (_e, name) => system.combo(str(name, 20)));
+  handle('brightness:get', async () => (system.hasBattery() === false ? { available: false, reason: 'pc' } : system.getBrightness()));
+  handle('brightness:set', async (_e, level) => {
+    if (system.hasBattery() === false) throw new Error('Es una PC de escritorio: el brillo se cambia con los botones del monitor');
+    const n = Math.max(0, Math.min(100, Math.round(Number(level))));
+    if (!Number.isFinite(n)) throw new Error('Nivel no válido');
+    return system.setBrightness(n);
+  });
+  handle('app:restart', () => { app.relaunch(); setTimeout(() => app.exit(0), 100); });
+
   // --- vida de la carita y avisos amables (ver src/nudges.js) ---
   const nudge = (payload) => win?.webContents.send('nudge', payload);
   const life = nudges({
@@ -484,21 +608,24 @@ function start() {
   powerMonitor.on('unlock-screen', life.maybeBrief);
   powerMonitor.on('resume', life.maybeBrief);
 
-  // Los ojitos siguen al mouse cuando pasa cerca del notch (solo se manda la dirección, nunca dónde está).
+  // Cada 50 ms: ¿el mouse está sobre la píldora? y los ojitos siguen al mouse cuando pasa cerca (solo se manda
+  // la dirección, nunca dónde está).
   let lastLook = null;
   setInterval(() => {
     if (!win || win.isDestroyed() || !win.isVisible()) return;
     const c = screen.getCursorScreenPoint();
+    islandHitTest(c);
+    edges.tick(c);
     const b = win.getBounds();
     const cx = b.x + b.width / 2;
-    const cy = b.y + 11;
+    const cy = b.y + 18 * islandScale;
     const dx = c.x - cx;
     const dy = c.y - cy;
     const dist = Math.hypot(dx, dy);
     const look = dist > 600 ? null : { x: +(dx / Math.max(dist, 60)).toFixed(2), y: +(dy / Math.max(dist, 60)).toFixed(2) };
     const key = JSON.stringify(look);
     if (key !== lastLook) { lastLook = key; win.webContents.send('cursor', look); }
-  }, 90);
+  }, 50);
 
   // Mantener apretado para hablar (tecla elegida en Ajustes).
   const keys = createKeyWatch({
@@ -561,6 +688,7 @@ function start() {
   handle('widget:data', async (_e, name) => {
     if (name === 'weather') return weather.get(store.get('settings').city);
     if (name === 'stats') return system.stats();
+    if (name === 'net') return system.netSpeed();
     if (name === 'media') return system.mediaInfo();
     if (name === 'cover') {
       const r = await system.mediaCover();
@@ -586,10 +714,7 @@ function start() {
     }
     throw new Error('Acción desconocida');
   });
-  handle('island:mode', (_e, mode) => {
-    if (!Object.hasOwn(MODES, mode)) throw new Error('Modo no válido');
-    placeIsland(mode);
-  });
+  handle('island:focus', () => { win?.focus(); }); // para escribir (p. ej. la clave del Wi-Fi)
 }
 
 // Una sola instancia: abrir Yurei otra vez solo muestra sus ajustes en la que ya está en marcha.

@@ -280,7 +280,7 @@ function createTools({ store, system, focus = null, reminders = null, weather = 
     cancel_timer: () => need(focus).cancel(),
     timer_status: () => {
       const t = need(focus).get();
-      if (!t) return { active: false };
+      if (!t || t.finished) return { active: false, finished: !!t?.finished };
       return { active: true, label: t.label, kind: t.kind, phase: t.phase, cycle: t.cycle, cycles: t.cycles, minutesLeft: +(t.left / 60000).toFixed(1) };
     },
     set_dnd: ({ on }) => { store.updateSettings({ dnd: on === true }); return { dnd: on === true }; },

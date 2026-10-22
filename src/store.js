@@ -16,8 +16,36 @@ const DEFAULTS = {
     theme: 'dark',
     customBg: '#101114',
     customAccent: '#6cb8f0',
-    transparency: 'off',
-    opacity: 78,
+    transparency: 'on', // como Bloom: negro translúcido al 80 %
+    opacity: 80,
+    time24: false,
+    hoverOpen: true, // abrir el panel al pasar el mouse (si no, solo con clic)
+    notchMode: 'fixed', // fixed | smart | peek
+    notchEdgeDelay: 200,
+    notchRememberPanel: true,
+    notchDefaultPanel: 'calendar',
+    notchLastPanel: 'yurei',
+    calendarEnabled: true,
+    timerSound: true,
+    timerDuration: 1500, // último tiempo usado, en segundos
+    musicEnabled: true,
+    musicCompact: true, // visualizador y portada en la píldora cerrada
+    mediaLayout: 'classic', // classic | compact
+    mediaAmbience: true,
+    mediaCompactGlow: true,
+    mediaVisualizer: true,
+    mediaAlbumArt: true,
+    shelfPersist: false,
+    showUpdateDot: true,
+    lowBattery: 20,
+    statusWidgets: { left: ['weather'], right: ['battery'] },
+    volumeHud: true, volumeEdge: true, brightnessHud: true, brightnessEdge: true,
+    dockEnabled: false, dockMode: 'smart', dockEdgeDelay: 200, dockPreview: true, dockIconOnly: false,
+    dockSeparator: true, dockTaskView: false, dockWinNumber: true, dockExtras: 'off', dockExtrasDrives: true,
+    dockExtrasRecycle: true, dockExtrasFolders: ['downloads'], dockPinned: [], dockCustomFolders: [], dockAdaptive: false,
+    uiScale: 100, // tamaño de la interfaz (80 a 130 %)
+    themeSat: 50,
+    themeBright: 15,
     fetchFavicons: false,
     fillers: true,
     fillerPhrases: [],
@@ -61,6 +89,7 @@ const DEFAULTS = {
   routines: [],
   memory: [], // lo que Yurei recuerda de ti: [{ id, text, at }]
   reminders: [], // recordatorios hablados: [{ id, text, at, done }]
+  shelf: [], // bandeja de la isla
   notes: [], // notas rápidas: [{ id, text, at }]
   focusStats: {} // concentración por día: { 'YYYY-MM-DD': { pomodoros, minutes } }
 };

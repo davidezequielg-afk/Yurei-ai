@@ -21,6 +21,9 @@ test('temporizador: cuenta, avisa al terminar y se puede cancelar', () => {
   c.advance(60000);
   assert.equal(done.length, 1);
   assert.equal(done[0].finished.label, 'los fideos');
+  assert.equal(f.get().finished, true); // queda "en rojo" hasta reiniciar o cerrar
+  assert.equal(f.get().left, 0);
+  f.cancel();
   assert.equal(f.get(), null);
   f.timer({ minutes: 1 });
   assert.equal(f.cancel().cancelled, true);
@@ -40,4 +43,24 @@ test('pomodoro: foco → descanso → foco… y termina tras los ciclos', () => 
   c.advance(15 * 60000); // fin
   assert.deepEqual(seen, ['break1', 'focus2', 'break2', null]);
   assert.equal(f.get(), null);
+});
+
+test('pausar y reanudar conserva el tiempo que faltaba', () => {
+  const c = fakeClock();
+  const done = [];
+  const f = createFocus({ ...c, onDone: (d) => done.push(d) });
+  f.timer({ minutes: 10 });
+  c.advance(4 * 60000);
+  f.pause();
+  c.advance(30 * 60000); // pausado: no corre
+  assert.equal(done.length, 0);
+  assert.equal(f.get().left, 6 * 60000);
+  assert.equal(f.get().paused, true);
+  f.resume();
+  c.advance(5 * 60000);
+  assert.equal(done.length, 0);
+  c.advance(60000);
+  assert.equal(done.length, 1);
+  assert.equal(f.get().finished, true);
+  assert.equal(f.pause().finished, true); // ya terminó: pausar no hace nada
 });

@@ -1,7 +1,7 @@
 // Apariencia: tema (sistema/claro/oscuro/personalizado) y transparencia → variables CSS para las ventanas.
 
 const HEX = /^#[0-9a-f]{6}$/i;
-const THEMES = ['system', 'light', 'dark', 'custom'];
+const THEMES = ['system', 'light', 'dark', 'custom', 'adaptive'];
 const TRANSPARENCY = ['system', 'on', 'off'];
 
 const PALETTE = {
@@ -22,6 +22,24 @@ const luminance = (hex) => {
 const rgba = (hex, a) => `rgba(${toRgb(hex).join(', ')}, ${a})`;
 const color = (value, fallback) => (HEX.test(String(value)) ? String(value).toLowerCase() : fallback);
 
+// Tono (0-360) de un color, y color a partir de tono/saturación/luminosidad (0-1).
+function hueOf(hex) {
+  const [r, g, b] = toRgb(hex).map((v) => v / 255);
+  const max = Math.max(r, g, b);
+  const min = Math.min(r, g, b);
+  const d = max - min;
+  if (!d) return 0;
+  const h = max === r ? ((g - b) / d) % 6 : max === g ? (b - r) / d + 2 : (r - g) / d + 4;
+  return (h * 60 + 360) % 360;
+}
+function fromHsl(h, s, l) {
+  const k = (n) => (n + h / 30) % 12;
+  const a = s * Math.min(l, 1 - l);
+  const f = (n) => l - a * Math.max(-1, Math.min(k(n) - 3, 9 - k(n), 1));
+  return toHex([f(0), f(8), f(4)].map((v) => v * 255));
+}
+const unit = (v, def) => { const n = Number(v); return Number.isFinite(n) ? Math.max(0, Math.min(100, n)) / 100 : def; };
+
 // Windows da el acento como RRGGBBAA (sin #).
 function parseSystemAccent(raw) {
   const m = /^#?([0-9a-f]{6})([0-9a-f]{2})?$/i.exec(String(raw || ''));
@@ -33,7 +51,15 @@ function resolveAppearance(settings = {}, system = {}) {
   let mode;
   let bg;
   let accent;
-  if (theme === 'custom') {
+  let ink = null;
+  if (theme === 'adaptive') {
+    // Adaptativo: el tono del acento de Windows, con la saturación y el brillo elegidos (si no hay acento, oscuro).
+    const sys = parseSystemAccent(system.accent);
+    const light = unit(settings.themeBright, 0.15);
+    bg = sys ? fromHsl(hueOf(sys), unit(settings.themeSat, 0.5), light) : PALETTE.dark.bg;
+    accent = sys || PALETTE.dark.accent;
+    mode = sys && light > 0.55 ? 'light' : 'dark';
+  } else if (theme === 'custom') {
     bg = color(settings.customBg, '#101114');
     accent = color(settings.customAccent, PALETTE.dark.accent);
     mode = luminance(bg) > 0.4 ? 'light' : 'dark';
@@ -42,7 +68,7 @@ function resolveAppearance(settings = {}, system = {}) {
     bg = PALETTE[mode].bg;
     accent = (theme === 'system' && parseSystemAccent(system.accent)) || PALETTE[mode].accent;
   }
-  const ink = PALETTE[mode].ink;
+  ink = PALETTE[mode].ink;
   const transparency = TRANSPARENCY.includes(settings.transparency) ? settings.transparency : 'off';
   const translucent = transparency === 'on' || (transparency === 'system' && system.transparency === true);
   const opacity = Math.max(30, Math.min(100, Math.round(Number(settings.opacity) || 78)));
@@ -52,6 +78,8 @@ function resolveAppearance(settings = {}, system = {}) {
     translucent,
     vars: {
       '--bg': rgba(bg, alpha),
+      '--bg-exp': rgba(bg, Math.min(1, alpha + 0.12)), // la isla abierta o con el mouse encima: un poco más opaca
+      '--group': rgba(ink, mode === 'light' ? 0.05 : 0.06),
       '--bg-solid': bg,
       '--ink': ink,
       '--ink2': mix(ink, bg, 0.25),
@@ -64,4 +92,4 @@ function resolveAppearance(settings = {}, system = {}) {
   };
 }
 
-module.exports = { THEMES, TRANSPARENCY, HEX, resolveAppearance, parseSystemAccent, mix, luminance };
+module.exports = { hueOf, fromHsl, THEMES, TRANSPARENCY, HEX, resolveAppearance, parseSystemAccent, mix, luminance };

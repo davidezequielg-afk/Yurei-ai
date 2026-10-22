@@ -10,17 +10,24 @@ const state = { mode: 'idle', recording: null, pendingImage: null, autoStop: nul
 
 const isPanel = (m) => m === 'peek';
 
-// idle: solo el notch · status: aviso corto · peek: panel de widgets
+// idle: solo la píldora · status: aviso corto · peek: panel de Yurei (los demás paneles los maneja la isla)
 function setMode(mode) {
-  const wasPanel = isPanel(state.mode);
   state.mode = mode;
-  island.className = `${mode} ${island.dataset.phase || ''}${state.dnd ? ' dnd' : ''}${timer.cur ? ' timing' : ''}`.trim();
-  $('panel').hidden = !isPanel(mode);
-  $('reply').hidden = mode !== 'status';
-  window.yurei.setMode(mode);
-  if (isPanel(mode) && !wasPanel) startWidgets();
-  if (!isPanel(mode) && wasPanel) stopWidgets();
+  if (mode === 'peek') Island.open('yurei');
+  else if (mode === 'idle') Island.close();
+  // 'status' lo muestra Island.notice() con su texto
 }
+
+// Cuando la isla cambia de vista: los widgets del panel de Yurei solo corren mientras se ven.
+Island.onView = (view, prev) => {
+  state.mode = view === 'yurei' ? 'peek' : view === 'notice' ? 'status' : 'idle';
+  state.view = view;
+  if (view === 'yurei' && prev !== 'yurei') startWidgets();
+  if (view !== 'yurei' && prev === 'yurei') stopWidgets();
+  armSleep();
+};
+Island.onHot = () => armSleep();
+Island.register('yurei', { size: () => ({ w: 500, h: 124 }), enter() {}, leave() {} });
 
 /* ---------- widgets: 3 lugares fijos, cada uno con el widget que elijas ---------- */
 
@@ -422,8 +429,8 @@ function stopWidgets() {
 }
 
 function setPhase(phase, label) {
-  island.dataset.phase = phase;
-  island.className = `${state.mode} ${phase}${state.dnd ? ' dnd' : ''}${timer.cur ? ' timing' : ''}`.trim();
+  Island.setPhase(phase);
+  island.classList.toggle('dnd', !!state.dnd);
   if (label) $('status').textContent = label;
   armSleep();
   state.stateText = phase ? label : 'Toca para hablar';
@@ -675,23 +682,15 @@ function startFillers() {
 
 const log = (kind, text) => console.debug(kind, text);
 
-// El notch pequeño no se agranda por cada respuesta (se oyen); solo para avisos y errores.
-// Aviso corto en el notch (se estira unos segundos y vuelve), sin voz.
+// La isla no se agranda por cada respuesta (se oyen); solo para avisos y errores.
 function notice(text, ms = 5000) {
   if (state.dnd) return;
-  $('reply').textContent = text;
-  if (state.mode === 'idle') {
-    setMode('status');
-    setTimeout(() => { if (state.mode === 'status') setMode('idle'); }, ms);
-  }
+  Island.notice(text, ms);
 }
 
 function showReply(text) {
   $('reply').textContent = text;
-  if (state.mode === 'idle' && /^(⚠|⏰)/.test(text)) {
-    setMode('status');
-    setTimeout(() => { if (state.mode === 'status') setMode('idle'); }, 8000);
-  }
+  if (/^(⚠|⏰)/.test(text)) Island.notice(text, 8000);
 }
 
 /* ---------- conversación manos libres ---------- */
@@ -840,34 +839,9 @@ async function toggleDictation() {
 
 /* ---------- eventos ---------- */
 
-// Al pasar el ratón por el notch se abre el panel (sin clic); al sacarlo, se cierra.
-const HOVER_OPEN_MS = 90; // evita que salte si solo pasas rápido por encima
-const HOVER_CLOSE_MS = 500; // margen para volver a entrar sin que parpadee
-const hover = { open: null, close: null, closedByClick: false };
-const root = document.documentElement;
-
-root.addEventListener('mouseenter', () => {
-  clearTimeout(hover.close);
-  if (hover.closedByClick || isPanel(state.mode)) return;
-  clearTimeout(hover.open);
-  hover.open = setTimeout(() => { if (!isPanel(state.mode)) setMode('peek'); }, HOVER_OPEN_MS);
-});
-root.addEventListener('mouseleave', (e) => {
-  clearTimeout(hover.open);
-  hover.closedByClick = false; // al salir, el siguiente paso por encima vuelve a abrirlo
-  if (e.buttons) return; // arrastrando algo (p. ej. el deslizador del volumen): no cerrar
-  clearTimeout(hover.close);
-  hover.close = setTimeout(() => { if (isPanel(state.mode)) setMode('idle'); }, HOVER_CLOSE_MS);
-});
-// Clic en el notch: abre o cierra a mano. Si lo cierras con el ratón encima, no se reabre hasta que salgas y vuelvas.
-$('bar').onclick = () => {
-  clearTimeout(hover.open);
-  clearTimeout(hover.close);
-  if (isPanel(state.mode)) { hover.closedByClick = true; setMode('idle'); } else setMode('peek');
-};
+// El mouse, la rueda, el clic y los paneles los maneja la isla (island.js).
 $('gear').replaceChildren(window.icon('settings', 14));
 $('gear').onclick = () => window.yurei.openSettings();
-window.addEventListener('keydown', (e) => { if (e.key === 'Escape') setMode('idle'); });
 
 window.yurei.on('hotkey', (name) => {
   if (name === 'ptt-down') { pttDown(); return; }
@@ -920,16 +894,18 @@ function drawTimer() {
   const ring = $('ring');
   const tl = $('tleft');
   const t = timer.cur;
-  island.classList.toggle('timing', !!t);
+  Island.setTimer(!!t);
   tl.hidden = !t;
-  if (!t) { timer.raf = null; return; }
-  const left = Math.max(0, t.left - (performance.now() - timer.base));
-  tl.textContent = fmtLeft(left);
+  if (!t) { timer.raf = null; Island.timerTick?.(null, 0); return; }
+  const left = t.paused ? t.left : Math.max(0, t.left - (performance.now() - timer.base));
+  tl.textContent = t.finished ? '0:00' : fmtLeft(left);
   tl.classList.toggle('break', t.phase === 'break');
+  tl.classList.toggle('done', !!t.finished);
   ring.title = `${t.kind === 'pomodoro' ? (t.phase === 'break' ? 'Descanso' : `Pomodoro ${t.cycle}/${t.cycles}`) : t.label} · faltan ${fmtLeft(left)}`;
   tl.title = ring.title;
   const ws = $('wState');
   if (ws && !island.dataset.phase) ws.textContent = `⏱ ${fmtLeft(left)}`;
+  Island.timerTick?.(t, left);
   timer.raf = setTimeout(drawTimer, 250);
 }
 function setTimerState(t) {
@@ -1103,11 +1079,11 @@ function showUpdate(u) {
   if (u.status === 'downloading') b.textContent = `Bajando… ${Math.round((u.progress || 0) * 100)}%`;
   if (u.status === 'installing') b.textContent = 'Instalando…';
   b.title = u.error ? `⚠ ${u.error}` : 'Baja la versión nueva desde GitHub, verifica su huella y la instala';
+  island.classList.toggle('has-update', ['available', 'downloading', 'installing'].includes(u.status) && state.showUpdateDot !== false);
   // Se avisa una sola vez por versión, sin interrumpir.
   if (u.status === 'available' && announcedUpdate !== u.version && !state.dnd) {
     announcedUpdate = u.version;
-    showReply(`✨ Hay una versión nueva (${u.version}). Abre el panel para instalarla.`);
-    if (state.mode === 'idle') { setMode('status'); setTimeout(() => { if (state.mode === 'status') setMode('idle'); }, 8000); }
+    Island.pulse([window.icon('download', 14), el('span', { textContent: t('Actualización disponible') })], 6000, '#32d74b');
   }
 }
 $('upd').onclick = async (e) => {
@@ -1117,6 +1093,49 @@ $('upd').onclick = async (e) => {
 };
 window.yurei.on('update', showUpdate);
 window.yurei.updateGet().then((r) => r.ok && showUpdate(r.data));
+
+/* ---------- datos de los widgets de estado de la isla ---------- */
+
+let statusTimers = [];
+function startStatusFeeds() {
+  statusTimers.forEach(clearInterval);
+  statusTimers = [];
+  const wanted = () => new Set([...(Island.state.widgets.left || []), ...(Island.state.widgets.right || [])]);
+  const weather = async () => {
+    if (!wanted().has('weather')) return;
+    const r = await window.yurei.widgetData('weather');
+    Island.setWidgetData('weather', r.ok ? r.data : null);
+  };
+  const stats = async () => {
+    const w = wanted();
+    if (!(w.has('cpu') || w.has('ram') || w.has('disk'))) return;
+    if (!Island.state.hot && Island.state.view === '') return; // solo mientras se ven
+    const r = await window.yurei.widgetData('stats');
+    if (!r.ok) return;
+    Island.setWidgetData('cpu', r.data.cpu);
+    Island.setWidgetData('ram', Math.round((r.data.ramUsedGb / r.data.ramTotalGb) * 100));
+    Island.setWidgetData('disk', r.data.diskFreeGb);
+  };
+  const net = async () => {
+    if (!wanted().has('net') || (!Island.state.hot && Island.state.view === '')) return;
+    const r = await window.yurei.widgetData('net');
+    if (r.ok && r.data) Island.setWidgetData('net', r.data);
+  };
+  weather(); stats(); net();
+  statusTimers.push(setInterval(weather, 30 * 60 * 1000), setInterval(stats, 3000), setInterval(net, 2000));
+}
+
+// Batería: solo en notebooks (una PC de escritorio no tiene, y entonces no hay widget ni avisos).
+async function startBatteryFeed() {
+  if (state.batteryFeed || state.device !== 'notebook') return;
+  const b = await navigator.getBattery?.().catch(() => null);
+  if (!b) return;
+  state.batteryFeed = true;
+  const push = () => Island.setWidgetData('battery', { level: b.level, charging: b.charging });
+  push();
+  b.addEventListener('levelchange', push);
+  b.addEventListener('chargingchange', push);
+}
 
 function applySettings(cfg) {
   const voiceChanged = cfg.voice !== state.voiceName || cfg.lang !== state.lang || JSON.stringify(cfg.fillerPhrases || []) !== JSON.stringify(state.fillerPhrases || []);
@@ -1142,6 +1161,10 @@ function applySettings(cfg) {
   if (isPanel(state.mode) && (layoutChanged || cityChanged || (launcherChanged && state.layout.includes('apps')))) buildWidgets();
   state.dnd = !!cfg.dnd;
   state.device = cfg.device;
+  state.showUpdateDot = cfg.showUpdateDot !== false;
+  Island.configure(cfg);
+  startStatusFeeds();
+  startBatteryFeed();
   state.reactions = cfg.reactions !== false;
   watchBattery(cfg.device === 'notebook');
   applySeason(cfg);
@@ -1156,5 +1179,5 @@ window.yurei.getSettings().then((r) => {
   applySettings(r.data);
   if (!r.data.apiKey || !r.data.onboarded) window.yurei.openSettings(); // primer arranque: bienvenida paso a paso
 });
-setMode('idle');
+Island.start();
 armSleep();

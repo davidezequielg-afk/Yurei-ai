@@ -120,6 +120,24 @@ function createSystem({ shell, clipboard, dataDir = os.tmpdir(), confirm = async
     },
     // Batería (solo notebooks): nivel y si está enchufada.
     battery: () => (isWin ? ps('$b = Get-CimInstance Win32_Battery | Select-Object -First 1; if ($b) { "$($b.EstimatedChargeRemaining)|$($b.BatteryStatus)" }').then((o) => { const [lvl, st] = o.trim().split('|').map(Number); return Number.isFinite(lvl) ? { level: lvl, charging: [2, 6, 7, 8, 9].includes(st) } : null; }) : Promise.resolve(null)),
+    // Radios (Wi-Fi y Bluetooth), dispositivos Bluetooth emparejados, teclas del sistema y páginas de Ajustes de Windows.
+    radios: () => win().request('radio.get'),
+    setRadio: (kind, on) => {
+      if (!['wifi', 'bluetooth'].includes(kind)) throw new Error('Radio desconocida');
+      return win().request('radio.set', `${kind}:${on ? 'true' : 'false'}`);
+    },
+    btDevices: () => win().request('bt.list'),
+    combo(name) {
+      const keys = { notifications: [91, 78], tray: [91, 66], taskview: [91, 9], start: [91] }[name]; // Win+N, Win+B, Win+Tab, Win
+      if (!keys) throw new Error('Combinación no permitida');
+      return win().request('keys.combo', keys.join(','));
+    },
+    openSettingsPage(page) {
+      const uri = { sound: 'sound', bluetooth: 'bluetooth', wifi: 'network-wifi', batterysaver: 'batterysaver', nightlight: 'nightlight', taskbar: 'taskbar', apps: 'appsfeatures', notifications: 'notifications' }[page];
+      if (!uri) throw new Error('Página no permitida');
+      if (!isWin) throw new Error('Solo en Windows');
+      return shell.openExternal(`ms-settings:${uri}`);
+    },
     getBrightness: () => (isWin ? win().request('bright.get') : Promise.resolve({ available: false })),
     setBrightness: (level) => win().request('bright.set', level),
     openNightLight: () => (isWin ? shell.openExternal('ms-settings:nightlight') : Promise.reject(new Error('Solo en Windows'))),
@@ -156,6 +174,39 @@ function createSystem({ shell, clipboard, dataDir = os.tmpdir(), confirm = async
       }
     },
 
+    // Velocidad de red (bytes por segundo) a partir de los contadores del sistema.
+    netSpeed: (() => {
+      let prev = null;
+      const read = () => new Promise((resolve) => {
+        if (isWin) {
+          execFile('netstat.exe', ['-e'], { windowsHide: true }, (err, out) => {
+            const m = !err && /^\s*(?:Bytes|Octetos)\s+(\d+)\s+(\d+)/im.exec(out);
+            resolve(m ? { rx: Number(m[1]), tx: Number(m[2]) } : null);
+          });
+        } else {
+          try {
+            let rx = 0;
+            let tx = 0;
+            for (const line of fs.readFileSync('/proc/net/dev', 'utf8').split('\n').slice(2)) {
+              const [name, rest] = line.split(':');
+              if (!rest || name.trim() === 'lo') continue;
+              const c = rest.trim().split(/\s+/).map(Number);
+              rx += c[0]; tx += c[8];
+            }
+            resolve({ rx, tx });
+          } catch { resolve(null); }
+        }
+      });
+      return async () => {
+        const cur = await read();
+        const t = Date.now();
+        if (!cur) return null;
+        const out = prev && t > prev.t ? { down: Math.max(0, (cur.rx - prev.rx) / ((t - prev.t) / 1000)), up: Math.max(0, (cur.tx - prev.tx) / ((t - prev.t) / 1000)) } : { down: 0, up: 0 };
+        prev = { ...cur, t };
+        return out;
+      };
+    })(),
+
     stats: (() => {
       let prev = os.cpus();
       return () => {
@@ -167,10 +218,13 @@ function createSystem({ shell, clipboard, dataDir = os.tmpdir(), confirm = async
           idle += c.times.idle - prev[i].times.idle;
         });
         prev = cur;
+        let diskFreeGb = null;
+        try { const f = fs.statfsSync(isWin ? `${(process.env.SystemDrive || 'C:')}\\` : '/'); diskFreeGb = Math.round((f.bavail * f.bsize) / 2 ** 30); } catch { /* sin dato */ }
         return {
           cpu: total ? Math.round(100 * (1 - idle / total)) : 0,
           ramUsedGb: +((os.totalmem() - os.freemem()) / 2 ** 30).toFixed(1),
-          ramTotalGb: +(os.totalmem() / 2 ** 30).toFixed(1)
+          ramTotalGb: +(os.totalmem() / 2 ** 30).toFixed(1),
+          diskFreeGb
         };
       };
     })()

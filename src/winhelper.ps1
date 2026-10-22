@@ -77,6 +77,8 @@ public class YureiKeys {
     keybd_event(vk, 0, 0, 0);
     keybd_event(vk, 0, 2, 0);
   }
+  public static void Down(byte vk) { keybd_event(vk, 0, 0, 0); }
+  public static void Up(byte vk) { keybd_event(vk, 0, 2, 0); }
 }
 "@
 } catch {
@@ -139,6 +141,64 @@ function Get-Media {
     position = [int]$tl.Position.TotalSeconds
     duration = $duration
   }
+}
+
+# Combinaciones de teclas del sistema (Win+N, Win+B, Win+Tab...). Solo las que Yurei permite desde su lado.
+function Press-Combo($arg) {
+  $vks = @($arg -split ',' | ForEach-Object { [int]$_ })
+  if (-not ('YureiKeys' -as [type])) { throw 'Las teclas del sistema no estan disponibles' }
+  foreach ($k in $vks) { [YureiKeys]::Down([byte]$k) }
+  [array]::Reverse($vks)
+  foreach ($k in $vks) { [YureiKeys]::Up([byte]$k) }
+  return @{ done = $true }
+}
+
+# Radios de Windows (Wi-Fi y Bluetooth): estado y encendido/apagado, como el panel de modo avion.
+function Get-RadioList {
+  [void][Windows.Devices.Radios.Radio, Windows.System.Devices, ContentType = WindowsRuntime]
+  [void][Windows.Devices.Radios.RadioAccessStatus, Windows.System.Devices, ContentType = WindowsRuntime]
+  $listType = [System.Collections.Generic.IReadOnlyList[Windows.Devices.Radios.Radio]]
+  return Await ([Windows.Devices.Radios.Radio]::GetRadiosAsync()) $listType
+}
+function Get-Radios {
+  $out = @{ wifi = @{ present = $false; on = $false }; bluetooth = @{ present = $false; on = $false } }
+  foreach ($r in (Get-RadioList)) {
+    $key = $null
+    if ($r.Kind.ToString() -eq 'WiFi') { $key = 'wifi' } elseif ($r.Kind.ToString() -eq 'Bluetooth') { $key = 'bluetooth' }
+    if ($key) { $out[$key] = @{ present = $true; on = ($r.State.ToString() -eq 'On') } }
+  }
+  return $out
+}
+function Set-Radio($arg) {
+  $parts = $arg -split ':', 2
+  $kind = if ($parts[0] -eq 'wifi') { 'WiFi' } elseif ($parts[0] -eq 'bluetooth') { 'Bluetooth' } else { throw 'Radio desconocida' }
+  $state = if ($parts[1] -eq 'true') { 'On' } else { 'Off' }
+  $done = $false
+  foreach ($r in (Get-RadioList)) {
+    if ($r.Kind.ToString() -eq $kind) {
+      $status = Await ($r.SetStateAsync($state)) ([Windows.Devices.Radios.RadioAccessStatus])
+      if ($status.ToString() -ne 'Allowed') { throw "Windows no dejo cambiarlo ($status)" }
+      $done = $true
+    }
+  }
+  if (-not $done) { throw 'Este equipo no tiene esa radio' }
+  return Get-Radios
+}
+
+# Dispositivos Bluetooth emparejados (nombre, si estan conectados y bateria cuando Windows la informa).
+function Get-BtDevices {
+  $devs = @()
+  $items = Get-PnpDevice -Class Bluetooth -ErrorAction SilentlyContinue | Where-Object { $_.FriendlyName -and (($_.InstanceId -like 'BTHENUM\DEV_*') -or ($_.InstanceId -like 'BTHLE\DEV_*')) }
+  $seen = @{}
+  foreach ($d in $items) {
+    if ($seen.ContainsKey($d.FriendlyName)) { continue }
+    $seen[$d.FriendlyName] = $true
+    $conn = $false; $bat = $null
+    try { $conn = [bool](Get-PnpDeviceProperty -InstanceId $d.InstanceId -KeyName '{83DA6326-97A6-4088-9453-A1923F573B29} 15' -ErrorAction Stop).Data } catch {}
+    try { $bat = [int](Get-PnpDeviceProperty -InstanceId $d.InstanceId -KeyName '{104EA319-6EE2-4701-BD47-8DDBF425BBE5} 2' -ErrorAction Stop).Data } catch {}
+    $devs += @{ name = [string]$d.FriendlyName; connected = $conn; battery = $bat }
+  }
+  return $devs
 }
 
 # Brillo de la pantalla integrada (notebooks). Los monitores de PC de escritorio no se pueden controlar asi.
@@ -266,6 +326,10 @@ while ($true) {
       'diag'      { $v = Get-Vol; $data = @{ powershell = $PSVersionTable.PSVersion.ToString(); audioExacto = [bool]('YureiAudio' -as [type]); teclas = [bool]('YureiKeys' -as [type]); reproductores = $script:smtc; erroresAlIniciar = @($script:initErrors); volumen = $v; ultimoErrorDeAudio = $script:audioError } }
       'media.get' { $data = Get-Media }
       'media.cover' { $data = Get-Cover }
+      'keys.combo' { $data = Press-Combo $arg }
+      'radio.get' { $data = Get-Radios }
+      'radio.set' { $data = Set-Radio $arg }
+      'bt.list' { $data = @{ devices = @(Get-BtDevices) } }
       'bright.get' { $data = Get-Bright }
       'bright.set' { $data = Set-Bright $arg }
       'media.cmd' { $a = $arg -split ':', 2; $data = Invoke-Media $a[0] $(if ($a.Count -gt 1) { $a[1] } else { '' }) }
