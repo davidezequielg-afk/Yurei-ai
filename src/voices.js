@@ -16,15 +16,27 @@ const ENGINE = {
   size: 22477236
 };
 
+// Dos motores: Piper (una voz por modelo, liviano y rápido) y Kokoro (un modelo compartido por todas sus voces, más natural
+// pero más pesado y lento). Kokoro corre con sherpa-onnx y usa los datos de pronunciación (espeak-ng) que ya trae Piper.
+const KOKORO_REVISION = '2a360693d79b88b49b88e29aec2b53577f41f206';
+const KOKORO = {
+  base: `https://huggingface.co/csukuangfj/kokoro-int8-multi-lang-v1_0/resolve/${KOKORO_REVISION}`,
+  lang: 'es-419', // español latinoamericano (seseo)
+  files: [
+    { name: 'model.int8.onnx', size: 114203756, sha256: '4b86207ef680e394d8343bee22dfc4c512e5c707c6d9578e3f35ab09bffd6b36' },
+    { name: 'voices.bin', size: 28200960, sha256: '1c5a5b983d3d50d8586d437a51f3faa2da7919ce76a013c081e65671a3447c29' },
+    { name: 'tokens.txt', size: 687, sha256: '6ebb6bb288f20f3ae8d004d3c2ca27697da27c037d75e81a60e2a6a663f95425' }
+  ]
+};
+const KOKORO_BYTES = KOKORO.files.reduce((a, f) => a + f.size, 0);
+
 const VOICES = [
-  { id: 'daniela', name: 'Daniela', gender: 'f', accent: 'Argentina', quality: 'alta', dir: 'es/es_AR/daniela/high', file: 'es_AR-daniela-high', size: 114199011,
+  { id: 'daniela', engine: 'piper', name: 'Daniela', gender: 'f', accent: 'Argentina', quality: 'alta', dir: 'es/es_AR/daniela/high', file: 'es_AR-daniela-high', size: 114199011,
     sha256: { onnx: '7ceb1fc0dab349418c5b54a639ae9ee595212d7c9ea422220d8419163d5cc985', json: 'aedbf69647e1d754c62ecf8e0366ca5f16af3e768e3c6b5329af6eb6bde3852b' } },
-  { id: 'claude', name: 'Claude', gender: 'f', accent: 'México', quality: 'alta', dir: 'es/es_MX/claude/high', file: 'es_MX-claude-high', size: 63122309,
-    sha256: { onnx: '3ef40a71ea63852cd8ab7e6fa7d2ecdcfa67a0b47c9c48e3f10e02ee02083ea0', json: '1afc81f703c0e4cb3b4d7c0dca096b8b54a98806807f0170cf5eb5557723c12d' } },
-  { id: 'ald', name: 'Ald', gender: 'm', accent: 'México', quality: 'media', dir: 'es/es_MX/ald/medium', file: 'es_MX-ald-medium', size: 63201294,
+  { id: 'ald', engine: 'piper', name: 'Ald', gender: 'm', accent: 'México', quality: 'media', dir: 'es/es_MX/ald/medium', file: 'es_MX-ald-medium', size: 63201294,
     sha256: { onnx: '019b3803293c93e34a206dd2e53a3889209a514e786fd7144f7b70196c579b63', json: '5a71498158e04afc8099bfd019c7e87c68eb9d042505a2b1a87e5c1ac2b1a61d' } },
-  { id: 'dave', name: 'Dave', gender: 'm', accent: 'España', quality: 'media', dir: 'es/es_ES/davefx/medium', file: 'es_ES-davefx-medium', size: 63201294,
-    sha256: { onnx: '6658b03b1a6c316ee4c265a9896abc1393353c2d9e1bca7d66c2c442e222a917', json: '0e0dda87c732f6f38771ff274a6380d9252f327dca77aa2963d5fbdf9ec54842' } }
+  { id: 'dora', engine: 'kokoro', name: 'Dora', gender: 'f', accent: 'Español neutro', quality: 'natural', sid: 28, size: KOKORO_BYTES },
+  { id: 'alex', engine: 'kokoro', name: 'Alex', gender: 'm', accent: 'Español neutro', quality: 'natural', sid: 29, size: KOKORO_BYTES }
 ];
 const VOICE_IDS = VOICES.map((v) => v.id);
 const byId = (id) => VOICES.find((v) => v.id === id) || null;
@@ -84,7 +96,14 @@ function createVoices({ dir, bundledDir = null, fetchImpl = fetch, fsImpl = fs, 
   const engineRoot = () => (hasBundledEngine() ? bundledRoot : userRoot);
   const exe = path.join(userRoot, exeName); // dónde queda el motor si se descarga
   const bundledVoice = (v) => !!bundledDir && exists(filesIn(bundledDir, v).model) && exists(filesIn(bundledDir, v).config);
+  // Kokoro: un solo juego de archivos para todas sus voces (carpeta kokoro/ dentro del instalador o de los datos del usuario).
+  const kokoroIn = (base) => KOKORO.files.map((f) => path.join(base, 'kokoro', f.name));
+  const kokoroBundled = () => !!bundledDir && kokoroIn(bundledDir).every(exists);
+  const kokoroUser = () => kokoroIn(dir).every(exists);
+  const kokoroBase = () => (kokoroBundled() ? bundledDir : dir);
   let busy = null;
+
+  const isBundled = (v) => (v.engine === 'kokoro' ? kokoroBundled() : bundledVoice(v));
 
   const api = {
     dir,
@@ -92,11 +111,29 @@ function createVoices({ dir, bundledDir = null, fetchImpl = fetch, fsImpl = fs, 
     get engineRoot() { return engineRoot(); },
     list: () => VOICES,
     get: byId,
-    engineReady: () => hasBundledEngine() || exists(exe),
-    installed(id) { const v = byId(id); return !!v && (bundledVoice(v) || (exists(files(v).model) && exists(files(v).config))); },
+    engineReady: () => hasBundledEngine() || exists(exe), // el motor de Piper también aporta los datos de pronunciación de Kokoro
+    installed(id) {
+      const v = byId(id);
+      if (!v) return false;
+      if (v.engine === 'kokoro') return kokoroBundled() || kokoroUser();
+      return bundledVoice(v) || (exists(files(v).model) && exists(files(v).config));
+    },
     ready(id) { return api.engineReady() && api.installed(id); },
-    paths(id) { const v = byId(id); if (!v) throw new Error('Voz desconocida'); return { exe: path.join(engineRoot(), exeName), engineRoot: engineRoot(), ...(bundledVoice(v) ? filesIn(bundledDir, v) : files(v)) }; },
-    status() { return { supported: platform === 'win32', bundled: hasBundledEngine(), engine: api.engineReady(), busy: busy, voices: VOICES.map((v) => ({ id: v.id, name: v.name, gender: v.gender, accent: v.accent, quality: v.quality, mb: Math.round(v.size / 1048576), installed: api.installed(v.id), bundled: bundledVoice(v) })) }; },
+    paths(id) {
+      const v = byId(id);
+      if (!v) throw new Error('Voz desconocida');
+      if (v.engine === 'kokoro') {
+        const b = path.join(kokoroBase(), 'kokoro');
+        return { engine: 'kokoro', model: path.join(b, 'model.int8.onnx'), voices: path.join(b, 'voices.bin'), tokens: path.join(b, 'tokens.txt'), dataDir: path.join(engineRoot(), 'espeak-ng-data'), sid: v.sid, lang: KOKORO.lang };
+      }
+      return { engine: 'piper', exe: path.join(engineRoot(), exeName), engineRoot: engineRoot(), ...(bundledVoice(v) ? filesIn(bundledDir, v) : files(v)) };
+    },
+    status() {
+      return {
+        supported: platform === 'win32', bundled: hasBundledEngine(), engine: api.engineReady(), busy,
+        voices: VOICES.map((v) => ({ id: v.id, engine: v.engine, name: v.name, gender: v.gender, accent: v.accent, quality: v.quality, mb: Math.round(v.size / 1048576), installed: api.installed(v.id), bundled: isBundled(v) }))
+      };
+    },
 
     // Baja el motor (si falta) y la voz. onProgress recibe { phase, fraction } con fraction de 0 a 1.
     async install(id, onProgress = () => {}) {
@@ -108,7 +145,8 @@ function createVoices({ dir, bundledDir = null, fetchImpl = fetch, fsImpl = fs, 
       busy = id;
       try {
         const needEngine = !api.engineReady();
-        const total = (needEngine ? ENGINE.size : 0) + v.size;
+        const needVoice = !api.installed(id);
+        const total = (needEngine ? ENGINE.size : 0) + (needVoice ? v.size : 0);
         let done = 0;
         const tick = (phase) => (n) => { done += n; onProgress({ phase, fraction: Math.min(1, done / total) }); };
         if (needEngine) {
@@ -121,9 +159,13 @@ function createVoices({ dir, bundledDir = null, fetchImpl = fetch, fsImpl = fs, 
           fsImpl.rmSync(zip, { force: true });
           if (!api.engineReady()) throw new Error('El motor de voz no quedó completo');
         }
-        const f = files(v);
-        await download({ url: voiceUrl(v, 'onnx'), dest: f.model, sha256: v.sha256.onnx, fetchImpl, fsImpl, onBytes: tick('voz') });
-        await download({ url: voiceUrl(v, 'onnx.json'), dest: f.config, sha256: v.sha256.json, fetchImpl, fsImpl, onBytes: () => {} });
+        if (needVoice && v.engine === 'kokoro') {
+          for (const f of KOKORO.files) await download({ url: `${KOKORO.base}/${f.name}`, dest: path.join(dir, 'kokoro', f.name), sha256: f.sha256, fetchImpl, fsImpl, onBytes: tick('voz') });
+        } else if (needVoice) {
+          const f = files(v);
+          await download({ url: voiceUrl(v, 'onnx'), dest: f.model, sha256: v.sha256.onnx, fetchImpl, fsImpl, onBytes: tick('voz') });
+          await download({ url: voiceUrl(v, 'onnx.json'), dest: f.config, sha256: v.sha256.json, fetchImpl, fsImpl, onBytes: () => {} });
+        }
         onProgress({ phase: 'listo', fraction: 1 });
       } finally { busy = null; }
     },
@@ -131,10 +173,11 @@ function createVoices({ dir, bundledDir = null, fetchImpl = fetch, fsImpl = fs, 
     remove(id) {
       const v = byId(id);
       if (!v) throw new Error('Voz desconocida');
+      if (v.engine === 'kokoro') { for (const p of kokoroIn(dir)) fsImpl.rmSync(p, { force: true }); return; } // las voces de Kokoro comparten archivos
       for (const p of Object.values(files(v))) fsImpl.rmSync(p, { force: true });
     }
   };
   return api;
 }
 
-module.exports = { VOICES, VOICE_IDS, ENGINE, REVISION, createVoices, download, voiceUrl, powershellExtract };
+module.exports = { VOICES, VOICE_IDS, ENGINE, KOKORO, REVISION, createVoices, download, voiceUrl, powershellExtract };

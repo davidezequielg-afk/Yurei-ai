@@ -7,6 +7,7 @@ const { createEdges } = require('./src/edges');
 const { createVisibility } = require('./src/visibility');
 const { createVoices, VOICE_IDS } = require('./src/voices');
 const { createPiper } = require('./src/piper');
+const { createKokoro } = require('./src/kokoro');
 const { createTools } = require('./src/tools');
 const { createAssistant } = require('./src/assistant');
 const { createScheduler } = require('./src/scheduler');
@@ -300,8 +301,12 @@ function start() {
   const tools = createTools({ store, system, focus, reminders, weather: weatherRef, speed: () => speedTest(), files: { find: (q) => findFiles(q) } });
   // Voces propias (Piper): vienen dentro del instalador (resources/voices); si faltan se pueden bajar desde Ajustes.
   const voices = createVoices({ dir: path.join(userData, 'voices'), bundledDir: app.isPackaged ? path.join(process.resourcesPath, 'voices') : (fs.existsSync(path.join(__dirname, 'build-voices')) ? path.join(__dirname, 'build-voices') : null) });
-  const piper = createPiper({ voices, tmpDir: path.join(userData, 'voices', 'tmp') });
-  const localVoiceId = () => store.get('settings').localVoice || 'daniela';
+  const piperEngine = createPiper({ voices, tmpDir: path.join(userData, 'voices', 'tmp') });
+  const kokoroEngine = createKokoro({ voices });
+  // Elige el motor según la voz (Piper o Kokoro); el resto de la app no distingue.
+  const engineFor = (id) => (voices.get(id)?.engine === 'kokoro' ? kokoroEngine : piperEngine);
+  const piper = { speak: (id, text, o) => engineFor(id).speak(id, text, o), prewarm: (id, o) => engineFor(id).prewarm(id, o), stop: () => { piperEngine.stop(); kokoroEngine.stop(); } };
+  const localVoiceId = () => { const v = store.get('settings').localVoice; return VOICE_IDS.includes(v) ? v : 'daniela'; };
   const voiceOpts = () => { const c = store.get('settings'); return { speed: (c.voiceSpeed || 100) / 100, pitch: c.voicePitch || 0 }; };
   const local = { ready: () => voices.ready(localVoiceId()), speak: (text) => piper.speak(localVoiceId(), text, voiceOpts()) };
   app.on('quit', () => piper.stop());
@@ -530,7 +535,10 @@ function start() {
     if ('openAtLogin' in clean) applyLogin();
     if ('uiScale' in clean) setIslandScale(clean.uiScale / 100);
     if ('pushToTalk' in clean) syncKeys();
-    if ('localVoice' in clean || 'voiceSpeed' in clean || 'voicePitch' in clean) piper.prewarm(localVoiceId(), voiceOpts());
+    if ('localVoice' in clean || 'voiceSpeed' in clean || 'voicePitch' in clean) {
+      if ('localVoice' in clean) (engineFor(localVoiceId()) === kokoroEngine ? piperEngine : kokoroEngine).stop(); // se libera la memoria del motor que ya no se usa
+      piper.prewarm(localVoiceId(), voiceOpts());
+    }
     win?.webContents.send('settings-changed', settingsView());
     syncTray();
     broadcastAppearance();

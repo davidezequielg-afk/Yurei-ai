@@ -165,6 +165,13 @@ Object.assign(I18N_EN, {
   'Avisarme con una notificación': 'Notify me', 'Cuando hay una versión nueva, una sola vez por versión: en la isla y en Windows. Tú decides si instalarla.': 'When there is a new version, once per version: on the island and in Windows. You decide whether to install it.'
 });
 
+// Motores de voz
+Object.assign(I18N_EN, {
+  'Livianas y rápidas (usan poca memoria). Daniela es la voz rioplatense.': 'Light and fast (low memory). Daniela is the Rioplatense voice.',
+  'Más naturales y expresivas, pero más pesadas y lentas: usan más memoria y la primera respuesta tarda un poco más.': 'More natural and expressive, but heavier and slower: they use more memory and the first reply takes a little longer.',
+  'Español neutro': 'Neutral Spanish'
+});
+
 // Voz propia de Yurei
 Object.assign(I18N_EN, {
   'Gemini no pudo seguir hablando ahora (límite de voz). La respuesta quedó escrita.': 'Gemini could not keep speaking right now (voice limit). The reply is written out.',

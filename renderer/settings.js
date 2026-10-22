@@ -290,7 +290,12 @@ const prettyKeys = (a) => a.replace('Control', 'Ctrl').replace('Super', 'Win').r
     voiceLead.textContent = !vstate.supported ? 'Las voces propias de Yurei funcionan en Windows.'
       : vstate.bundled ? 'Vienen dentro de Yurei y hablan en tu PC: sin internet, sin cuota y siempre con la misma voz.'
         : 'Se descargan una vez (con verificación de huella) y hablan en tu PC: sin internet, sin cuota y siempre con la misma voz.';
-    yureiVoice.replaceChildren(...vstate.voices.map((v) => {
+    // Dos motores: se muestran en grupos, con una línea que explica cómo suenan y cuánto pesan.
+    const ENGINES = [
+      ['piper', 'Piper', 'Livianas y rápidas (usan poca memoria). Daniela es la voz rioplatense.'],
+      ['kokoro', 'Kokoro', 'Más naturales y expresivas, pero más pesadas y lentas: usan más memoria y la primera respuesta tarda un poco más.']
+    ];
+    const rows = (v) => {
       const inUse = vstate.selected === v.id && speechNow() === 'auto';
       const name = el('div', { className: 'vname' }, el('b', { textContent: v.name }), el('span', { className: 'vtag', textContent: `${v.gender === 'f' ? 'Femenina' : 'Masculina'} · ${v.accent}` }));
       const actions = el('div', { className: 'vact' });
@@ -311,7 +316,11 @@ const prettyKeys = (a) => a.replace('Control', 'Ctrl').replace('Super', 'Win').r
         }
       }
       return el('div', { className: 'vrow' }, name, actions);
-    }));
+    };
+    yureiVoice.replaceChildren(...ENGINES.flatMap(([eng, title, note]) => [
+      el('div', { className: 'vgroup' }, el('b', { textContent: title }), el('span', { textContent: note })),
+      ...vstate.voices.filter((v) => v.engine === eng).map(rows)
+    ]));
   }
   window.yurei.on('voices-progress', (p) => { const b = progressBtns[p.id]; if (b && p.phase !== 'listo') b.textContent = `${p.phase === 'motor' ? 'Motor' : 'Voz'}… ${Math.round(p.fraction * 100)} %`; });
   // Velocidad y tono de la voz de Yurei (valen para las cuatro voces)

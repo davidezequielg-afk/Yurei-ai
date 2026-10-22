@@ -6,7 +6,8 @@ const path = require('path');
 const crypto = require('crypto');
 const { EventEmitter } = require('events');
 const { PassThrough } = require('stream');
-const { createVoices, download, VOICES, ENGINE } = require('../src/voices');
+const { createVoices, download, VOICES, ENGINE, KOKORO } = require('../src/voices');
+const { createKokoro } = require('../src/kokoro');
 const { createPiper, wavToPcm24, cleanText } = require('../src/piper');
 const { routing } = require('../src/assistant');
 
@@ -25,11 +26,18 @@ function wav(rate, samples) {
   return Buffer.concat([h, data]);
 }
 
-test('hay 4 voces: 2 femeninas y 2 masculinas, con huellas completas', () => {
+test('hay 4 voces (2 de Piper y 2 de Kokoro, una femenina y una masculina de cada una), con huellas completas', () => {
   assert.equal(VOICES.length, 4);
-  assert.equal(VOICES.filter((v) => v.gender === 'f').length, 2);
-  assert.equal(VOICES.filter((v) => v.gender === 'm').length, 2);
-  for (const v of VOICES) { assert.match(v.sha256.onnx, /^[0-9a-f]{64}$/); assert.match(v.sha256.json, /^[0-9a-f]{64}$/); }
+  for (const eng of ['piper', 'kokoro']) {
+    const own = VOICES.filter((v) => v.engine === eng);
+    assert.equal(own.length, 2);
+    assert.deepEqual(own.map((v) => v.gender).sort(), ['f', 'm']);
+  }
+  assert.ok(VOICES.find((v) => v.id === 'daniela' && v.accent === 'Argentina')); // la rioplatense se queda
+  for (const v of VOICES.filter((x) => x.engine === 'piper')) { assert.match(v.sha256.onnx, /^[0-9a-f]{64}$/); assert.match(v.sha256.json, /^[0-9a-f]{64}$/); }
+  assert.equal(KOKORO.files.length, 3);
+  for (const f of KOKORO.files) assert.match(f.sha256, /^[0-9a-f]{64}$/);
+  assert.deepEqual(VOICES.filter((x) => x.engine === 'kokoro').map((x) => x.sid), [28, 29]); // ef_dora y em_alex en la tabla de voces
   assert.match(ENGINE.sha256, /^[0-9a-f]{64}$/);
   assert.ok(ENGINE.url.startsWith('https://github.com/rhasspy/piper/releases/download/'));
 });
@@ -59,6 +67,7 @@ test('las voces incluidas en el instalador cuentan como instaladas y no se puede
   assert.equal(st.bundled, true);
   assert.equal(st.voices.find((x) => x.id === v.id).installed, true);
   assert.equal(st.voices.find((x) => x.id === VOICES[1].id).installed, false);
+  assert.equal(st.voices.find((x) => x.id === 'dora').installed, false); // sin los archivos de Kokoro
   assert.equal(voices.ready(v.id), true);
   assert.ok(voices.paths(v.id).model.startsWith(bundled));
   await voices.install(v.id); // ya está: no baja nada
@@ -67,7 +76,7 @@ test('las voces incluidas en el instalador cuentan como instaladas y no se puede
 
 test('install baja motor y voz, verifica y deja todo listo (y rechaza un motor alterado)', async () => {
   const dir = tmp();
-  const v = VOICES[2];
+  const v = VOICES[1];
   const fake = { engine: Buffer.from('zip-falso'), onnx: crypto.randomBytes(300), json: Buffer.from('{"ok":1}') };
   // se prueba con huellas propias: la lista real es fija, así que se reemplazan solo dentro del test
   const saved = { e: ENGINE.sha256, o: v.sha256.onnx, j: v.sha256.json, size: v.size, esize: ENGINE.size };
@@ -135,7 +144,9 @@ const readyVoices = () => {
   const bundled = tmp();
   fs.mkdirSync(path.join(bundled, 'engine', 'piper'), { recursive: true });
   fs.writeFileSync(path.join(bundled, 'engine', 'piper', 'piper'), 'x');
-  for (const v of VOICES) { fs.writeFileSync(path.join(bundled, `${v.file}.onnx`), 'm'); fs.writeFileSync(path.join(bundled, `${v.file}.onnx.json`), '{}'); }
+  for (const v of VOICES.filter((x) => x.engine === 'piper')) { fs.writeFileSync(path.join(bundled, `${v.file}.onnx`), 'm'); fs.writeFileSync(path.join(bundled, `${v.file}.onnx.json`), '{}'); }
+  fs.mkdirSync(path.join(bundled, 'kokoro'), { recursive: true });
+  for (const f of KOKORO.files) fs.writeFileSync(path.join(bundled, 'kokoro', f.name), 'x');
   return createVoices({ dir, bundledDir: bundled, platform: 'linux' });
 };
 
@@ -154,7 +165,15 @@ test('createPiper habla frase por frase, cambia de voz sin errores y no deja arc
   assert.equal(log.filter((l) => l.exe).length, 2);
   assert.ok(log.find((l) => l.args && l.args.some((x) => x.includes('ald'))));
   assert.deepEqual(fs.readdirSync(tmpDir), []);
-  await assert.rejects(piper.speak('dave', '   '), /vacío/);
+  await assert.rejects(piper.speak('ald', '   '), /vacío/);
+  piper.stop();
+});
+
+test('createPiper: un precalentado de otra voz no interrumpe a la que está hablando', async () => {
+  const piper = createPiper({ voices: readyVoices(), tmpDir: tmp(), spawnImpl: fakeSpawn([]), idleMs: 60000 });
+  const talking = piper.speak('ald', 'frase en curso');
+  piper.prewarm('daniela'); // llega mientras 'ald' habla
+  assert.ok(await talking);
   piper.stop();
 });
 
@@ -224,4 +243,40 @@ test('los ajustes de velocidad y tono se validan y se acotan', () => {
   assert.deepEqual(S.validateSettingsPatch({ voiceSpeed: 112, voicePitch: 2.6 }), { voiceSpeed: 110, voicePitch: 3 });
   assert.deepEqual(S.validateSettingsPatch({ voiceSpeed: 999, voicePitch: -99 }), { voiceSpeed: 160, voicePitch: -6 });
   assert.deepEqual(S.validateSettingsPatch({ voiceSpeed: 'x', voicePitch: 'y' }), { voiceSpeed: 100, voicePitch: 0 });
+});
+
+test('Kokoro: ruta de archivos, velocidad/tono y salida a 24 kHz con un motor falso', async () => {
+  const bundled = tmp();
+  fs.mkdirSync(path.join(bundled, 'engine', 'piper', 'espeak-ng-data'), { recursive: true });
+  fs.writeFileSync(path.join(bundled, 'engine', 'piper', 'piper'), 'x');
+  fs.mkdirSync(path.join(bundled, 'kokoro'), { recursive: true });
+  for (const f of KOKORO.files) fs.writeFileSync(path.join(bundled, 'kokoro', f.name), 'x');
+  const voices = createVoices({ dir: tmp(), bundledDir: bundled, platform: 'linux' });
+  assert.equal(voices.ready('dora'), true);
+  const p = voices.paths('dora');
+  assert.equal(p.engine, 'kokoro');
+  assert.equal(p.sid, 28);
+  assert.equal(p.lang, 'es-419');
+  assert.ok(p.dataDir.endsWith('espeak-ng-data') && p.model.endsWith('model.int8.onnx'));
+  const calls = [];
+  const loads = [];
+  const sherpa = { OfflineTts: class { constructor(cfg) { loads.push(cfg); } async generateAsync(a) { calls.push(a); const tone = new Float32Array(24000).map((_, i) => Math.sin((2 * Math.PI * 300 * i) / 24000) * 0.5); return { samples: tone, sampleRate: 24000 }; } } };
+  const k = createKokoro({ voices, loadSherpa: () => sherpa, idleMs: 60000 });
+  const a = await k.speak('dora', 'Hola 😊 mundo');
+  assert.equal(Buffer.from(a, 'base64').length / 2 > 20000, true);
+  await k.speak('alex', 'otra');
+  assert.equal(loads.length, 1); // el modelo se carga una sola vez para las dos voces
+  assert.equal(calls[0].enableExternalBuffer, false); // Electron no admite buffers externos
+  assert.equal(calls[0].sid, 28);
+  assert.equal(calls[1].sid, 29);
+  assert.equal(calls[0].text, 'Hola mundo');
+  await k.speak('dora', 'rápida', { speed: 1.5 });
+  assert.ok(calls[2].speed > 1.5 && calls[2].speed < 2.2); // más rápido que lo pedido al motor (compensa las pausas fijas)
+  const agudo = await k.speak('dora', 'aguda', { pitch: 3 });
+  assert.ok(calls[3].speed < 1); // el tono se compensa con la velocidad del motor
+  assert.ok(Buffer.from(agudo, 'base64').length < Buffer.from(a, 'base64').length); // más agudo = se lee más rápido
+  await assert.rejects(k.speak('dora', '   '), /vacío/);
+  await assert.rejects(createKokoro({ voices: createVoices({ dir: tmp(), platform: 'linux' }), loadSherpa: () => sherpa }).speak('dora', 'hola'), /no está instalada/);
+  await assert.rejects(createKokoro({ voices, loadSherpa: () => { throw new Error('sin módulo'); } }).speak('dora', 'hola'), /no está disponible/);
+  k.stop();
 });
