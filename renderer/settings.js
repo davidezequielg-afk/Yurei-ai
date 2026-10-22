@@ -276,10 +276,53 @@ const prettyKeys = (a) => a.replace('Control', 'Ctrl').replace('Super', 'Win').r
     row('Hablar', 'Abre o cierra la charla.', hkInput('talk')),
     row('Dictado', 'Escribe lo que dices en la ventana activa.', hkInput('dictate')),
     row('Rodear y preguntar', 'Rodea algo de la pantalla y pregunta.', hkInput('circle')));
+
+  // --- Voz de Yurei: voces propias que hablan en tu PC (Piper), sin internet ni cuota ---
+  const yureiVoice = el('div', { className: 'vlist' });
+  const voiceLead = el('p', { className: 'lead', textContent: '' });
+  let vstate = null;
+  const speechNow = () => (s.systemVoice ? 'system' : s.speech === 'gemini' ? 'gemini' : 'auto');
+  const progressBtns = {};
+  async function drawYureiVoices() {
+    const r = await window.yurei.voicesList();
+    if (!r.ok) { voiceLead.textContent = r.error; return; }
+    vstate = r.data;
+    voiceLead.textContent = !vstate.supported ? 'Las voces propias de Yurei funcionan en Windows.'
+      : vstate.bundled ? 'Vienen dentro de Yurei y hablan en tu PC: sin internet, sin cuota y siempre con la misma voz.'
+        : 'Se descargan una vez (con verificación de huella) y hablan en tu PC: sin internet, sin cuota y siempre con la misma voz.';
+    yureiVoice.replaceChildren(...vstate.voices.map((v) => {
+      const inUse = vstate.selected === v.id && speechNow() === 'auto';
+      const name = el('div', { className: 'vname' }, el('b', { textContent: v.name }), el('span', { className: 'vtag', textContent: `${v.gender === 'f' ? 'Femenina' : 'Masculina'} · ${v.accent}` }));
+      const actions = el('div', { className: 'vact' });
+      if (!v.installed) {
+        const b = el('button', { className: 'btn small', type: 'button', textContent: `Descargar (${v.mb} MB)`, disabled: !vstate.supported });
+        progressBtns[v.id] = b;
+        b.onclick = async () => { b.disabled = true; b.textContent = 'Bajando…'; const x = await window.yurei.voicesInstall(v.id); if (!x.ok) toast(x.error, true); drawYureiVoices(); };
+        actions.append(b);
+      } else {
+        const test = el('button', { className: 'btn small', type: 'button', textContent: 'Probar' });
+        test.onclick = async () => { test.disabled = true; test.textContent = '…'; const x = await window.yurei.voicesPreview(v.id); test.disabled = false; test.textContent = 'Probar'; if (!x.ok) toast(x.error, true); else await playPcm(x.data); };
+        const use = el('button', { className: `btn small${inUse ? ' on' : ''}`, type: 'button', textContent: inUse ? 'En uso ✓' : 'Usar' });
+        use.onclick = () => { s.localVoice = v.id; s.speech = 'auto'; s.systemVoice = false; save({ localVoice: v.id, speech: 'auto', systemVoice: false }); setTimeout(drawYureiVoices, 200); refreshSpeechSeg(); };
+        actions.append(test, use);
+        if (!v.bundled) {
+          const rm = el('button', { className: 'btn small', type: 'button', textContent: 'Quitar', onclick: async () => { const x = await window.yurei.voicesRemove(v.id); if (!x.ok) toast(x.error, true); drawYureiVoices(); } });
+          actions.append(rm);
+        }
+      }
+      return el('div', { className: 'vrow' }, name, actions);
+    }));
+  }
+  window.yurei.on('voices-progress', (p) => { const b = progressBtns[p.id]; if (b && p.phase !== 'listo') b.textContent = `${p.phase === 'motor' ? 'Motor' : 'Voz'}… ${Math.round(p.fraction * 100)} %`; });
+  const speechSeg = choice('seg', [['auto', 'Voz de Yurei'], ['gemini', 'Gemini'], ['system', 'Windows']].map(([v, l]) => ({ value: v, node: el('button', { className: 'chip', textContent: l }) })), speechNow(),
+    (v) => { s.speech = v; s.systemVoice = v === 'system'; save({ speech: v, systemVoice: v === 'system' }); setTimeout(drawYureiVoices, 200); });
+  const refreshSpeechSeg = () => [...speechSeg.children].forEach((n) => n.setAttribute('aria-checked', String(n.textContent === 'Voz de Yurei')));
+  drawYureiVoices();
+
   const voicePage = [
-    card('Voz', 'Toca una voz y pruébala.',
-      el('div', { className: 'row stack' }, voices, el('div', {}, tryBtn)),
-      row('Voz del sistema', 'Más robótica, pero no gasta cuota de Gemini.', toggle(s.systemVoice, (v) => save({ systemVoice: v })))),
+    card('Voz de Yurei', null, voiceLead, el('div', { className: 'row stack' }, yureiVoice), row('Con qué voz habla', 'La voz de Yurei es la que se queda fija. Gemini o la de Windows solo si lo eliges aquí.', el('div', {}, speechSeg), true)),
+    card('Voz de Gemini', 'Solo se usa si eliges Gemini arriba. Toca una voz y pruébala.',
+      el('div', { className: 'row stack' }, voices, el('div', {}, tryBtn)),),
     card('Charla', 'Cómo se da la conversación.',
       row('Responder al saludo o a mi nombre', 'Manos libres: di "hola" o su nombre y empieza a charlar. El micrófono queda abierto y los fragmentos con voz se envían a Google para detectarlo.',
         toggle(s.wakeWord, (v) => save({ wakeWord: v }))),

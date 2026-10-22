@@ -109,6 +109,7 @@ function validateModes(v) {
   }).filter(Boolean);
 }
 
+const { VOICE_IDS } = require('./voices');
 const STATUS_WIDGETS = ['weather', 'battery', 'cpu', 'ram', 'disk', 'net'];
 function validateStatusWidgets(v) {
   const clean = (a) => [...new Set((Array.isArray(a) ? a : []).filter((x) => STATUS_WIDGETS.includes(x)))];
@@ -181,7 +182,8 @@ function validateSettingsPatch(patch, { unavailable = [] } = {}) {
         out[k] = v.trim();
         break;
       case 'hearing': if (!['auto', 'gemini', 'brain'].includes(v)) throw new Error('Opción no válida'); out[k] = v; break;
-      case 'speech': if (!['auto', 'gemini', 'brain', 'system'].includes(v)) throw new Error('Opción no válida'); out[k] = v; break;
+      case 'localVoice': if (!VOICE_IDS.includes(v)) throw new Error('Voz no válida'); out[k] = v; break;
+      case 'speech': if (!['auto', 'gemini', 'brain', 'system', 'local'].includes(v)) throw new Error('Opción no válida'); out[k] = v; break;
       case 'brainVoice': if (typeof v !== 'string' || !/^[\w-]{1,30}$/.test(v)) throw new Error('Voz no válida'); out[k] = v; break;
       case 'language': if (!['auto', 'es', 'en'].includes(v)) throw new Error('Idioma no válido'); out[k] = v; break;
       case 'accessory': if (!ACCESSORIES.includes(v)) throw new Error('Accesorio no válido'); out[k] = v; break;

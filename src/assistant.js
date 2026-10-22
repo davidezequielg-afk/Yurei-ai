@@ -75,20 +75,23 @@ function localWake(text, name) {
 }
 
 // Qué IA piensa, con cuál se oye (voz → texto) y con cuál se habla (texto → voz), según Ajustes.
-function routing(s) {
+function routing(s, { localReady = false } = {}) {
   const provider = s.brainProvider || 'gemini';
   const hasGemini = !!s.apiKey;
   const preset = PRESETS[s.brainPreset] || {};
   const hearing = provider === 'gemini' ? 'gemini'
     : s.hearing === 'gemini' || s.hearing === 'brain' ? s.hearing
       : hasGemini ? 'gemini' : provider === 'openai' ? 'brain' : 'none';
-  const speech = provider === 'gemini' ? 'gemini'
-    : s.speech === 'gemini' || s.speech === 'brain' || s.speech === 'system' ? s.speech
-      : hasGemini ? 'gemini' : provider === 'openai' && (s.brainTtsModel || preset.tts) ? 'brain' : 'system';
+  // La voz propia de Yurei (local) manda: si está instalada y la elección es "automático", siempre habla con ella.
+  const speech = s.speech === 'local' || ((s.speech || 'auto') === 'auto' && localReady) ? 'local'
+    : provider === 'gemini' ? 'gemini'
+      : s.speech === 'gemini' || s.speech === 'brain' || s.speech === 'system' ? s.speech
+        : hasGemini ? 'gemini' : provider === 'openai' && (s.brainTtsModel || preset.tts) ? 'brain' : 'system';
   return { provider, hearing, speech, preset };
 }
 
-function createAssistant({ store, tools, fetchImpl, langFor = null, deviceFor = null, anthropicClient = null }) {
+function createAssistant({ store, tools, fetchImpl, langFor = null, deviceFor = null, anthropicClient = null, local = null }) {
+  const route = (s) => routing(s, { localReady: !!local?.ready() });
   let history = [];
 
   const brainOpts = (s) => ({ baseUrl: s.brainBase || (PRESETS[s.brainPreset] || {}).baseUrl, apiKey: s.brainKey, model: s.brainModel || (PRESETS[s.brainPreset] || {}).model, fetchImpl });
@@ -149,7 +152,8 @@ function createAssistant({ store, tools, fetchImpl, langFor = null, deviceFor = 
 
     async speak(text) {
       const s = store.get('settings');
-      const r = routing(s);
+      const r = route(s);
+      if (r.speech === 'local') return local.speak(text);
       if (r.speech === 'brain') return speakOpenAI({ ...brainOpts(s), model: s.brainTtsModel || r.preset.tts || 'tts-1', voice: s.brainVoice || 'alloy', text });
       if (r.speech === 'system') throw new Error('Sin voz natural configurada: se usa la de Windows');
       return synthesize({ apiKey: s.apiKey, model: s.ttsModel, text, voiceName: s.voice || 'Kore', fetchImpl });

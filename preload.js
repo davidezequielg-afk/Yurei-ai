@@ -52,6 +52,10 @@ contextBridge.exposeInMainWorld('yurei', {
   memoryClear: invoke('memory:clear'),
   getAppearance: invoke('appearance:get'),
   todos: invoke('todos'),
+  voicesList: invoke('voices:list'),
+  voicesInstall: invoke('voices:install'),
+  voicesRemove: invoke('voices:remove'),
+  voicesPreview: invoke('voices:preview'),
   widgetData: invoke('widget:data'),
   widgetAction: invoke('widget:action'),
   launcherData: invoke('launcher:data'),
@@ -63,7 +67,7 @@ contextBridge.exposeInMainWorld('yurei', {
   islandRects: (r) => ipcRenderer.send('island:rects', r),
   islandFocus: invoke('island:focus'),
   on: (channel, cb) => {
-    const allowed = ['hotkey', 'report', 'circle-image', 'settings-changed', 'appearance', 'timer', 'timer-done', 'update', 'reminder', 'cursor', 'nudge', 'island-hover', 'island-tuck', 'shelf'];
+    const allowed = ['hotkey', 'report', 'circle-image', 'settings-changed', 'appearance', 'timer', 'timer-done', 'update', 'reminder', 'cursor', 'nudge', 'island-hover', 'island-tuck', 'voices-progress', 'shelf'];
     if (!allowed.includes(channel)) return;
     ipcRenderer.on(channel, (_e, payload) => cb(payload));
   }

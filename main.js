@@ -5,6 +5,8 @@ const { createStore } = require('./src/store');
 const { createSystem } = require('./src/system');
 const { createEdges } = require('./src/edges');
 const { createVisibility } = require('./src/visibility');
+const { createVoices, VOICE_IDS } = require('./src/voices');
+const { createPiper } = require('./src/piper');
 const { createTools } = require('./src/tools');
 const { createAssistant } = require('./src/assistant');
 const { createScheduler } = require('./src/scheduler');
@@ -296,7 +298,13 @@ function start() {
   setTimeout(() => reminders.tick(), 8000); // al abrir: los que vencieron con la PC apagada
   const weatherRef = { get: (c) => weather.get(c) };
   const tools = createTools({ store, system, focus, reminders, weather: weatherRef, speed: () => speedTest(), files: { find: (q) => findFiles(q) } });
-  const assistant = createAssistant({ store, tools, langFor: () => langOf(store.get('settings')), deviceFor: () => (system.hasBattery() === true ? 'notebook' : system.hasBattery() === false ? 'pc' : null) });
+  // Voces propias (Piper): vienen dentro del instalador (resources/voices); si faltan se pueden bajar desde Ajustes.
+  const voices = createVoices({ dir: path.join(userData, 'voices'), bundledDir: app.isPackaged ? path.join(process.resourcesPath, 'voices') : (fs.existsSync(path.join(__dirname, 'build-voices')) ? path.join(__dirname, 'build-voices') : null) });
+  const piper = createPiper({ voices, tmpDir: path.join(userData, 'voices', 'tmp') });
+  const localVoiceId = () => store.get('settings').localVoice || 'daniela';
+  const local = { ready: () => voices.ready(localVoiceId()), speak: (text) => piper.speak(localVoiceId(), text) };
+  app.on('quit', () => piper.stop());
+  const assistant = createAssistant({ store, tools, local, langFor: () => langOf(store.get('settings')), deviceFor: () => (system.hasBattery() === true ? 'notebook' : system.hasBattery() === false ? 'pc' : null) });
   const weather = createWeather({ persist: { load: () => store.get('weatherCache'), save: (c) => store.set('weatherCache', c) } });
   const ttsCache = createTtsCache(path.join(userData, 'tts-cache'), { maxEntries: 60 }); // solo frases de relleno, nunca lo que dices
   const iconCache = createTtsCache(path.join(userData, 'icon-cache'), { maxEntries: 300 });
@@ -317,7 +325,7 @@ function start() {
     version: app.getVersion(),
     apiKey: store.get('settings').apiKey ? S.MASK : '', // la clave nunca sale del proceso principal
     brainKey: store.get('settings').brainKey ? S.MASK : '',
-    voiceSource: routing(store.get('settings')).speech, // 'system' → el notch habla con la voz de Windows
+    voiceSource: routing(store.get('settings'), { localReady: local.ready() }).speech, // 'system' → el notch habla con la voz de Windows; 'local' → la voz propia de Yurei
     hearingSource: routing(store.get('settings')).hearing,
     brainPresets: Object.fromEntries(Object.entries(BRAIN_PRESETS).map(([k, p]) => [k, { label: p.label, provider: p.provider, baseUrl: p.baseUrl || '', model: p.model || '', models: p.models || [], local: !!p.local, stt: p.stt || '', tts: p.tts || '' }])),
     keyEncrypted: store.encrypted(),
@@ -480,8 +488,35 @@ function start() {
     if (opts?.cache !== true) return speak();
     if (t.length > 80) throw new Error('Texto demasiado largo para la caché'); // la caché es solo para frases de relleno cortas
     const { voice, ttsModel } = store.get('settings');
-    return ttsCache.getOrCreate(`${ttsModel}|${voice || 'Kore'}|${t}`, speak); // de la caché no cuenta: no se pide a Google
+    const useLocal = routing(store.get('settings'), { localReady: local.ready() }).speech === 'local';
+    return ttsCache.getOrCreate(useLocal ? `local|${localVoiceId()}|${t}` : `${ttsModel}|${voice || 'Kore'}|${t}`, speak); // de la caché no cuenta: no se pide a Google
   });
+
+  // --- voces propias de Yurei ---
+  const sendProgress = (p) => { for (const w of BrowserWindow.getAllWindows()) if (!w.isDestroyed()) w.webContents.send('voices-progress', p); };
+  const voiceId = (id) => { if (!VOICE_IDS.includes(id)) throw new Error('Voz no válida'); return id; };
+  handle('voices:list', () => ({ ...voices.status(), selected: localVoiceId(), speech: store.get('settings').speech || 'auto' }));
+  handle('voices:install', async (_e, id) => {
+    voiceId(id);
+    await voices.install(id, (p) => sendProgress({ id, ...p }));
+    piper.prewarm(localVoiceId());
+    win?.webContents.send('settings-changed', settingsView());
+    return voices.status();
+  });
+  handle('voices:remove', (_e, id) => {
+    voiceId(id);
+    if (voices.status().voices.find((v) => v.id === id)?.bundled) throw new Error('Esta voz viene incluida con Yurei y no se puede quitar');
+    piper.stop();
+    voices.remove(id);
+    win?.webContents.send('settings-changed', settingsView());
+    return voices.status();
+  });
+  handle('voices:preview', (_e, id) => {
+    voiceId(id);
+    if (!voices.ready(id)) throw new Error('La voz no está instalada');
+    return piper.speak(id, 'Hola, soy Yurei. Así suena esta voz cuando te hablo.');
+  });
+  setTimeout(() => piper.prewarm(localVoiceId()), 4000); // carga la voz en segundo plano para que la primera respuesta no tarde
 
   // --- ajustes y datos ---
   handle('settings:get', () => settingsView());
@@ -491,6 +526,7 @@ function start() {
     if ('openAtLogin' in clean) applyLogin();
     if ('uiScale' in clean) setIslandScale(clean.uiScale / 100);
     if ('pushToTalk' in clean) syncKeys();
+    if ('localVoice' in clean) piper.prewarm(clean.localVoice);
     win?.webContents.send('settings-changed', settingsView());
     syncTray();
     broadcastAppearance();

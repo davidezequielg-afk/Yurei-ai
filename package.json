@@ -1,12 +1,13 @@
 {
   "name": "yurei",
-  "version": "1.3.4",
+  "version": "1.4.0",
   "description": "Asistente de voz de escritorio de código abierto con Gemini: isla en pantalla, dictado, Circle to Ask, rutinas y control del escritorio.",
   "main": "main.js",
   "license": "MIT",
   "scripts": {
     "start": "electron .",
     "test": "node --test",
+    "predist": "node scripts/fetch-voices.js",
     "dist": "electron-builder --win nsis --publish never",
     "audit": "npm audit --audit-level=high"
   },
@@ -26,6 +27,12 @@
       "src/**/*",
       "renderer/**/*",
       "package.json"
+    ],
+    "extraResources": [
+      {
+        "from": "build-voices",
+        "to": "voices"
+      }
     ],
     "directories": {
       "output": "dist"

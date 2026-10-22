@@ -70,7 +70,8 @@ const DEFAULTS = {
     brainKey: '',
     hearing: 'auto', // voz → texto: auto | gemini | brain (transcripción del proveedor)
     sttModel: '',
-    speech: 'auto', // texto → voz: auto | gemini | brain | system
+    speech: 'auto', // texto → voz: auto (la voz propia de Yurei si está instalada) | local | gemini | brain | system
+    localVoice: 'daniela', // voz propia de Yurei: daniela | claude | ald | dave
     brainTtsModel: '',
     brainVoice: 'alloy',
     hotkeys: { talk: 'Control+Shift+Space', dictate: 'Control+Alt+D', circle: 'Control+Shift+C' },

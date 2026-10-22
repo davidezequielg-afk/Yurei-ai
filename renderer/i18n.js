@@ -156,6 +156,17 @@ Object.assign(I18N_EN, {
   'Escala toda la interfaz de la isla.': 'Scales the whole island interface.', 'Reloj de 24 horas': '24-hour clock', 'Nada suena ahora': 'Nothing is playing right now'
 });
 
+// Voz propia de Yurei
+Object.assign(I18N_EN, {
+  'Voz de Yurei': 'Yurei voice', 'Voz de Gemini': 'Gemini voice', 'Con qué voz habla': 'Which voice it speaks with',
+  'La voz de Yurei es la que se queda fija. Gemini o la de Windows solo si lo eliges aquí.': 'The Yurei voice is the one that stays fixed. Gemini or the Windows voice only if you choose it here.',
+  'Solo se usa si eliges Gemini arriba. Toca una voz y pruébala.': 'Only used if you pick Gemini above. Tap a voice to try it.',
+  'Las voces propias de Yurei funcionan en Windows.': 'Yurei\'s own voices work on Windows.',
+  'Vienen dentro de Yurei y hablan en tu PC: sin internet, sin cuota y siempre con la misma voz.': 'They come with Yurei and speak on your PC: no internet, no quota, and always the same voice.',
+  'Se descargan una vez (con verificación de huella) y hablan en tu PC: sin internet, sin cuota y siempre con la misma voz.': 'They download once (with fingerprint verification) and speak on your PC: no internet, no quota, and always the same voice.',
+  Femenina: 'Female', Masculina: 'Male', 'En uso ✓': 'In use ✓', Usar: 'Use', Probar: 'Try', Quitar: 'Remove', Argentina: 'Argentina', México: 'Mexico', España: 'Spain', Windows: 'Windows'
+});
+
 const I18N_EN_PATTERNS = [
   [/^Hola, soy (.+)$/, 'Hi, I\'m $1'], [/^Hola, soy (.+)\. ¿En qué te ayudo\?$/, 'Hi, I\'m $1. How can I help?'],
   [/^(\d+) pendientes?$/, (_, n) => `${n} to-do${n === '1' ? '' : 's'}`], [/^(.+) · hace (\d+) min$/, '$1 · $2 min ago'],
