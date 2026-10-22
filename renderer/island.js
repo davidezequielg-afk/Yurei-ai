@@ -19,7 +19,7 @@ const Island = (() => {
   const PANELS = ['yurei', 'calendar', 'control'];
   const st = {
     view: '', // '' | yurei | calendar | control | music | shelf | notice
-    hot: false, hold: 0, phase: '', timer: false, pulse: null, notice: '', away: false,
+    hot: false, tuck: false, hold: 0, phase: '', timer: false, pulse: null, notice: '', away: false,
     music: null, shelfCount: 0, attached: false, started: false, time24: false,
     widgets: { left: ['weather'], right: ['battery'] }, device: null, hoverOpen: true,
     last: 'yurei', remember: true, defPanel: 'calendar', calendarOn: true, controlOn: true, visibility: 'fixed',
@@ -65,7 +65,10 @@ const Island = (() => {
     if (!st.started) return;
     const t = target();
     sp.w.t = t.w; sp.h.t = t.h; sp.r.t = t.r;
-    sp.y.t = st.away ? -100 : 0;
+    // Escondida (modos inteligente / asomar): sube dejando 3 px visibles; no se esconde si está ocupada o el mouse está encima.
+    const tucked = st.tuck && !st.hot && !st.view && !st.phase && !st.pulse && !st.notice;
+    sp.y.t = st.away ? -100 : tucked ? -(t.h - 3) : 0;
+    el.classList.toggle('tucked', tucked);
     el.classList.toggle('away', st.away);
     el.classList.toggle('open', !!st.view && st.view !== 'notice');
     el.classList.toggle('hot', st.hot || (!!st.view && st.view !== 'notice'));
@@ -223,6 +226,7 @@ const Island = (() => {
     refresh();
   }
   window.yurei.on('island-hover', hover);
+  window.yurei.on('island-tuck', (v) => { st.tuck = !!v; refresh(); });
 
   let wheelAt = 0;
   el.addEventListener('wheel', (e) => {

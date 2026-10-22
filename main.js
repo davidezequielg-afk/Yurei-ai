@@ -4,6 +4,7 @@ const { app, BrowserWindow, globalShortcut, ipcMain, screen, clipboard, shell, d
 const { createStore } = require('./src/store');
 const { createSystem } = require('./src/system');
 const { createEdges } = require('./src/edges');
+const { createVisibility } = require('./src/visibility');
 const { createTools } = require('./src/tools');
 const { createAssistant } = require('./src/assistant');
 const { createScheduler } = require('./src/scheduler');
@@ -53,7 +54,9 @@ const webPrefs = (preload = 'preload.js') => ({
 
 let win = null;
 let overlay = null;
-let edges = { tick() {} }; // indicadores de volumen y brillo en los bordes (se crea al iniciar)
+let edges = { tick() {} };
+let vis = null; // cuándo se esconde la isla (modos fijo, inteligente y asomar)
+let lastTucked = false; // indicadores de volumen y brillo en los bordes (se crea al iniciar)
 let settingsWin = null;
 let pickerWin = null;
 let system = null;
@@ -685,6 +688,22 @@ function start() {
   powerMonitor.on('unlock-screen', life.maybeBrief);
   powerMonitor.on('resume', life.maybeBrief);
 
+
+  // Modos de visibilidad de la isla: "inteligente" necesita saber si la ventana activa está maximizada o a pantalla completa.
+  let fgCovers = false;
+  if (process.platform === 'win32') {
+    setInterval(async () => {
+      if (store.get('settings').notchMode !== 'smart') { fgCovers = false; return; }
+      try {
+        const f = await system.foreground();
+        const d = screen.getPrimaryDisplay().bounds;
+        const full = f && f.rect[0] <= d.x && f.rect[1] <= d.y && f.rect[2] >= d.x + d.width && f.rect[3] >= d.y + d.height;
+        fgCovers = !!f && !['Progman', 'WorkerW', 'Shell_TrayWnd'].includes(f.cls) && f.pid !== process.pid && (f.maximized || full);
+      } catch { fgCovers = false; }
+    }, 1200);
+  }
+  vis = createVisibility({ settings: () => store.get('settings'), fgCovers: () => fgCovers });
+
   // Cada 50 ms: ¿el mouse está sobre la píldora? y los ojitos siguen al mouse cuando pasa cerca (solo se manda
   // la dirección, nunca dónde está).
   let lastLook = null;
@@ -693,6 +712,8 @@ function start() {
     const c = screen.getCursorScreenPoint();
     islandHitTest(c);
     edges.tick(c);
+    const tucked = vis.tick(c, screen.getDisplayNearestPoint(c).bounds, mouseInside);
+    if (tucked !== lastTucked) { lastTucked = tucked; win.webContents.send('island-tuck', tucked); }
     const b = win.getBounds();
     const cx = b.x + b.width / 2;
     const cy = b.y + 18 * islandScale;

@@ -126,6 +126,36 @@ const I18N_EN = {
 };
 
 // Textos con partes que cambian (números, nombres…).
+// Ajustes de la isla, indicadores en los bordes y apariencia adaptativa
+Object.assign(I18N_EN, {
+  Isla: 'Island', Superposiciones: 'Overlays', Adaptativo: 'Adaptive', Visibilidad: 'Visibility', Comportamiento: 'Behavior',
+  'Fija se ve siempre. Inteligente se esconde con una ventana maximizada. Asomar solo aparece al tocar el borde de arriba.': 'Fixed is always visible. Smart hides while a window is maximized. Peek only appears when you touch the top edge.',
+  Fija: 'Fixed', Inteligente: 'Smart', Asomar: 'Peek', 'Retardo al tocar el borde': 'Edge delay', 'Cuánto espera antes de mostrarse.': 'How long it waits before showing.',
+  'Abrir al pasar el mouse': 'Open on hover', 'Si lo apagas, solo se abre con clic.': 'If off, it only opens with a click.',
+  'Recordar el último panel': 'Remember the last panel', 'Al abrir, vuelve donde lo dejaste.': 'When opened, it goes back to where you left it.',
+  'Panel de inicio': 'Start panel', Calendario: 'Calendar', Control: 'Control', 'Punto de actualización': 'Update dot', 'Muestra un punto cuando hay una versión nueva.': 'Shows a dot when a new version is available.',
+  'Widgets de estado': 'Status widgets', 'Hasta 4 datos pequeños a los lados de la isla.': 'Up to 4 small readouts on the sides of the island.',
+  Clima: 'Weather', Disco: 'Disk', Red: 'Network', Izquierda: 'Left', Derecha: 'Right', No: 'No',
+  'Como mucho 4 en la isla: quita uno primero.': 'At most 4 on the island: remove one first.',
+  'Aviso de batería baja': 'Low battery warning', 'A partir de qué nivel se pone en rojo.': 'The level at which it turns red.',
+  'Calendario y temporizador': 'Calendar and timer', 'Mostrar el calendario': 'Show the calendar', 'Sonido al terminar el temporizador': 'Sound when the timer ends',
+  Música: 'Music', 'Lo que suena en Windows (Spotify, el navegador…).': 'What is playing on Windows (Spotify, the browser…).',
+  'Mostrar la música': 'Show music', Diseño: 'Layout', Clásico: 'Classic', Compacto: 'Compact',
+  'Visualizador y portada en la isla cerrada': 'Visualizer and cover on the closed island',
+  'Visualizador de ondas': 'Wave visualizer', 'Escucha el audio del sistema solo para dibujar las barras. No lo guarda ni lo envía.': 'Listens to system audio only to draw the bars. It never stores or sends it.',
+  'Portada del álbum': 'Album cover', 'Colores de la portada': 'Cover colors', 'Tiñe la isla con los colores de la canción.': 'Tints the island with the song colors.', 'Brillo de la isla cerrada': 'Closed island glow',
+  Bandeja: 'Shelf', 'Suelta archivos o texto sobre la isla para tenerlos a mano. Son referencias: no se copian.': 'Drop files or text on the island to keep them handy. They are references: nothing is copied.',
+  'Mantener al reiniciar': 'Keep after restart', 'Si lo apagas, la bandeja empieza vacía.': 'If off, the shelf starts empty.',
+  Volumen: 'Volume', 'Un indicador en el borde izquierdo de la pantalla.': 'An indicator on the left edge of the screen.',
+  'Mostrar al cambiar el volumen': 'Show when the volume changes', 'Con las teclas del teclado o desde otra app.': 'With the keyboard keys or from another app.',
+  'Mostrar al tocar el borde izquierdo': 'Show when touching the left edge', 'Arrástralo o usa la rueda. Toca el porcentaje para ver el volumen de cada app.': 'Drag it or use the wheel. Tap the percentage to see each app volume.',
+  Brillo: 'Brightness', 'Un indicador en el borde derecho de la pantalla.': 'An indicator on the right edge of the screen.',
+  'Mostrar al cambiar el brillo': 'Show when the brightness changes', 'Mostrar al tocar el borde derecho': 'Show when touching the right edge',
+  'Usa el color de acento de Windows': 'Uses the Windows accent color', 'Elige cuánto color y cuánta luz tiene el fondo.': 'Choose how much color and light the background has.',
+  Saturación: 'Saturation', 'Brillo del fondo': 'Background brightness', 'Tamaño y hora': 'Size and time', 'Tamaño de la isla': 'Island size',
+  'Escala toda la interfaz de la isla.': 'Scales the whole island interface.', 'Reloj de 24 horas': '24-hour clock', 'Nada suena ahora': 'Nothing is playing right now'
+});
+
 const I18N_EN_PATTERNS = [
   [/^Hola, soy (.+)$/, 'Hi, I\'m $1'], [/^Hola, soy (.+)\. ¿En qué te ayudo\?$/, 'Hi, I\'m $1. How can I help?'],
   [/^(\d+) pendientes?$/, (_, n) => `${n} to-do${n === '1' ? '' : 's'}`], [/^(.+) · hace (\d+) min$/, '$1 · $2 min ago'],

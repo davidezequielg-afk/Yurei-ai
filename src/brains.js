@@ -14,7 +14,7 @@ const PRESETS = {
   gemini: { provider: 'gemini', label: 'Gemini (Google)' },
   claude: { provider: 'anthropic', label: 'Claude (Anthropic)', model: 'claude-opus-5-5', models: ['claude-opus-5-5', 'claude-sonnet-5-5', 'claude-haiku-5-5'] },
   openai: { provider: 'openai', label: 'OpenAI', baseUrl: 'https://api.openai.com/v1', model: 'gpt-5-mini', stt: 'gpt-4o-mini-transcribe', tts: 'gpt-4o-mini-tts' },
-  omniroute: { provider: 'openai', label: 'OmniRoute (en tu PC)', baseUrl: 'http://localhost:20128/v1', model: 'auto', stt: 'whisper-1', tts: 'tts-1', local: true },
+  omniroute: { provider: 'openai', label: 'OmniRoute (en tu PC)', baseUrl: 'http://localhost:20128/v1', model: 'auto/best-free', stt: 'whisper-1', tts: 'tts-1', local: true },
   openrouter: { provider: 'openai', label: 'OpenRouter', baseUrl: 'https://openrouter.ai/api/v1', model: 'openrouter/auto' },
   groq: { provider: 'openai', label: 'Groq', baseUrl: 'https://api.groq.com/openai/v1', model: 'llama-3.3-70b-versatile', stt: 'whisper-large-v3-turbo' },
   deepseek: { provider: 'openai', label: 'DeepSeek', baseUrl: 'https://api.deepseek.com/v1', model: 'deepseek-chat' },

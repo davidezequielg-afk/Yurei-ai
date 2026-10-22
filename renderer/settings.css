@@ -117,6 +117,7 @@ input[type=range] { width: 100%; accent-color: var(--accent); }
 .mini.light { background: #e9edf2; --n: #fff; }
 .mini.dark { background: #23262b; --n: #000; }
 .mini.custom { background: conic-gradient(from 200deg, #f29ca3, #f6d38a, #8fd6a8, #7cb9f2, #c49cf2, #f29ca3); --n: #101114; }
+.mini.adaptive { background: linear-gradient(135deg, #243a5c, #5b3a6b); --n: #151a26; }
 .swatches { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
 .dot { width: 26px; height: 26px; border-radius: 50%; border: 2px solid transparent; cursor: pointer; transition: transform .15s var(--ease); background: var(--c); box-shadow: inset 0 0 0 2px var(--card); }
 .dot:hover { transform: scale(1.1); }

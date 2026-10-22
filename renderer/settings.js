@@ -294,9 +294,9 @@ const prettyKeys = (a) => a.replace('Control', 'Ctrl').replace('Super', 'Win').r
   ];
 
   // --- Apariencia (se ve al instante) ---
-  const look = { theme: s.theme || 'dark', customBg: s.customBg || '#101114', customAccent: s.customAccent || '#6cb8f0', transparency: s.transparency || 'off', opacity: s.opacity || 78 };
-  const applyLook = (patch) => { Object.assign(look, patch); customRow.hidden = look.theme !== 'custom'; opRow.hidden = opSlider.hidden = look.transparency === 'off'; save(patch, 120); };
-  const themes = choice('themes', [['system', 'Sistema'], ['light', 'Claro'], ['dark', 'Oscuro'], ['custom', 'A tu gusto']].map(([v, t]) => ({ value: v, node: el('button', { className: 'theme' }, el('div', { className: `mini ${v}` }), t) })),
+  const look = { themeSat: s.themeSat ?? 50, themeBright: s.themeBright ?? 15, theme: s.theme || 'dark', customBg: s.customBg || '#101114', customAccent: s.customAccent || '#6cb8f0', transparency: s.transparency || 'off', opacity: s.opacity || 78 };
+  const applyLook = (patch) => { Object.assign(look, patch); customRow.hidden = look.theme !== 'custom'; adaptRow.hidden = look.theme !== 'adaptive'; opRow.hidden = opSlider.hidden = look.transparency === 'off'; save(patch, 120); };
+  const themes = choice('themes', [['system', 'Sistema'], ['light', 'Claro'], ['dark', 'Oscuro'], ['custom', 'A tu gusto'], ['adaptive', 'Adaptativo']].map(([v, t]) => ({ value: v, node: el('button', { className: 'theme' }, el('div', { className: `mini ${v}` }), t) })),
     look.theme, (v) => applyLook({ theme: v }));
   const picker = el('input', { type: 'color', value: look.customAccent, title: 'Otro color' });
   const dots = choice('swatches', ACCENTS.map((c) => { const n = el('button', { className: 'dot', title: c }); n.style.setProperty('--c', c); return { value: c, node: n }; }), look.customAccent.toLowerCase(),
@@ -306,6 +306,9 @@ const prettyKeys = (a) => a.replace('Control', 'Ctrl').replace('Super', 'Win').r
   const bg = el('input', { type: 'color', value: look.customBg, title: 'Color de fondo' });
   bg.oninput = () => applyLook({ customBg: bg.value });
   const customRow = el('div', {}, row('Color de acento', null, dots, true), row('Color de fondo', null, bg));
+  const sat = slider(0, 100, look.themeSat, ' %', (v) => applyLook({ themeSat: v }));
+  const bri = slider(0, 40, look.themeBright, ' %', (v) => applyLook({ themeBright: v }));
+  const adaptRow = el('div', {}, row('Usa el color de acento de Windows', 'Elige cuánto color y cuánta luz tiene el fondo.', null), row('Saturación', null, sat.out), el('div', { className: 'row tight' }, sat.input), row('Brillo del fondo', null, bri.out), el('div', { className: 'row tight' }, bri.input));
   const op = slider(30, 100, look.opacity, ' %', (v) => applyLook({ opacity: v }));
   const opRow = row('Opacidad', null, op.out);
   const opSlider = el('div', { className: 'row tight' }, op.input);
@@ -320,18 +323,21 @@ const prettyKeys = (a) => a.replace('Control', 'Ctrl').replace('Super', 'Win').r
   const saveBirthday = () => save({ birthday: bMonth.value && bDay.value ? `${bMonth.value}-${bDay.value}` : '' });
   bMonth.onchange = saveBirthday;
   bDay.onchange = saveBirthday;
-  const lifeCard = card('Vida de la carita', device === 'pc' ? 'Tu equipo: PC de escritorio. Sin batería, así que no hay avisos de cargador ni de batería baja.' : device === 'notebook' ? 'Tu equipo: notebook. Reacciona al cargador y a la batería baja.' : null,
-    row('Reacciones', device === 'pc' ? 'Se sorprende si la CPU está al máximo.' : 'Se alegra al enchufar el cargador, se preocupa con poca batería y se sorprende si la CPU está al máximo.', toggle(s.reactions !== false, (v) => save({ reactions: v }))),
+  const lifeCard = card('Vida de la carita', device === 'notebook' ? 'Tu equipo: notebook. Reacciona al cargador y a la batería baja.' : null,
+    row('Reacciones', device !== 'notebook' ? 'Se sorprende si la CPU está al máximo.' : 'Se alegra al enchufar el cargador, se preocupa con poca batería y se sorprende si la CPU está al máximo.', toggle(s.reactions !== false, (v) => save({ reactions: v }))),
     row('Disfraces de temporada', 'Calabaza en Halloween, gorro navideño en diciembre y gorrito de fiesta en tu cumpleaños.', toggle(s.seasonal !== false, (v) => save({ seasonal: v }))),
     row('Tu cumpleaños', 'Para festejarlo ese día.', el('div', { className: 'bday' }, bDay, bMonth)));
   const lookPage = [
     card('Tu Yurei', 'Ponle algo a la carita (mírala arriba).', el('div', { className: 'row stack' }, accs)),
     lifeCard,
-    card('Tema', null, el('div', { className: 'row stack' }, themes), customRow),
+    card('Tema', null, el('div', { className: 'row stack' }, themes), customRow, adaptRow),
     card('Transparencia', null,
       el('div', { className: 'row stack' }, choice('seg', [['off', 'Opaco'], ['on', 'Translúcido'], ['system', 'Como Windows']].map(([v, t]) => ({ value: v, node: el('button', { className: 'chip', textContent: t }) })),
         look.transparency, (v) => applyLook({ transparency: v }))),
-      opRow, opSlider)
+      opRow, opSlider),
+    card('Tamaño y hora', null,
+      row('Tamaño de la isla', 'Escala toda la interfaz de la isla.', el('div', {}, choice('seg', [80, 90, 100, 110, 120, 130].map((v) => ({ value: v, node: el('button', { className: 'chip', textContent: `${v} %` }) })), s.uiScale || 100, (v) => save({ uiScale: v }))), true),
+      row('Reloj de 24 horas', null, toggle(!!s.time24, (v) => save({ time24: v }))))
   ];
   applyLook({});
   pending = {};
@@ -346,7 +352,6 @@ const prettyKeys = (a) => a.replace('Control', 'Ctrl').replace('Super', 'Win').r
   }));
   const panelPage = [
     card('Lo que ves al abrir el notch', 'Elige qué va en cada uno de los tres lugares.', el('div', { className: 'row stack' }, slots)),
-    card('Clima', null, row('Ciudad', 'Se actualiza cada media hora.', text(s.city, 'city', { placeholder: 'p. ej. Buenos Aires' }), true)),
     card('Mis apps', null, row('Iconos de las webs', 'Descarga el icono de las webs que añades (consulta a Google el nombre del sitio).', toggle(s.fetchFavicons, (v) => save({ fetchFavicons: v }))))
   ];
 
@@ -459,8 +464,69 @@ const prettyKeys = (a) => a.replace('Control', 'Ctrl').replace('Super', 'Win').r
       row('Borrar todo', 'Ajustes, API key, pendientes y cachés. Yurei se reinicia.', el('button', { className: 'btn danger', type: 'button', textContent: 'Borrar…', onclick: () => window.yurei.wipeData() })))
   ];
 
+
+  // --- Isla: cómo se muestra, qué lleva dentro y sus accesorios ---
+  const seg = (items, cur, onPick) => choice('seg', items.map(([v, l]) => ({ value: v, node: el('button', { className: 'chip', textContent: l }) })), cur, onPick);
+  const nb = device === 'notebook'; // lo de batería solo existe en notebooks: en una PC no se muestra
+  const SW = [['weather', 'Clima'], ['cpu', 'CPU'], ['ram', 'RAM'], ['disk', 'Disco'], ['net', 'Red'], ...(nb ? [['battery', 'Batería']] : [])];
+  const sw = { left: [...(s.statusWidgets?.left || [])], right: [...(s.statusWidgets?.right || [])] };
+  const swNote = el('p', { className: 'lead', textContent: '' });
+  const swRows = SW.map(([id, name]) => {
+    const cur = sw.left.includes(id) ? 'left' : sw.right.includes(id) ? 'right' : 'off';
+    return row(name, null, seg([['off', 'No'], ['left', 'Izquierda'], ['right', 'Derecha']], cur, (v) => {
+      sw.left = sw.left.filter((x) => x !== id); sw.right = sw.right.filter((x) => x !== id);
+      if (v !== 'off') sw[v].push(id);
+      if (sw.left.length + sw.right.length > 4) { swNote.textContent = 'Como mucho 4 en la isla: quita uno primero.'; return; }
+      swNote.textContent = '';
+      save({ statusWidgets: { left: [...sw.left], right: [...sw.right] } });
+    }));
+  });
+  const edge = row('Retardo al tocar el borde', 'Cuánto espera antes de mostrarse.', null);
+  const delay = slider(0, 800, s.notchEdgeDelay ?? 200, ' ms', (v) => save({ notchEdgeDelay: v }, 300));
+  edge.append(delay.out);
+  const delayBar = el('div', { className: 'row tight' }, delay.input);
+  const showDelay = (m) => { edge.hidden = delayBar.hidden = m === 'fixed'; };
+  showDelay(s.notchMode || 'fixed');
+  const lowSl = slider(5, 50, s.lowBattery || 20, ' %', (v) => save({ lowBattery: v }, 300));
+  const islandPage = [
+    card('Visibilidad', 'Fija se ve siempre. Inteligente se esconde con una ventana maximizada. Asomar solo aparece al tocar el borde de arriba.',
+      el('div', { className: 'row stack' }, seg([['fixed', 'Fija'], ['smart', 'Inteligente'], ['peek', 'Asomar']], s.notchMode || 'fixed', (v) => { showDelay(v); save({ notchMode: v }); })),
+      edge, delayBar),
+    card('Comportamiento', null,
+      row('Abrir al pasar el mouse', 'Si lo apagas, solo se abre con clic.', toggle(s.hoverOpen !== false, (v) => save({ hoverOpen: v }))),
+      row('Recordar el último panel', 'Al abrir, vuelve donde lo dejaste.', toggle(s.notchRememberPanel !== false, (v) => save({ notchRememberPanel: v }))),
+      row('Panel de inicio', null, seg([['calendar', 'Calendario'], ['control', 'Control']], s.notchDefaultPanel || 'calendar', (v) => save({ notchDefaultPanel: v }))),
+      row('Punto de actualización', 'Muestra un punto cuando hay una versión nueva.', toggle(s.showUpdateDot !== false, (v) => save({ showUpdateDot: v })))),
+    card('Widgets de estado', 'Hasta 4 datos pequeños a los lados de la isla.', ...swRows, swNote,
+      ...(nb ? [row('Aviso de batería baja', 'A partir de qué nivel se pone en rojo.', lowSl.out), el('div', { className: 'row tight' }, lowSl.input)] : [])),
+    card('Calendario y temporizador', null,
+      row('Mostrar el calendario', null, toggle(s.calendarEnabled !== false, (v) => save({ calendarEnabled: v }))),
+      row('Sonido al terminar el temporizador', null, toggle(s.timerSound !== false, (v) => save({ timerSound: v })))),
+    card('Música', 'Lo que suena en Windows (Spotify, el navegador…).',
+      row('Mostrar la música', null, toggle(s.musicEnabled !== false, (v) => save({ musicEnabled: v }))),
+      row('Diseño', null, seg([['classic', 'Clásico'], ['compact', 'Compacto']], s.mediaLayout || 'classic', (v) => save({ mediaLayout: v }))),
+      row('Visualizador y portada en la isla cerrada', null, toggle(s.musicCompact !== false, (v) => save({ musicCompact: v }))),
+      row('Visualizador de ondas', 'Escucha el audio del sistema solo para dibujar las barras. No lo guarda ni lo envía.', toggle(s.mediaVisualizer !== false, (v) => save({ mediaVisualizer: v }))),
+      row('Portada del álbum', null, toggle(s.mediaAlbumArt !== false, (v) => save({ mediaAlbumArt: v }))),
+      row('Colores de la portada', 'Tiñe la isla con los colores de la canción.', toggle(s.mediaAmbience !== false, (v) => save({ mediaAmbience: v }))),
+      row('Brillo de la isla cerrada', null, toggle(s.mediaCompactGlow !== false, (v) => save({ mediaCompactGlow: v })))),
+    card('Bandeja', 'Suelta archivos o texto sobre la isla para tenerlos a mano. Son referencias: no se copian.',
+      row('Mantener al reiniciar', 'Si lo apagas, la bandeja empieza vacía.', toggle(!!s.shelfPersist, (v) => save({ shelfPersist: v })))),
+    card('Clima', null, row('Ciudad', 'Se actualiza cada media hora.', text(s.city, 'city', { placeholder: 'p. ej. Buenos Aires' }), true))
+  ];
+
+  // --- Superposiciones: indicadores en los bordes de la pantalla ---
+  const overlaysPage = [
+    card('Volumen', 'Un indicador en el borde izquierdo de la pantalla.',
+      row('Mostrar al cambiar el volumen', 'Con las teclas del teclado o desde otra app.', toggle(s.volumeHud !== false, (v) => save({ volumeHud: v }))),
+      row('Mostrar al tocar el borde izquierdo', 'Arrástralo o usa la rueda. Toca el porcentaje para ver el volumen de cada app.', toggle(s.volumeEdge !== false, (v) => save({ volumeEdge: v })))),
+    ...(nb ? [card('Brillo', 'Un indicador en el borde derecho de la pantalla.',
+      row('Mostrar al cambiar el brillo', null, toggle(s.brightnessHud !== false, (v) => save({ brightnessHud: v }))),
+      row('Mostrar al tocar el borde derecho', null, toggle(s.brightnessEdge !== false, (v) => save({ brightnessEdge: v }))))] : [])
+  ];
+
   // --- pestañas ---
-  const pages = [['General', general], ['Voz', voicePage], ['Apariencia', lookPage], ['Panel', panelPage], ['Modos', modesPage], ['Privacidad', privacyPage]];
+  const pages = [['General', general], ['Voz', voicePage], ['Apariencia', lookPage], ['Isla', islandPage], ['Superposiciones', overlaysPage], ['Panel', panelPage], ['Modos', modesPage], ['Privacidad', privacyPage]];
   const tabs = pages.map(([name], i) => {
     const b = el('button', { role: 'tab', type: 'button', textContent: name });
     b.onclick = () => show(i);
