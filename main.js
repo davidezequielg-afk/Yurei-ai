@@ -3,6 +3,7 @@ const path = require('path');
 const { app, BrowserWindow, globalShortcut, ipcMain, screen, clipboard, shell, desktopCapturer, Notification, nativeTheme, nativeImage, systemPreferences, dialog, safeStorage, session, Tray, Menu, powerMonitor } = require('electron');
 const { createStore } = require('./src/store');
 const { createSystem } = require('./src/system');
+const { createEdges } = require('./src/edges');
 const { createTools } = require('./src/tools');
 const { createAssistant } = require('./src/assistant');
 const { createScheduler } = require('./src/scheduler');
@@ -590,6 +591,82 @@ function start() {
     if (!Number.isFinite(n)) throw new Error('Nivel no válido');
     return system.setBrightness(n);
   });
+
+  // --- indicadores de volumen (izquierda) y brillo (derecha) en los bordes de la pantalla ---
+  const hudWins = {};
+  const hudBusy = { volume: false, brightness: false };
+  const hudInteractive = { volume: false, brightness: false };
+  const HUD_SIDE = { volume: 'left', brightness: 'right' };
+  const hudOf = (kind) => {
+    if (hudWins[kind] && !hudWins[kind].isDestroyed()) return hudWins[kind];
+    const w = new BrowserWindow({
+      width: 64, height: 242, show: false, frame: false, transparent: true, alwaysOnTop: true, skipTaskbar: true, resizable: false,
+      focusable: false, hasShadow: false, webPreferences: webPrefs('preload-hud.js')
+    });
+    w.setAlwaysOnTop(true, 'screen-saver');
+    w.setIgnoreMouseEvents(true);
+    w.loadFile(path.join(RENDERER_DIR, 'hud.html'));
+    hudWins[kind] = w;
+    return w;
+  };
+  const hudPlace = (kind, display) => {
+    const w = hudOf(kind);
+    const [cw, ch] = w.getSize();
+    const b = display.bounds;
+    w.setBounds({ x: HUD_SIDE[kind] === 'left' ? b.x + 4 : b.x + b.width - cw - 4, y: Math.round(b.y + (b.height - ch) / 2), width: cw, height: ch });
+  };
+  const hudPayload = (kind, r) => ({ kind, side: HUD_SIDE[kind], level: r.level, muted: !!r.muted });
+  const hudReady = (w) => (w.webContents.isLoading() ? new Promise((ok) => w.webContents.once('did-finish-load', ok)) : Promise.resolve());
+  const hudBridge = {
+    show(kind, r) {
+      const w = hudOf(kind);
+      hudPlace(kind, screen.getDisplayNearestPoint(screen.getCursorScreenPoint()));
+      hudReady(w).then(() => { w.webContents.send('hud:state', hudPayload(kind, r)); w.showInactive(); });
+    },
+    update(kind, r) { const w = hudWins[kind]; if (w && !w.isDestroyed()) w.webContents.send('hud:state', hudPayload(kind, r)); },
+    hide(kind) {
+      const w = hudWins[kind];
+      if (!w || w.isDestroyed()) return;
+      w.webContents.send('hud:state', { hide: true });
+      setTimeout(() => { if (!edges.state[kind].shown && !w.isDestroyed()) { w.hide(); w.setIgnoreMouseEvents(true); hudInteractive[kind] = false; } }, 350);
+    },
+    busy: (kind) => hudBusy[kind],
+    contains(kind, c) { const w = hudWins[kind]; if (!w || w.isDestroyed() || !w.isVisible()) return false; const b = w.getBounds(); return c.x >= b.x && c.x <= b.x + b.width && c.y >= b.y && c.y <= b.y + b.height; },
+    interactive(kind, on) { const w = hudWins[kind]; if (!w || w.isDestroyed() || hudInteractive[kind] === on) return; hudInteractive[kind] = on; w.setIgnoreMouseEvents(!on); }
+  };
+  edges = createEdges({
+    settings: () => store.get('settings'),
+    screenOf: (c) => screen.getDisplayNearestPoint(c),
+    hud: hudBridge,
+    hasBrightness: () => system.hasBattery() === true,
+    readLevel: async (kind) => {
+      if (kind === 'volume') { const v = await system.getVolume(); return v && Number.isFinite(v.volume) ? { level: v.volume, muted: v.muted } : null; }
+      const b = await system.getBrightness();
+      return b?.available ? { level: b.level } : null;
+    }
+  });
+  if (process.platform === 'win32') setInterval(() => edges.poll(), edges.pollMs);
+  handle('hud:set', async (_e, kind, level) => {
+    if (!Number.isFinite(level)) throw new Error('Nivel no válido');
+    const n = Math.max(0, Math.min(100, Math.round(level)));
+    if (kind === 'brightness') { if (system.hasBattery() === false) throw new Error('PC de escritorio'); return system.setBrightness(n); }
+    return system.setVolume(n);
+  });
+  handle('hud:mute', (_e, on) => system.setMute(on === true));
+  handle('hud:mixer-list', () => system.mixerList());
+  handle('hud:mixer-set', (_e, pid, level) => system.mixerSet(pid, level));
+  handle('hud:mixer-mute', (_e, pid, on) => system.mixerMute(pid, on));
+  ipcMain.on('hud:size', (e, w, h) => {
+    const kind = Object.keys(hudWins).find((k) => hudWins[k]?.webContents === e.sender);
+    if (!kind || !Number.isFinite(w) || !Number.isFinite(h)) return;
+    const win2 = hudWins[kind];
+    const b = win2.getBounds();
+    const nw = Math.max(40, Math.min(320, Math.round(w)));
+    const nh = Math.max(40, Math.min(400, Math.round(h)));
+    win2.setBounds({ x: HUD_SIDE[kind] === 'left' ? b.x : b.x + b.width - nw, y: b.y, width: nw, height: nh });
+    if (kind === 'volume') edges.setMixerOpen(nw > 100);
+  });
+  ipcMain.on('hud:busy', (e, kind, on) => { if (kind in hudBusy) hudBusy[kind] = on === true; });
   handle('app:restart', () => { app.relaunch(); setTimeout(() => app.exit(0), 100); });
 
   // --- vida de la carita y avisos amables (ver src/nudges.js) ---

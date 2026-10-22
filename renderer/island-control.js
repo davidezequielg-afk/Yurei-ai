@@ -77,13 +77,12 @@
     const nm = S.settings.notchMode || 'fixed';
     ui.notch.set(t(MODE_LABEL[nm]), nm === 'fixed');
     ui.dnd.classList.toggle('active', !!S.settings.dnd);
-    // Ahorro de energía solo tiene sentido en una notebook; en una PC de escritorio ese botón abre el sonido.
-    const pc = S.settings.device === 'pc';
-    ui.energy.title = pc ? t('Sonido') : t('Ahorro de energía');
-    ui.energy.replaceChildren(window.icon(pc ? 'volume' : 'battery', 15));
-    ui.energy.onclick = () => window.yurei.sysOpen(pc ? 'sound' : 'batterysaver');
+    // Lo exclusivo de notebook (ahorro de energía y brillo) no se muestra en una PC de escritorio.
+    const nb = S.settings.device === 'notebook';
+    ui.energy.hidden = !nb;
+    ui.bright.row.hidden = !nb;
     if (S.vol != null && !ui.vol.dragging) ui.vol.value(S.vol);
-    if (S.bright?.available && !ui.bright.dragging) { ui.bright.off(''); ui.bright.value(S.bright.level); } else ui.bright.off(S.bright?.reason === 'pc' ? t('PC de escritorio: usa los botones del monitor') : t('Esta pantalla no permite cambiar el brillo'));
+    if (S.bright?.available && !ui.bright.dragging) { ui.bright.off(''); ui.bright.value(S.bright.level); } else ui.bright.off(t('Esta pantalla no permite cambiar el brillo'));
   }
 
   /* ---------- acciones ---------- */
@@ -214,7 +213,7 @@
 
   Island.register('control', {
     build,
-    size: () => (sub ? { w: 350, h: 264 } : { w: 350, h: 194 }),
+    size: () => { const nb = S.settings.device === 'notebook'; return sub ? { w: 350, h: 264 } : { w: 350, h: nb ? 194 : 160 }; },
     enter() { sub = ''; host.dataset.sub = ''; load(); poll = setInterval(() => { if (!sub) load(); }, 4000); },
     leave() { clearInterval(poll); poll = null; sub = ''; if (host) host.dataset.sub = ''; S.open = ''; }
   });

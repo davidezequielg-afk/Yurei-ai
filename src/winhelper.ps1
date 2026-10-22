@@ -85,6 +85,171 @@ public class YureiKeys {
   $script:initErrors += "codigo de audio: $($_.Exception.Message)"
 }
 
+# --- Mezclador por aplicacion (sesiones de audio) y ventana en primer plano. Cada bloque aparte: si falla, solo se pierde eso.
+$script:mixer = $false
+try {
+Add-Type -TypeDefinition @"
+using System;
+using System.Collections.Generic;
+using System.Runtime.InteropServices;
+
+[Guid("87CE5498-68D6-44E5-9215-6DA47EF883D8"), InterfaceType(ComInterfaceType.InterfaceIsIUnknown)]
+interface ISimpleAudioVolumeM {
+  int SetMasterVolume(float level, ref Guid ctx);
+  int GetMasterVolume(out float level);
+  int SetMute([MarshalAs(UnmanagedType.Bool)] bool mute, ref Guid ctx);
+  int GetMute([MarshalAs(UnmanagedType.Bool)] out bool mute);
+}
+
+[Guid("F4B1A599-7266-4319-A8CA-E70ACB11E8CD"), InterfaceType(ComInterfaceType.InterfaceIsIUnknown)]
+interface IAudioSessionControlM {
+  int a(); int b(); int c(); int d(); int e(); int f(); int g(); int h(); int i();
+}
+
+[Guid("BFB7FF88-7239-4FC9-8FA2-07C950BE9C6D"), InterfaceType(ComInterfaceType.InterfaceIsIUnknown)]
+interface IAudioSessionControl2M {
+  int a(); int b(); int c(); int d(); int e(); int f(); int g(); int h(); int i();
+  int GetSessionIdentifier([MarshalAs(UnmanagedType.LPWStr)] out string id);
+  int GetSessionInstanceIdentifier([MarshalAs(UnmanagedType.LPWStr)] out string id);
+  int GetProcessId(out uint pid);
+  int IsSystemSoundsSession();
+}
+
+[Guid("E2F5BB11-0570-40CA-ACDD-3AA01277DEE8"), InterfaceType(ComInterfaceType.InterfaceIsIUnknown)]
+interface IAudioSessionEnumeratorM {
+  int GetCount(out int count);
+  int GetSession(int index, out IAudioSessionControlM session);
+}
+
+[Guid("77AA99A0-1BD6-484F-8BC7-2C654C9A9B6F"), InterfaceType(ComInterfaceType.InterfaceIsIUnknown)]
+interface IAudioSessionManager2M {
+  int a(); int b();
+  int GetSessionEnumerator(out IAudioSessionEnumeratorM enumerator);
+}
+
+[Guid("D666063F-1587-4E43-81F1-B948E807363F"), InterfaceType(ComInterfaceType.InterfaceIsIUnknown)]
+interface IMMDeviceM {
+  int Activate(ref Guid id, int clsCtx, int activationParams, out IAudioSessionManager2M mgr);
+}
+
+[Guid("A95664D2-9614-4F35-A746-DE8DB63617E6"), InterfaceType(ComInterfaceType.InterfaceIsIUnknown)]
+interface IMMDeviceEnumeratorM {
+  int f();
+  int GetDefaultAudioEndpoint(int dataFlow, int role, out IMMDeviceM endpoint);
+}
+
+[ComImport, Guid("BCDE0395-E52F-49B1-8E5C-BB4FB7E8C7B3")]
+class MMDeviceEnumeratorComObjectM { }
+
+public class YureiMixer {
+  static List<object[]> Each() {
+    var res = new List<object[]>();
+    var en = new MMDeviceEnumeratorComObjectM() as IMMDeviceEnumeratorM;
+    IMMDeviceM dev = null;
+    Marshal.ThrowExceptionForHR(en.GetDefaultAudioEndpoint(0, 1, out dev));
+    IAudioSessionManager2M mgr = null;
+    Guid g = typeof(IAudioSessionManager2M).GUID;
+    Marshal.ThrowExceptionForHR(dev.Activate(ref g, 23, 0, out mgr));
+    IAudioSessionEnumeratorM list = null;
+    Marshal.ThrowExceptionForHR(mgr.GetSessionEnumerator(out list));
+    int n = 0;
+    list.GetCount(out n);
+    for (int i = 0; i < n; i++) {
+      IAudioSessionControlM ctl = null;
+      list.GetSession(i, out ctl);
+      var c2 = (IAudioSessionControl2M)ctl;
+      var vol = (ISimpleAudioVolumeM)ctl;
+      uint pid = 0;
+      c2.GetProcessId(out pid);
+      float level = 0; bool mute = false;
+      vol.GetMasterVolume(out level);
+      vol.GetMute(out mute);
+      res.Add(new object[] { pid, level, mute, vol });
+    }
+    return res;
+  }
+  public static string List() {
+    var sb = new System.Text.StringBuilder();
+    foreach (var s in Each()) sb.Append(s[0]).Append(',').Append(((float)s[1]).ToString("0.###", System.Globalization.CultureInfo.InvariantCulture)).Append(',').Append((bool)s[2] ? 1 : 0).Append(';');
+    return sb.ToString();
+  }
+  public static void SetVolume(uint pid, float level) {
+    Guid ctx = Guid.Empty;
+    foreach (var s in Each()) if ((uint)s[0] == pid) ((ISimpleAudioVolumeM)s[3]).SetMasterVolume(level, ref ctx);
+  }
+  public static void SetMute(uint pid, bool mute) {
+    Guid ctx = Guid.Empty;
+    foreach (var s in Each()) if ((uint)s[0] == pid) ((ISimpleAudioVolumeM)s[3]).SetMute(mute, ref ctx);
+  }
+}
+"@
+$script:mixer = $true
+} catch {
+  $script:initErrors += "mezclador: $($_.Exception.Message)"
+}
+
+$script:fgok = $false
+try {
+Add-Type -TypeDefinition @"
+using System;
+using System.Text;
+using System.Runtime.InteropServices;
+
+public class YureiWin {
+  [StructLayout(LayoutKind.Sequential)] public struct RECT { public int L, T, R, B; }
+  [DllImport("user32.dll")] static extern IntPtr GetForegroundWindow();
+  [DllImport("user32.dll")] static extern bool GetWindowRect(IntPtr h, out RECT r);
+  [DllImport("user32.dll")] static extern bool IsZoomed(IntPtr h);
+  [DllImport("user32.dll")] static extern bool IsWindowVisible(IntPtr h);
+  [DllImport("user32.dll", CharSet = CharSet.Unicode)] static extern int GetClassName(IntPtr h, StringBuilder sb, int max);
+  [DllImport("user32.dll")] static extern uint GetWindowThreadProcessId(IntPtr h, out uint pid);
+  // Devuelve: clase|pid|maximizada|izq,arr,der,aba
+  public static string Info() {
+    IntPtr h = GetForegroundWindow();
+    if (h == IntPtr.Zero || !IsWindowVisible(h)) return "||0|0,0,0,0";
+    RECT r; GetWindowRect(h, out r);
+    var sb = new StringBuilder(256);
+    GetClassName(h, sb, 256);
+    uint pid; GetWindowThreadProcessId(h, out pid);
+    return sb.ToString() + "|" + pid + "|" + (IsZoomed(h) ? 1 : 0) + "|" + r.L + "," + r.T + "," + r.R + "," + r.B;
+  }
+}
+"@
+$script:fgok = $true
+} catch {
+  $script:initErrors += "ventana activa: $($_.Exception.Message)"
+}
+
+function Get-Mixer {
+  if (-not $script:mixer) { throw 'El mezclador no esta disponible en este equipo' }
+  $apps = @{}
+  foreach ($e in (([YureiMixer]::List()) -split ';' | Where-Object { $_ })) {
+    $p = $e -split ','
+    $pid2 = [uint32]$p[0]
+    $name = 'Sonidos del sistema'
+    if ($pid2 -ne 0) { try { $name = (Get-Process -Id $pid2 -ErrorAction Stop).ProcessName } catch { continue } }
+    $v = [double]::Parse($p[1], [Globalization.CultureInfo]::InvariantCulture)
+    if (-not $apps.ContainsKey($name)) { $apps[$name] = @{ pid = [int]$pid2; name = $name; volume = [int][Math]::Round($v * 100); muted = ($p[2] -eq '1') } }
+  }
+  return @{ apps = @($apps.Values | Sort-Object { $_.name }) }
+}
+function Set-MixerVolume($arg) {
+  $a = $arg -split ':', 2
+  [YureiMixer]::SetVolume([uint32]$a[0], [float]([Math]::Max(0, [Math]::Min(100, [double]$a[1])) / 100))
+  return @{ done = $true }
+}
+function Set-MixerMute($arg) {
+  $a = $arg -split ':', 2
+  [YureiMixer]::SetMute([uint32]$a[0], ($a[1] -eq 'true'))
+  return @{ done = $true }
+}
+function Get-Foreground {
+  if (-not $script:fgok) { throw 'No disponible' }
+  $p = ([YureiWin]::Info()) -split '\|'
+  $r = $p[3] -split ','
+  return @{ cls = $p[0]; pid = [int]$(if ($p[1]) { $p[1] } else { 0 }); maximized = ($p[2] -eq '1'); rect = @([int]$r[0], [int]$r[1], [int]$r[2], [int]$r[3]) }
+}
+
 # --- SMTC (Windows 10 1809+): lo que suena ahora y sus controles ---
 $script:smtc = $false
 try {
@@ -330,6 +495,10 @@ while ($true) {
       'radio.get' { $data = Get-Radios }
       'radio.set' { $data = Set-Radio $arg }
       'bt.list' { $data = @{ devices = @(Get-BtDevices) } }
+      'mix.list' { $data = Get-Mixer }
+      'mix.set' { $data = Set-MixerVolume $arg }
+      'mix.mute' { $data = Set-MixerMute $arg }
+      'fg.info' { $data = Get-Foreground }
       'bright.get' { $data = Get-Bright }
       'bright.set' { $data = Set-Bright $arg }
       'media.cmd' { $a = $arg -split ':', 2; $data = Invoke-Media $a[0] $(if ($a.Count -gt 1) { $a[1] } else { '' }) }

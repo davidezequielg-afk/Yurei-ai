@@ -138,6 +138,17 @@ function createSystem({ shell, clipboard, dataDir = os.tmpdir(), confirm = async
       if (!isWin) throw new Error('Solo en Windows');
       return shell.openExternal(`ms-settings:${uri}`);
     },
+    // Mezclador por aplicación (solo Windows) y ventana en primer plano.
+    mixerList: () => (isWin ? win().request('mix.list') : Promise.reject(new Error('Solo en Windows'))),
+    mixerSet(pid, level) {
+      if (!Number.isInteger(pid) || pid < 0 || !Number.isFinite(level)) throw new Error('Datos no válidos');
+      return win().request('mix.set', `${pid}:${Math.max(0, Math.min(100, Math.round(level)))}`);
+    },
+    mixerMute(pid, on) {
+      if (!Number.isInteger(pid) || pid < 0) throw new Error('Datos no válidos');
+      return win().request('mix.mute', `${pid}:${on ? 'true' : 'false'}`);
+    },
+    foreground: () => (isWin ? win().request('fg.info') : Promise.resolve(null)),
     getBrightness: () => (isWin ? win().request('bright.get') : Promise.resolve({ available: false })),
     setBrightness: (level) => win().request('bright.set', level),
     openNightLight: () => (isWin ? shell.openExternal('ms-settings:nightlight') : Promise.reject(new Error('Solo en Windows'))),

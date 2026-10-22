@@ -316,8 +316,9 @@ const Island = (() => {
       st.lowBattery = cfg.lowBattery || 20;
       Island.setTimerConfig?.(cfg);
       if (cfg.notchLastPanel && PANELS.includes(cfg.notchLastPanel)) st.last = cfg.notchLastPanel;
-      st.widgets = { left: cfg.statusWidgets?.left || ['weather'], right: cfg.statusWidgets?.right || ['battery'] };
       st.device = cfg.device;
+      const onlyHere = (l) => l.filter((w) => w !== 'battery' || cfg.device === 'notebook'); // la batería no existe en una PC de escritorio
+      st.widgets = { left: onlyHere(cfg.statusWidgets?.left || ['weather']), right: onlyHere(cfg.statusWidgets?.right || ['battery']) };
       el.classList.toggle('has-update', !!cfg.updatePending);
       tickClock(); drawWidgets(); refresh();
       Island.onMusicConfig?.();
