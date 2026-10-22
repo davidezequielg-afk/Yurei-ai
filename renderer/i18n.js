@@ -158,6 +158,9 @@ Object.assign(I18N_EN, {
 
 // Voz propia de Yurei
 Object.assign(I18N_EN, {
+  Velocidad: 'Speed', Tono: 'Pitch', 'Más alta, habla más rápido. También se aplica a la voz de Windows.': 'Higher means faster speech. It also applies to the Windows voice.',
+  'Negativo, más grave; positivo, más agudo. Sirve para acercar una voz femenina o masculina a como la querés.': 'Negative is deeper; positive is higher. Use it to bring a female or male voice closer to how you want it.',
+  'Probar con estos valores': 'Try with these values', Restablecer: 'Reset', Normal: 'Normal',
   'Voz de Yurei': 'Yurei voice', 'Voz de Gemini': 'Gemini voice', 'Con qué voz habla': 'Which voice it speaks with',
   'La voz de Yurei es la que se queda fija. Gemini o la de Windows solo si lo eliges aquí.': 'The Yurei voice is the one that stays fixed. Gemini or the Windows voice only if you choose it here.',
   'Solo se usa si eliges Gemini arriba. Toca una voz y pruébala.': 'Only used if you pick Gemini above. Tap a voice to try it.',

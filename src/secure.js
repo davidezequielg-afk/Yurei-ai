@@ -182,6 +182,8 @@ function validateSettingsPatch(patch, { unavailable = [] } = {}) {
         out[k] = v.trim();
         break;
       case 'hearing': if (!['auto', 'gemini', 'brain'].includes(v)) throw new Error('Opción no válida'); out[k] = v; break;
+      case 'voiceSpeed': out[k] = Math.max(70, Math.min(160, Math.round(Number(v) / 5) * 5 || 100)); break;
+      case 'voicePitch': out[k] = Math.max(-6, Math.min(6, Math.round(Number(v)) || 0)); break;
       case 'localVoice': if (!VOICE_IDS.includes(v)) throw new Error('Voz no válida'); out[k] = v; break;
       case 'speech': if (!['auto', 'gemini', 'brain', 'system', 'local'].includes(v)) throw new Error('Opción no válida'); out[k] = v; break;
       case 'brainVoice': if (typeof v !== 'string' || !/^[\w-]{1,30}$/.test(v)) throw new Error('Voz no válida'); out[k] = v; break;

@@ -71,6 +71,8 @@ const DEFAULTS = {
     hearing: 'auto', // voz → texto: auto | gemini | brain (transcripción del proveedor)
     sttModel: '',
     speech: 'auto', // texto → voz: auto (la voz propia de Yurei si está instalada) | local | gemini | brain | system
+    voiceSpeed: 100, // velocidad de la voz de Yurei, en % (70 a 160)
+    voicePitch: 0, // tono de la voz de Yurei, en semitonos (-6 más grave a +6 más agudo)
     localVoice: 'daniela', // voz propia de Yurei: daniela | claude | ald | dave
     brainTtsModel: '',
     brainVoice: 'alloy',

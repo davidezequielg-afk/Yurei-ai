@@ -314,13 +314,35 @@ const prettyKeys = (a) => a.replace('Control', 'Ctrl').replace('Super', 'Win').r
     }));
   }
   window.yurei.on('voices-progress', (p) => { const b = progressBtns[p.id]; if (b && p.phase !== 'listo') b.textContent = `${p.phase === 'motor' ? 'Motor' : 'Voz'}… ${Math.round(p.fraction * 100)} %`; });
+  // Velocidad y tono de la voz de Yurei (valen para las cuatro voces)
+  const fmtPitch = (v) => (v === 0 ? 'Normal' : `${v > 0 ? '+' : ''}${v}`);
+  const spd = slider(70, 160, s.voiceSpeed || 100, ' %', (v) => { s.voiceSpeed = v; save({ voiceSpeed: v }, 300); });
+  spd.input.step = 5;
+  const ptc = slider(-6, 6, s.voicePitch || 0, '', (v) => { s.voicePitch = v; ptc.out.textContent = fmtPitch(v); save({ voicePitch: v }, 300); });
+  ptc.out.textContent = fmtPitch(s.voicePitch || 0);
+  const trySpeed = el('button', { className: 'btn small', type: 'button', textContent: 'Probar con estos valores' });
+  trySpeed.onclick = async () => {
+    trySpeed.disabled = true;
+    const x = await window.yurei.voicesPreview(vstate?.selected || s.localVoice || 'daniela', { speed: Number(spd.input.value), pitch: Number(ptc.input.value) });
+    trySpeed.disabled = false;
+    if (!x.ok) toast(x.error, true); else await playPcm(x.data);
+  };
+  const resetSpeed = el('button', { className: 'btn small', type: 'button', textContent: 'Restablecer', onclick: () => {
+    spd.input.value = 100; spd.out.textContent = '100 %'; ptc.input.value = 0; ptc.out.textContent = fmtPitch(0);
+    s.voiceSpeed = 100; s.voicePitch = 0; save({ voiceSpeed: 100, voicePitch: 0 }, 100);
+  } });
   const speechSeg = choice('seg', [['auto', 'Voz de Yurei'], ['gemini', 'Gemini'], ['system', 'Windows']].map(([v, l]) => ({ value: v, node: el('button', { className: 'chip', textContent: l }) })), speechNow(),
     (v) => { s.speech = v; s.systemVoice = v === 'system'; save({ speech: v, systemVoice: v === 'system' }); setTimeout(drawYureiVoices, 200); });
   const refreshSpeechSeg = () => [...speechSeg.children].forEach((n) => n.setAttribute('aria-checked', String(n.textContent === 'Voz de Yurei')));
   drawYureiVoices();
 
   const voicePage = [
-    card('Voz de Yurei', null, voiceLead, el('div', { className: 'row stack' }, yureiVoice), row('Con qué voz habla', 'La voz de Yurei es la que se queda fija. Gemini o la de Windows solo si lo eliges aquí.', el('div', {}, speechSeg), true)),
+    card('Voz de Yurei', null, voiceLead, el('div', { className: 'row stack' }, yureiVoice),
+      row('Velocidad', 'Más alta, habla más rápido. También se aplica a la voz de Windows.', spd.out),
+      el('div', { className: 'row tight' }, spd.input),
+      row('Tono', 'Negativo, más grave; positivo, más agudo. Sirve para acercar una voz femenina o masculina a como la querés.', ptc.out),
+      el('div', { className: 'row tight' }, ptc.input),
+      el('div', { className: 'row' }, el('div', { className: 'txt' }), el('div', { className: 'vact' }, resetSpeed, trySpeed)), row('Con qué voz habla', 'La voz de Yurei es la que se queda fija. Gemini o la de Windows solo si lo eliges aquí.', el('div', {}, speechSeg), true)),
     card('Voz de Gemini', 'Solo se usa si eliges Gemini arriba. Toca una voz y pruébala.',
       el('div', { className: 'row stack' }, voices, el('div', {}, tryBtn)),),
     card('Charla', 'Cómo se da la conversación.',

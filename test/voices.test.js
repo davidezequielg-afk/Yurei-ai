@@ -177,3 +177,51 @@ test('la voz propia manda cuando está lista y la elección es automática; Gemi
   assert.equal(routing({ ...base, speech: 'local' }).speech, 'local');
   assert.equal(routing({ brainProvider: 'openai', speech: 'auto' }, { localReady: false }).speech, 'system');
 });
+
+test('voiceParams: más rápida acorta el largo de frase, el tono lo compensa, y todo queda acotado', () => {
+  const { voiceParams } = require('../src/piper');
+  const normal = voiceParams({});
+  assert.equal(normal.length, 1);
+  assert.equal(normal.factor, 1);
+  assert.ok(voiceParams({ speed: 1.3 }).length < 1);
+  assert.ok(voiceParams({ speed: 0.8 }).length > 1);
+  const agudo = voiceParams({ pitch: 3 });
+  assert.ok(agudo.factor > 1.18 && agudo.factor < 1.2); // +3 semitonos
+  assert.ok(agudo.length > 1); // se genera más largo y luego se acorta al subir el tono
+  assert.ok(voiceParams({ pitch: -3 }).factor < 1);
+  const extremo = voiceParams({ speed: 99, pitch: 99 });
+  assert.ok(extremo.length >= 0.3 && extremo.length <= 2.5 && extremo.factor <= 2 ** (8 / 12) + 1e-9);
+  assert.deepEqual(voiceParams({ speed: 'x', pitch: 'y' }), normal); // valores raros → normal
+});
+
+test('wavToPcm24 recorta el silencio de los extremos y sube/baja el tono según el factor', () => {
+  const tone = Array.from({ length: 4410 }, (_, i) => Math.round(Math.sin((2 * Math.PI * 440 * i) / 22050) * 12000));
+  const padded = wav(22050, [...new Array(11025).fill(0), ...tone, ...new Array(11025).fill(0)]); // 0,5 s de silencio a cada lado
+  const pcm = wavToPcm24(padded);
+  const seconds = pcm.length / 2 / 24000;
+  assert.ok(seconds > 0.2 && seconds < 0.45, `quedó en ${seconds} s`); // 0,2 s de tono + márgenes cortos
+  const plain = wavToPcm24(wav(22050, tone));
+  const higher = wavToPcm24(wav(22050, tone), 1.2);
+  assert.ok(higher.length < plain.length); // más agudo = se lee más rápido = más corto
+  assert.ok(Math.abs(higher.length / plain.length - 1 / 1.2) < 0.02);
+});
+
+test('createPiper abre el proceso con la velocidad pedida y lo reabre si cambia', async () => {
+  const log = [];
+  const piper = createPiper({ voices: readyVoices(), tmpDir: tmp(), spawnImpl: fakeSpawn(log), idleMs: 60000 });
+  await piper.speak('daniela', 'uno', { speed: 1 });
+  await piper.speak('daniela', 'dos', { speed: 1 }); // mismo ajuste: no reabre
+  await piper.speak('daniela', 'tres', { speed: 1.4 }); // ajuste distinto: reabre con otro largo
+  const opens = log.filter((l) => l.exe);
+  assert.equal(opens.length, 2);
+  const ls = (o) => Number(o.args[o.args.indexOf('--length_scale') + 1]);
+  assert.ok(ls(opens[1]) < ls(opens[0]));
+  piper.stop();
+});
+
+test('los ajustes de velocidad y tono se validan y se acotan', () => {
+  const S = require('../src/secure');
+  assert.deepEqual(S.validateSettingsPatch({ voiceSpeed: 112, voicePitch: 2.6 }), { voiceSpeed: 110, voicePitch: 3 });
+  assert.deepEqual(S.validateSettingsPatch({ voiceSpeed: 999, voicePitch: -99 }), { voiceSpeed: 160, voicePitch: -6 });
+  assert.deepEqual(S.validateSettingsPatch({ voiceSpeed: 'x', voicePitch: 'y' }), { voiceSpeed: 100, voicePitch: 0 });
+});

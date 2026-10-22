@@ -302,7 +302,8 @@ function start() {
   const voices = createVoices({ dir: path.join(userData, 'voices'), bundledDir: app.isPackaged ? path.join(process.resourcesPath, 'voices') : (fs.existsSync(path.join(__dirname, 'build-voices')) ? path.join(__dirname, 'build-voices') : null) });
   const piper = createPiper({ voices, tmpDir: path.join(userData, 'voices', 'tmp') });
   const localVoiceId = () => store.get('settings').localVoice || 'daniela';
-  const local = { ready: () => voices.ready(localVoiceId()), speak: (text) => piper.speak(localVoiceId(), text) };
+  const voiceOpts = () => { const c = store.get('settings'); return { speed: (c.voiceSpeed || 100) / 100, pitch: c.voicePitch || 0 }; };
+  const local = { ready: () => voices.ready(localVoiceId()), speak: (text) => piper.speak(localVoiceId(), text, voiceOpts()) };
   app.on('quit', () => piper.stop());
   const assistant = createAssistant({ store, tools, local, langFor: () => langOf(store.get('settings')), deviceFor: () => (system.hasBattery() === true ? 'notebook' : system.hasBattery() === false ? 'pc' : null) });
   const weather = createWeather({ persist: { load: () => store.get('weatherCache'), save: (c) => store.set('weatherCache', c) } });
@@ -489,7 +490,7 @@ function start() {
     if (t.length > 80) throw new Error('Texto demasiado largo para la caché'); // la caché es solo para frases de relleno cortas
     const { voice, ttsModel } = store.get('settings');
     const useLocal = routing(store.get('settings'), { localReady: local.ready() }).speech === 'local';
-    return ttsCache.getOrCreate(useLocal ? `local|${localVoiceId()}|${t}` : `${ttsModel}|${voice || 'Kore'}|${t}`, speak); // de la caché no cuenta: no se pide a Google
+    return ttsCache.getOrCreate(useLocal ? `local|${localVoiceId()}|${voiceOpts().speed}|${voiceOpts().pitch}|${t}` : `${ttsModel}|${voice || 'Kore'}|${t}`, speak); // de la caché no cuenta: no se pide a Google
   });
 
   // --- voces propias de Yurei ---
@@ -499,7 +500,7 @@ function start() {
   handle('voices:install', async (_e, id) => {
     voiceId(id);
     await voices.install(id, (p) => sendProgress({ id, ...p }));
-    piper.prewarm(localVoiceId());
+    piper.prewarm(localVoiceId(), voiceOpts());
     win?.webContents.send('settings-changed', settingsView());
     return voices.status();
   });
@@ -511,12 +512,15 @@ function start() {
     win?.webContents.send('settings-changed', settingsView());
     return voices.status();
   });
-  handle('voices:preview', (_e, id) => {
+  handle('voices:preview', (_e, id, opts) => {
     voiceId(id);
     if (!voices.ready(id)) throw new Error('La voz no está instalada');
-    return piper.speak(id, 'Hola, soy Yurei. Así suena esta voz cuando te hablo.');
+    // Se prueba con los valores que se ven en los deslizadores (aunque todavía no se hayan guardado).
+    const clean = opts && typeof opts === 'object' ? S.validateSettingsPatch({ voiceSpeed: opts.speed, voicePitch: opts.pitch }) : {};
+    const c = store.get('settings');
+    return piper.speak(id, 'Hola, soy Yurei. Así suena esta voz cuando te hablo.', { speed: (clean.voiceSpeed ?? c.voiceSpeed ?? 100) / 100, pitch: clean.voicePitch ?? c.voicePitch ?? 0 });
   });
-  setTimeout(() => piper.prewarm(localVoiceId()), 4000); // carga la voz en segundo plano para que la primera respuesta no tarde
+  setTimeout(() => piper.prewarm(localVoiceId(), voiceOpts()), 4000); // carga la voz en segundo plano para que la primera respuesta no tarde
 
   // --- ajustes y datos ---
   handle('settings:get', () => settingsView());
@@ -526,7 +530,7 @@ function start() {
     if ('openAtLogin' in clean) applyLogin();
     if ('uiScale' in clean) setIslandScale(clean.uiScale / 100);
     if ('pushToTalk' in clean) syncKeys();
-    if ('localVoice' in clean) piper.prewarm(clean.localVoice);
+    if ('localVoice' in clean || 'voiceSpeed' in clean || 'voicePitch' in clean) piper.prewarm(localVoiceId(), voiceOpts());
     win?.webContents.send('settings-changed', settingsView());
     syncTray();
     broadcastAppearance();

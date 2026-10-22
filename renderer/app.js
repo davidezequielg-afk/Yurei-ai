@@ -596,6 +596,8 @@ function speakSystem(text) {
   voice.fake = true;
   return new Promise((resolve) => {
     const u = new SpeechSynthesisUtterance(text);
+    u.rate = Math.max(0.5, Math.min(2, state.voiceSpeed || 1)); // la voz de Windows también respeta velocidad y tono
+    u.pitch = Math.max(0, Math.min(2, 2 ** ((state.voicePitch || 0) / 12)));
     const done = () => { clearTimeout(guard); voice.fake = false; resolve(); };
     const guard = setTimeout(done, 30000);
     u.onend = done;
@@ -1173,6 +1175,8 @@ function applySettings(cfg) {
   startBatteryFeed();
   state.reactions = cfg.reactions !== false;
   state.timerSound = cfg.timerSound !== false;
+  state.voiceSpeed = (cfg.voiceSpeed || 100) / 100;
+  state.voicePitch = cfg.voicePitch || 0;
   watchBattery(cfg.device === 'notebook');
   applySeason(cfg);
   island.classList.toggle('dnd', state.dnd);
