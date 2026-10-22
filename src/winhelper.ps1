@@ -20,11 +20,11 @@ using System.Runtime.InteropServices;
 [Guid("5CDF2C82-841E-4546-9722-0CF74078229A"), InterfaceType(ComInterfaceType.InterfaceIsIUnknown)]
 interface IAudioEndpointVolume {
   int f(); int g(); int h(); int i();
-  int SetMasterVolumeLevelScalar(float fLevel, Guid pguidEventContext);
+  int SetMasterVolumeLevelScalar(float fLevel, ref Guid pguidEventContext);
   int j();
   int GetMasterVolumeLevelScalar(out float pfLevel);
   int k(); int l(); int m(); int n();
-  int SetMute([MarshalAs(UnmanagedType.Bool)] bool bMute, Guid pguidEventContext);
+  int SetMute([MarshalAs(UnmanagedType.Bool)] bool bMute, ref Guid pguidEventContext);
   int GetMute([MarshalAs(UnmanagedType.Bool)] out bool pbMute);
 }
 
@@ -58,7 +58,8 @@ public class YureiAudio {
     return v;
   }
   public static void SetVolume(float v) {
-    Marshal.ThrowExceptionForHR(Endpoint().SetMasterVolumeLevelScalar(v, Guid.Empty));
+    Guid ctx = Guid.Empty;
+    Marshal.ThrowExceptionForHR(Endpoint().SetMasterVolumeLevelScalar(v, ref ctx));
   }
   public static bool GetMute() {
     bool m = false;
@@ -66,7 +67,8 @@ public class YureiAudio {
     return m;
   }
   public static void SetMute(bool m) {
-    Marshal.ThrowExceptionForHR(Endpoint().SetMute(m, Guid.Empty));
+    Guid ctx = Guid.Empty;
+    Marshal.ThrowExceptionForHR(Endpoint().SetMute(m, ref ctx));
   }
 }
 
@@ -443,8 +445,20 @@ function Set-Vol($percent) {
     return Get-Vol
   } catch {
     $script:audioError = $_.Exception.Message
-    Press-Key 174 50 # al minimo...
-    Press-Key 175 ([int][Math]::Round($p / 2)) # ...y sube hasta el nivel pedido (cada tecla = 2 %)
+    # Plan B con las teclas de volumen (cada tecla = 2 %). Si todavía se puede leer el nivel actual, se suben o bajan solo los
+    # pasos que faltan: así el volumen va directo al valor pedido, sin bajar al mínimo y volver a subir.
+    $cur = $null
+    try { $cur = [Math]::Round([YureiAudio]::GetVolume() * 100) } catch { $cur = $null }
+    if ($null -ne $cur) {
+      $d = $p - $cur
+      if ([Math]::Abs($d) -ge 1) {
+        $steps = [int][Math]::Max(1, [Math]::Round([Math]::Abs($d) / 2))
+        if ($d -gt 0) { Press-Key 175 $steps } else { Press-Key 174 $steps }
+      }
+    } else {
+      Press-Key 174 50 # sin lectura: al mínimo y sube hasta el nivel pedido
+      Press-Key 175 ([int][Math]::Round($p / 2))
+    }
     return @{ volume = [int]$p; muted = $false; mode = 'teclas' }
   }
 }
