@@ -67,7 +67,7 @@ contextBridge.exposeInMainWorld('yurei', {
   islandRects: (r) => ipcRenderer.send('island:rects', r),
   islandFocus: invoke('island:focus'),
   on: (channel, cb) => {
-    const allowed = ['hotkey', 'report', 'circle-image', 'settings-changed', 'appearance', 'timer', 'timer-done', 'update', 'reminder', 'cursor', 'nudge', 'island-hover', 'island-tuck', 'voices-progress', 'shelf'];
+    const allowed = ['hotkey', 'report', 'circle-image', 'settings-changed', 'appearance', 'timer', 'timer-done', 'update', 'reminder', 'cursor', 'nudge', 'island-hover', 'island-tuck', 'voices-progress', 'open-update', 'shelf'];
     if (!allowed.includes(channel)) return;
     ipcRenderer.on(channel, (_e, payload) => cb(payload));
   }

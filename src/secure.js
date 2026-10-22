@@ -150,7 +150,7 @@ function validateSettingsPatch(patch, { unavailable = [] } = {}) {
         if (!Array.isArray(v)) throw new Error('Frases no válidas');
         out.fillerPhrases = v.slice(0, 20).map((x) => text(String(x), 80, 'Frase')).filter(Boolean);
         break;
-      case 'systemVoice': case 'wakeWord': case 'fillers': case 'fetchFavicons': case 'dnd': case 'bargeIn': case 'autoUpdate': case 'onboarded': case 'time24': case 'hoverOpen': case 'notchRememberPanel': case 'calendarEnabled': case 'timerSound': case 'musicEnabled': case 'musicCompact': case 'mediaAmbience': case 'mediaCompactGlow': case 'mediaVisualizer': case 'mediaAlbumArt': case 'shelfPersist': case 'showUpdateDot': case 'volumeHud': case 'volumeEdge': case 'brightnessHud': case 'brightnessEdge': case 'openAtLogin': case 'morningBrief': case 'seasonal': case 'reactions': out[k] = bool(v); break;
+      case 'systemVoice': case 'wakeWord': case 'fillers': case 'fetchFavicons': case 'dnd': case 'bargeIn': case 'autoUpdate': case 'updateNotify': case 'onboarded': case 'time24': case 'hoverOpen': case 'notchRememberPanel': case 'calendarEnabled': case 'timerSound': case 'musicEnabled': case 'musicCompact': case 'mediaAmbience': case 'mediaCompactGlow': case 'mediaVisualizer': case 'mediaAlbumArt': case 'shelfPersist': case 'showUpdateDot': case 'volumeHud': case 'volumeEdge': case 'brightnessHud': case 'brightnessEdge': case 'openAtLogin': case 'morningBrief': case 'seasonal': case 'reactions': out[k] = bool(v); break;
       case 'breakEvery': out[k] = [0, 30, 45, 60, 90, 120].includes(Number(v)) ? Number(v) : 60; break;
       case 'birthday': if (v !== '' && !/^(0[1-9]|1[0-2])-(0[1-9]|[12]\d|3[01])$/.test(String(v))) throw new Error('Cumpleaños no válido (MM-DD)'); out[k] = String(v); break;
       case 'pushToTalk': if (!PTT_KEYS.includes(v)) throw new Error('Tecla no válida'); out[k] = v; break;      case 'conversationSeconds': out[k] = Math.max(5, Math.min(120, Math.round(Number(v)) || 20)); break;
@@ -182,6 +182,7 @@ function validateSettingsPatch(patch, { unavailable = [] } = {}) {
         out[k] = v.trim();
         break;
       case 'hearing': if (!['auto', 'gemini', 'brain'].includes(v)) throw new Error('Opción no válida'); out[k] = v; break;
+      case 'updateEvery': out[k] = [3, 6, 12, 24].includes(Math.round(Number(v))) ? Math.round(Number(v)) : 3; break;
       case 'voiceSpeed': out[k] = Math.max(70, Math.min(160, Math.round(Number(v) / 5) * 5 || 100)); break;
       case 'voicePitch': out[k] = Math.max(-6, Math.min(6, Math.round(Number(v)) || 0)); break;
       case 'localVoice': if (!VOICE_IDS.includes(v)) throw new Error('Voz no válida'); out[k] = v; break;

@@ -53,6 +53,9 @@ const DEFAULTS = {
     accessory: 'none',
     bargeIn: true, // interrumpirla hablándole encima
     autoUpdate: true, // buscar versiones nuevas en GitHub
+    updateEvery: 3, // cada cuántas horas (3, 6, 12 o 24)
+    updateNotify: true, // avisar con una notificación cuando hay una versión nueva
+    updateNotified: '', // última versión de la que ya se avisó
     onboarded: false, // ya vio la bienvenida
     language: 'auto', // idioma de la interfaz: auto | es | en
     openAtLogin: true, // abrir Yurei al iniciar Windows

@@ -156,6 +156,15 @@ Object.assign(I18N_EN, {
   'Escala toda la interfaz de la isla.': 'Scales the whole island interface.', 'Reloj de 24 horas': '24-hour clock', 'Nada suena ahora': 'Nothing is playing right now'
 });
 
+// Actualizaciones
+Object.assign(I18N_EN, {
+  'Bajando la actualización…': 'Downloading the update…', 'Instalando…': 'Installing…', 'Yurei se va a cerrar y volver a abrir solo.': 'Yurei will close and reopen by itself.',
+  'está disponible': 'is available', 'Hay una versión nueva': 'There is a new version', 'Se baja de GitHub y se verifica su huella antes de instalar.': 'It downloads from GitHub and its fingerprint is verified before installing.',
+  'Instalar ahora': 'Install now', 'Más tarde': 'Later', 'Buscar cada': 'Check every', '3 horas': '3 hours', '6 horas': '6 hours', '12 horas': '12 hours', '1 día': '1 day',
+  'Una consulta a GitHub al abrir Yurei y cada cierto tiempo. Nunca se instala nada sin que lo elijas.': 'One request to GitHub when Yurei opens and every so often. Nothing is ever installed unless you choose it.',
+  'Avisarme con una notificación': 'Notify me', 'Cuando hay una versión nueva, una sola vez por versión: en la isla y en Windows. Tú decides si instalarla.': 'When there is a new version, once per version: on the island and in Windows. You decide whether to install it.'
+});
+
 // Voz propia de Yurei
 Object.assign(I18N_EN, {
   'Gemini no pudo seguir hablando ahora (límite de voz). La respuesta quedó escrita.': 'Gemini could not keep speaking right now (voice limit). The reply is written out.',

@@ -793,10 +793,28 @@ function start() {
     }
     return update;
   };
-  if (store.get('settings').autoUpdate !== false) {
-    setTimeout(() => checkUpdate(), 30 * 1000);
-    setInterval(() => { if (store.get('settings').autoUpdate !== false) checkUpdate(); }, 6 * 3600 * 1000);
-  }
+  // Busca al abrir y luego cada "updateEvery" horas (3 por defecto). Si hay versión nueva avisa una sola vez por versión: en la isla
+  // y con una notificación de Windows; instalar siempre lo decide la persona.
+  let lastUpdateCheck = 0;
+  const runScheduledCheck = async () => {
+    const st = store.get('settings');
+    if (st.autoUpdate === false) return;
+    lastUpdateCheck = Date.now();
+    await checkUpdate();
+    if (update.status === 'available' && st.updateNotify !== false && !st.dnd && store.get('settings').updateNotified !== update.version) {
+      store.updateSettings({ updateNotified: update.version });
+      if (Notification.isSupported()) {
+        const n = new Notification({ title: `Yurei ${update.version} disponible`, body: 'Abre la isla para instalarla cuando quieras. No se instala sola.', silent: true });
+        n.on('click', () => { win?.show(); win?.webContents.send('open-update'); });
+        n.show();
+      }
+    }
+  };
+  setTimeout(runScheduledCheck, 30 * 1000);
+  setInterval(() => {
+    const every = (store.get('settings').updateEvery || 3) * 3600 * 1000;
+    if (Date.now() - lastUpdateCheck >= every) runScheduledCheck();
+  }, 5 * 60 * 1000); // mira cada 5 min si ya toca (así un cambio de frecuencia en Ajustes se nota enseguida)
   handle('update:get', () => update);
   handle('update:check', () => checkUpdate(true));
   handle('update:install', async () => {

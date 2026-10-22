@@ -517,7 +517,9 @@ const prettyKeys = (a) => a.replace('Control', 'Ctrl').replace('Super', 'Win').r
   const usageCard = card('Uso de hoy', 'Pedidos que Yurei hizo a Gemini con tu clave.', el('div', { className: 'row stack' }, usageStats, usageNote));
   const updCard = card('Actualizaciones', 'Las versiones nuevas se bajan de GitHub y se verifica su huella antes de instalarlas.',
     el('div', { className: 'row' }, el('div', { className: 'txt' }, el('div', { className: 't', textContent: 'Yurei' }), updText), updBtn),
-    row('Buscar actualizaciones solo', 'Una consulta a GitHub al abrir y cada 6 horas.', toggle(s.autoUpdate !== false, (v) => save({ autoUpdate: v }))));
+    row('Buscar actualizaciones solo', 'Una consulta a GitHub al abrir Yurei y cada cierto tiempo. Nunca se instala nada sin que lo elijas.', toggle(s.autoUpdate !== false, (v) => save({ autoUpdate: v }))),
+    row('Buscar cada', null, el('div', {}, choice('seg', [[3, '3 horas'], [6, '6 horas'], [12, '12 horas'], [24, '1 día']].map(([v, l]) => ({ value: v, node: el('button', { className: 'chip', textContent: l }) })), s.updateEvery || 3, (v) => save({ updateEvery: v }))), true),
+    row('Avisarme con una notificación', 'Cuando hay una versión nueva, una sola vez por versión: en la isla y en Windows. Tú decides si instalarla.', toggle(s.updateNotify !== false, (v) => save({ updateNotify: v }))));
   const privacyPage = [
     card('Lo que recuerda de ti', 'Para charlar mejor, guarda lo que le cuentas de ti. Vive solo en este equipo.',
       el('div', { className: 'row stack' }, memList),

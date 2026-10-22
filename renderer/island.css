@@ -284,3 +284,16 @@
 ::-webkit-scrollbar-button { display: none; }
 ::-webkit-scrollbar-thumb { background: color-mix(in srgb, var(--ink, #fff) 24%, transparent); border: 3px solid transparent; background-clip: content-box; border-radius: 8px; }
 ::-webkit-scrollbar-thumb:hover { background: color-mix(in srgb, var(--ink, #fff) 42%, transparent); background-clip: content-box; }
+
+/* aviso de actualización */
+.ubox { display: flex; flex-direction: column; gap: 6px; padding: 8px 6px 2px; }
+.utitle { font-size: 14px; font-weight: 600; }
+.usub { font-size: 11.5px; color: var(--mute); line-height: 1.35; }
+.ubar { height: 5px; border-radius: 3px; background: color-mix(in srgb, var(--ink) 15%, transparent); overflow: hidden; margin: 2px 0; }
+.ubar i { display: block; height: 100%; width: 0; background: var(--ink); border-radius: inherit; transition: width .3s ease; }
+.uact { display: flex; justify-content: flex-end; align-items: center; gap: 10px; margin-top: 4px; }
+.ulater { height: 36px; padding: 0 14px; border: 0; border-radius: 18px; background: none; color: var(--mute); font-size: 13px; cursor: pointer; }
+.ulater:hover { color: var(--ink); background: var(--group); }
+.pillbtn:disabled { opacity: .6; cursor: default; }
+#upd { white-space: nowrap; }
+#island[data-view=update] #upd { display: none; } /* en la vista de actualización el botón sobra */

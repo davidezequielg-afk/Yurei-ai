@@ -1103,9 +1103,13 @@ function showUpdate(u) {
   b.title = u.error ? `⚠ ${u.error}` : 'Baja la versión nueva desde GitHub, verifica su huella y la instala';
   island.classList.toggle('has-update', ['available', 'downloading', 'installing'].includes(u.status) && state.showUpdateDot !== false);
   // Se avisa una sola vez por versión, sin interrumpir.
+  Island.setUpdate?.(u);
   if (u.status === 'available' && announcedUpdate !== u.version && !state.dnd) {
     announcedUpdate = u.version;
-    Island.pulse([window.icon('download', 14), el('span', { textContent: t('Actualización disponible') })], 6000, '#32d74b');
+    // Si no estás en medio de algo, se abre el aviso con "Instalar ahora / Más tarde"; si no, solo el aviso pequeño.
+    const free = !island.dataset.phase && !conv.active && !Island.view;
+    if (free) Island.announceUpdate?.();
+    else Island.pulse([window.icon('download', 14), el('span', { textContent: t('Actualización disponible') })], 6000, '#32d74b');
   }
 }
 $('upd').onclick = async (e) => {

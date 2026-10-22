@@ -10,7 +10,7 @@ const API = `https://api.github.com/repos/${REPO}/releases/latest`;
 const ASSET = /^Yurei-Setup-(\d+\.\d+\.\d+)\.exe$/;
 // Solo se descarga de GitHub (los archivos de los releases se sirven desde estos dominios tras una redirección).
 const HOSTS = ['api.github.com', 'github.com', 'objects.githubusercontent.com', 'release-assets.githubusercontent.com'];
-const MAX_BYTES = 400 * 1024 * 1024;
+const MAX_BYTES = 900 * 1024 * 1024; // el instalador con las voces pesa unos 400 MB
 
 // ¿a es más nueva que b? ("1.2.0" > "1.1.9")
 function newer(a, b) {
@@ -65,27 +65,38 @@ function createUpdater({ current, dir, fetchImpl = fetch, spawnImpl = null, time
       return { available: true, current, version, notes: found.notes, size: found.size };
     },
 
-    // Baja el instalador y verifica su huella. Devuelve la ruta del archivo listo para abrir.
+    // Baja el instalador directo al disco (sin tenerlo entero en memoria) y verifica su huella. Devuelve la ruta del archivo listo.
     async download(onProgress = () => {}) {
       if (!found) throw new Error('No hay ninguna actualización pendiente');
-      const res = await get(found.url, { timeout: 10 * 60 * 1000 });
+      const res = await get(found.url, { timeout: 30 * 60 * 1000 });
       const total = Number(res.headers?.get?.('content-length')) || found.size || 0;
       if (total > MAX_BYTES) throw new Error('El instalador es demasiado grande');
-      const hash = crypto.createHash('sha256');
-      const chunks = [];
-      let got = 0;
-      for await (const chunk of res.body) {
-        got += chunk.length;
-        if (got > MAX_BYTES) throw new Error('El instalador es demasiado grande');
-        hash.update(chunk);
-        chunks.push(Buffer.from(chunk));
-        if (total) onProgress(Math.min(1, got / total));
-      }
-      const digest = hash.digest('hex');
-      if (digest !== found.sha256) throw new Error('La descarga no coincide con la huella publicada: no se instala');
       fs.mkdirSync(dir, { recursive: true });
+      for (const f of fs.readdirSync(dir)) { if (/^Yurei-Setup-.*\.(exe|part)$/.test(f) && f !== found.name) { try { fs.rmSync(path.join(dir, f), { force: true }); } catch { /* en uso */ } } } // instaladores viejos
       const file = path.join(dir, found.name);
-      fs.writeFileSync(file, Buffer.concat(chunks));
+      const part = `${file}.part`;
+      const out = fs.createWriteStream(part);
+      const hash = crypto.createHash('sha256');
+      let got = 0;
+      try {
+        for await (const chunk of res.body) {
+          got += chunk.length;
+          if (got > MAX_BYTES) throw new Error('El instalador es demasiado grande');
+          hash.update(chunk);
+          if (!out.write(chunk)) await new Promise((ok) => out.once('drain', ok));
+          if (total) onProgress(Math.min(1, got / total));
+        }
+        await new Promise((ok, bad) => { out.once('error', bad); out.end(ok); });
+      } catch (e) {
+        out.destroy();
+        try { fs.rmSync(part, { force: true }); } catch { /* ya no está */ }
+        throw e;
+      }
+      if (hash.digest('hex') !== found.sha256) {
+        fs.rmSync(part, { force: true });
+        throw new Error('La descarga no coincide con la huella publicada: no se instala');
+      }
+      fs.renameSync(part, file);
       return file;
     },
 
