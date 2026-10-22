@@ -10,6 +10,7 @@
   const M = { m: null, at: 0, art: '', key: '', lastPlaying: 0, vol: null, volOpen: false, seeking: false };
   let poll = null;
   let tick = null;
+  let volTick = null;
 
   const fmt = (s) => { s = Math.max(0, Math.round(s)); return `${Math.floor(s / 60)}:${String(s % 60).padStart(2, '0')}`; };
   const playing = () => M.m?.available && M.m.status === 'Playing';
@@ -116,7 +117,7 @@
     Island.setMusic({ active, viz: c.mediaVisualizer !== false && playing(), art: c.mediaAlbumArt !== false && !!M.art, artUrl: M.art, playing: playing() });
     const showViz = active && c.mediaVisualizer !== false;
     $('mviz').hidden = !showViz;
-    $('mart').hidden = !(active && c.mediaAlbumArt !== false);
+    $('mart').hidden = !(active && c.mediaAlbumArt !== false && !!M.art); // sin portada no se muestra (si no, queda un recuadro roto)
     if (M.art && !$('mart').hidden) $('mart').src = M.art;
     $('mart').classList.toggle('paused', !playing());
     $('mart').classList.toggle('glowy', c.mediaCompactGlow !== false);
@@ -237,9 +238,11 @@
     enter() {
       fetchMedia(); drawMusic(); Viz.start();
       tick = setInterval(() => { if (ui.prog && !M.seeking) tickProgress(); }, 250);
-      window.yurei.widgetData('volume').then((r) => { if (r.ok && typeof r.data.volume === 'number') { M.vol = r.data.volume; ui.vol?.sync(); } });
+      const readVol = () => window.yurei.widgetData('volume').then((r) => { if (r.ok && typeof r.data.volume === 'number' && !ui.vol?.dragging) { M.vol = r.data.volume; ui.vol?.sync(); } });
+      readVol();
+      volTick = setInterval(readVol, 700); // el volumen también cambia desde Windows
     },
-    leave() { clearInterval(tick); tick = null; }
+    leave() { clearInterval(tick); clearInterval(volTick); tick = null; volTick = null; }
   });
 
   // Ya se sabe qué suena aunque la isla esté cerrada: se consulta cada 3 s mientras la música esté activada.

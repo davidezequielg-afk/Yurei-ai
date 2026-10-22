@@ -38,11 +38,20 @@ const Island = (() => {
   const widgetCount = () => st.widgets.left.length + st.widgets.right.length;
   const BASE_H = 36;
 
+  // Ancho natural de la barra cerrada: lo que de verdad hay dentro (carita, cuenta atrás, visualizador, hora, portada…),
+  // con 14 px de margen a cada lado y 12 entre grupos. Los widgets de estado no cuentan: solo se ven al pasar el mouse.
+  function flowWidth() {
+    const shown = (n) => n && !n.hidden && getComputedStyle(n).display !== 'none';
+    const group = (root, skip = []) => {
+      const kids = [...root.children].filter((n) => shown(n) && !skip.includes(n.id));
+      return kids.length ? kids.reduce((a, n) => a + n.getBoundingClientRect().width, 0) + 8 * (kids.length - 1) : 0;
+    };
+    const parts = [group($('lslot'), ['lwidgets']), group($('center')), group($('rslot'), ['rwidgets', 'chev', 'gear', 'upd'])].filter((x) => x > 0);
+    return 28 + parts.reduce((a, x) => a + x, 0) + 12 * Math.max(0, parts.length - 1) + (el.classList.contains('has-update') ? 11 : 0);
+  }
+
   function collapsedWidth() {
-    // carita + hora, con 14 px de margen a cada lado y 12 entre ellas (se mide la hora real: cambia con el formato)
-    let w = 14 + 18 + 12 + Math.ceil($('clock').getBoundingClientRect().width || (st.time24 ? 40 : 62)) + 14 + (el.classList.contains('has-update') ? 11 : 0);
-    if (st.music?.active) w += (st.music.viz ? 56 : 0) + (st.music.art ? 34 : 0); // el visualizador va junto a la carita
-    if (st.timer) w = Math.max(w, 170);
+    let w = Math.ceil(flowWidth());
     if (st.phase) w = Math.max(w, 220);
     if (st.pulse) w = Math.max(w, 210);
     if ((st.hot || st.view === '') && st.hot && widgetCount()) w = Math.max(w, Math.min(200 + 50 * widgetCount(), 380));

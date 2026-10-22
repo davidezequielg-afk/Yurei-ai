@@ -7,6 +7,7 @@
   let host = null;
   let sub = ''; // '' | wifi | bt
   let poll = null;
+  let volPoll = null;
   const S = { radios: { wifi: { present: false, on: false }, bluetooth: { present: false, on: false } }, ssid: '', bt: [], settings: {}, vol: null, bright: null, nets: [], scanning: false, open: '', msg: '' };
   const ui = {};
 
@@ -205,8 +206,12 @@
   Island.register('control', {
     build,
     size: () => { const nb = S.settings.device === 'notebook'; return sub ? { w: 350, h: 264 } : { w: 350, h: nb ? 194 : 160 }; },
-    enter() { sub = ''; host.dataset.sub = ''; load(); poll = setInterval(() => { if (!sub) load(); }, 4000); },
-    leave() { clearInterval(poll); poll = null; sub = ''; if (host) host.dataset.sub = ''; S.open = ''; }
+    enter() {
+      sub = ''; host.dataset.sub = ''; load(); poll = setInterval(() => { if (!sub) load(); }, 4000);
+      // el volumen también cambia desde Windows (teclas, mezclador): se sigue cada 0,7 s mientras está abierto
+      volPoll = setInterval(async () => { const r = await window.yurei.widgetData('volume'); if (r.ok && typeof r.data.volume === 'number' && !ui.vol.dragging) { S.vol = r.data.volume; ui.vol.value(S.vol); } }, 700);
+    },
+    leave() { clearInterval(poll); clearInterval(volPoll); poll = null; volPoll = null; sub = ''; if (host) host.dataset.sub = ''; S.open = ''; }
   });
   Island.reloadControl = load;
 })();
