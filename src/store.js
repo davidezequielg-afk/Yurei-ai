@@ -40,9 +40,6 @@ const DEFAULTS = {
     lowBattery: 20,
     statusWidgets: { left: ['weather'], right: ['battery'] },
     volumeHud: true, volumeEdge: true, brightnessHud: true, brightnessEdge: true,
-    dockEnabled: false, dockMode: 'smart', dockEdgeDelay: 200, dockPreview: true, dockIconOnly: false,
-    dockSeparator: true, dockTaskView: false, dockWinNumber: true, dockExtras: 'off', dockExtrasDrives: true,
-    dockExtrasRecycle: true, dockExtrasFolders: ['downloads'], dockPinned: [], dockCustomFolders: [], dockAdaptive: false,
     uiScale: 100, // tamaño de la interfaz (80 a 130 %)
     themeSat: 50,
     themeBright: 15,

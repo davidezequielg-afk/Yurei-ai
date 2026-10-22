@@ -1,4 +1,4 @@
-// Vista Centro de control: Wi-Fi, Dock, Bluetooth, Isla; botones de acceso; volumen y brillo. Con paneles de Wi-Fi y Bluetooth.
+// Vista Centro de control: Wi-Fi, Bluetooth, Isla; botones de acceso; volumen y brillo. Con paneles de Wi-Fi y Bluetooth.
 
 (() => {
   const mk = (tag, props = {}, ...kids) => { const n = Object.assign(document.createElement(tag), props); kids.flat().forEach((k) => k != null && n.append(k)); return n; };
@@ -72,8 +72,6 @@
     const b = R.bluetooth;
     const conn = S.bt.filter((d) => d.connected).map((d) => d.name);
     ui.bt.set(!b.present ? t('No disponible') : !b.on ? t('Apagado') : conn.length ? conn.join(', ') : t('Encendido'), b.present && b.on);
-    const dm = S.settings.dockEnabled ? S.settings.dockMode || 'smart' : 'off';
-    ui.dock.set(dm === 'off' ? t('Apagado') : t(MODE_LABEL[dm]), dm === 'fixed');
     const nm = S.settings.notchMode || 'fixed';
     ui.notch.set(t(MODE_LABEL[nm]), nm === 'fixed');
     ui.dnd.classList.toggle('active', !!S.settings.dnd);
@@ -97,12 +95,6 @@
   }
   function flash(text) { S.msg = text; ui.msg.textContent = text; ui.msg.classList.add('on'); clearTimeout(flash.t); flash.t = setTimeout(() => ui.msg.classList.remove('on'), 3500); }
 
-  const cycleDock = () => {
-    const cur = S.settings.dockEnabled ? S.settings.dockMode || 'smart' : 'off';
-    const next = { off: 'fixed', fixed: 'smart', smart: 'peek', peek: 'off' }[cur];
-    save(next === 'off' ? { dockEnabled: false } : { dockEnabled: true, dockMode: next });
-    draw();
-  };
   const cycleNotch = () => { save({ notchMode: MODES[(MODES.indexOf(S.settings.notchMode || 'fixed') + 1) % 3] }); draw(); };
 
   /* ---------- paneles ---------- */
@@ -195,7 +187,6 @@
   function build(el) {
     host = el;
     ui.wifi = tile('wifi', 'Wi-Fi', () => toggleRadio('wifi'), () => showSub('wifi'));
-    ui.dock = tile('grid', 'Dock', cycleDock);
     ui.bt = tile('bluetooth', 'Bluetooth', () => toggleRadio('bluetooth'), () => showSub('bt'));
     ui.notch = tile('chevron', 'Isla', cycleNotch);
     ui.dnd = round('moon2', 'No molestar', () => { save({ dnd: !S.settings.dnd }); draw(); });
@@ -206,7 +197,7 @@
     ui.vol = slider('volume', 'Volumen', null, (v) => window.yurei.widgetAction('volume', { level: v }));
     ui.bright = slider('brightness', 'Brillo', null, (v) => window.yurei.brightnessSet(v).then((r) => { if (!r.ok) flash(r.error); }));
     ui.msg = mk('div', { className: 'cmsg' });
-    ui.main = mk('div', { className: 'cmain' }, mk('div', { className: 'tgrid' }, ui.wifi.el, ui.dock.el, ui.bt.el, ui.notch.el), row, mk('div', { className: 'sliders' }, ui.vol.row, ui.bright.row));
+    ui.main = mk('div', { className: 'cmain' }, mk('div', { className: 'tgrid' }, ui.wifi.el, ui.bt.el, ui.notch.el), row, mk('div', { className: 'sliders' }, ui.vol.row, ui.bright.row));
     ui.sub = mk('div', { className: 'csub' });
     el.append(ui.main, ui.sub, ui.msg);
   }
