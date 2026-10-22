@@ -42,9 +42,48 @@ interface IMMDeviceEnumerator {
 [ComImport, Guid("BCDE0395-E52F-49B1-8E5C-BB4FB7E8C7B3")]
 class MMDeviceEnumeratorComObject { }
 
+[ComImport, Guid("00000001-0000-0000-C000-000000000046"), InterfaceType(ComInterfaceType.InterfaceIsIUnknown)]
+interface IClassFactoryY {
+  [PreserveSig] int CreateInstance(IntPtr pUnkOuter, ref Guid riid, out IntPtr ppvObject);
+  [PreserveSig] int LockServer([MarshalAs(UnmanagedType.Bool)] bool fLock);
+}
+
+[UnmanagedFunctionPointer(CallingConvention.StdCall)]
+delegate int DllGetClassObjectFnY(ref Guid rclsid, ref Guid riid, out IntPtr ppv);
+
+static class NativeY {
+  [DllImport("kernel32.dll", CharSet = CharSet.Unicode, SetLastError = true)] public static extern IntPtr LoadLibrary(string name);
+  [DllImport("kernel32.dll", CharSet = CharSet.Ansi, ExactSpelling = true)] public static extern IntPtr GetProcAddress(IntPtr module, string name);
+}
+
 public class YureiAudio {
+  // Normalmente COM encuentra el componente por el registro. En algunos equipos el registro no lo ofrece (0x80040154, "clase no
+  // registrada"): entonces se carga MMDevAPI.dll directamente y se le pide el componente sin pasar por el registro.
+  public static string Via = "registro";
+  static IMMDeviceEnumerator Enumerator() {
+    try { return new MMDeviceEnumeratorComObject() as IMMDeviceEnumerator; }
+    catch (COMException) { }
+    IntPtr lib = NativeY.LoadLibrary(System.IO.Path.Combine(Environment.SystemDirectory, "MMDevAPI.dll"));
+    if (lib == IntPtr.Zero) throw new InvalidOperationException("No se pudo cargar MMDevAPI.dll");
+    IntPtr proc = NativeY.GetProcAddress(lib, "DllGetClassObject");
+    if (proc == IntPtr.Zero) throw new InvalidOperationException("MMDevAPI.dll no ofrece DllGetClassObject");
+    var fn = (DllGetClassObjectFnY)Marshal.GetDelegateForFunctionPointer(proc, typeof(DllGetClassObjectFnY));
+    Guid clsid = new Guid("BCDE0395-E52F-49B1-8E5C-BB4FB7E8C7B3");
+    Guid iidFactory = new Guid("00000001-0000-0000-C000-000000000046");
+    IntPtr pf;
+    Marshal.ThrowExceptionForHR(fn(ref clsid, ref iidFactory, out pf));
+    IClassFactoryY factory = (IClassFactoryY)Marshal.GetObjectForIUnknown(pf);
+    Marshal.Release(pf);
+    Guid iidEnum = typeof(IMMDeviceEnumerator).GUID;
+    IntPtr pe;
+    Marshal.ThrowExceptionForHR(factory.CreateInstance(IntPtr.Zero, ref iidEnum, out pe));
+    object en = Marshal.GetObjectForIUnknown(pe);
+    Marshal.Release(pe);
+    Via = "MMDevAPI.dll directo";
+    return (IMMDeviceEnumerator)en;
+  }
   static IAudioEndpointVolume Endpoint() {
-    var enumerator = new MMDeviceEnumeratorComObject() as IMMDeviceEnumerator;
+    var enumerator = Enumerator();
     IMMDevice dev = null;
     Marshal.ThrowExceptionForHR(enumerator.GetDefaultAudioEndpoint(0, 1, out dev));
     IAudioEndpointVolume epv = null;
@@ -143,10 +182,45 @@ interface IMMDeviceEnumeratorM {
 [ComImport, Guid("BCDE0395-E52F-49B1-8E5C-BB4FB7E8C7B3")]
 class MMDeviceEnumeratorComObjectM { }
 
+[ComImport, Guid("00000001-0000-0000-C000-000000000046"), InterfaceType(ComInterfaceType.InterfaceIsIUnknown)]
+interface IClassFactoryM {
+  [PreserveSig] int CreateInstance(IntPtr pUnkOuter, ref Guid riid, out IntPtr ppvObject);
+  [PreserveSig] int LockServer([MarshalAs(UnmanagedType.Bool)] bool fLock);
+}
+
+[UnmanagedFunctionPointer(CallingConvention.StdCall)]
+delegate int DllGetClassObjectFnM(ref Guid rclsid, ref Guid riid, out IntPtr ppv);
+
+static class NativeM {
+  [DllImport("kernel32.dll", CharSet = CharSet.Unicode, SetLastError = true)] public static extern IntPtr LoadLibrary(string name);
+  [DllImport("kernel32.dll", CharSet = CharSet.Ansi, ExactSpelling = true)] public static extern IntPtr GetProcAddress(IntPtr module, string name);
+}
+
 public class YureiMixer {
+  static IMMDeviceEnumeratorM Enumerator() {
+    try { return new MMDeviceEnumeratorComObjectM() as IMMDeviceEnumeratorM; }
+    catch (COMException) { }
+    IntPtr lib = NativeM.LoadLibrary(System.IO.Path.Combine(Environment.SystemDirectory, "MMDevAPI.dll"));
+    if (lib == IntPtr.Zero) throw new InvalidOperationException("No se pudo cargar MMDevAPI.dll");
+    IntPtr proc = NativeM.GetProcAddress(lib, "DllGetClassObject");
+    if (proc == IntPtr.Zero) throw new InvalidOperationException("MMDevAPI.dll no ofrece DllGetClassObject");
+    var fn = (DllGetClassObjectFnM)Marshal.GetDelegateForFunctionPointer(proc, typeof(DllGetClassObjectFnM));
+    Guid clsid = new Guid("BCDE0395-E52F-49B1-8E5C-BB4FB7E8C7B3");
+    Guid iidFactory = new Guid("00000001-0000-0000-C000-000000000046");
+    IntPtr pf;
+    Marshal.ThrowExceptionForHR(fn(ref clsid, ref iidFactory, out pf));
+    IClassFactoryM factory = (IClassFactoryM)Marshal.GetObjectForIUnknown(pf);
+    Marshal.Release(pf);
+    Guid iidEnum = typeof(IMMDeviceEnumeratorM).GUID;
+    IntPtr pe;
+    Marshal.ThrowExceptionForHR(factory.CreateInstance(IntPtr.Zero, ref iidEnum, out pe));
+    object en = Marshal.GetObjectForIUnknown(pe);
+    Marshal.Release(pe);
+    return (IMMDeviceEnumeratorM)en;
+  }
   static List<object[]> Each() {
     var res = new List<object[]>();
-    var en = new MMDeviceEnumeratorComObjectM() as IMMDeviceEnumeratorM;
+    var en = Enumerator();
     IMMDeviceM dev = null;
     Marshal.ThrowExceptionForHR(en.GetDefaultAudioEndpoint(0, 1, out dev));
     IAudioSessionManager2M mgr = null;
@@ -448,7 +522,7 @@ function Set-Vol($percent) {
     # Plan B con las teclas de volumen (cada tecla = 2 %). Si todavía se puede leer el nivel actual, se suben o bajan solo los
     # pasos que faltan: así el volumen va directo al valor pedido, sin bajar al mínimo y volver a subir.
     $cur = $null
-    try { $cur = [Math]::Round([YureiAudio]::GetVolume() * 100) } catch { $cur = $null }
+    try { $cur = [Math]::Round([YureiAudio]::GetVolume() * 100) } catch { $cur = $script:lastKeyVol } # sin lectura: se parte del último nivel que se pidió
     if ($null -ne $cur) {
       $d = $p - $cur
       if ([Math]::Abs($d) -ge 1) {
@@ -459,6 +533,7 @@ function Set-Vol($percent) {
       Press-Key 174 50 # sin lectura: al mínimo y sube hasta el nivel pedido
       Press-Key 175 ([int][Math]::Round($p / 2))
     }
+    $script:lastKeyVol = [int]$p
     return @{ volume = [int]$p; muted = $false; mode = 'teclas' }
   }
 }
@@ -502,7 +577,7 @@ while ($true) {
       'vol.set'   { $data = Set-Vol $arg }
       'vol.step'  { $data = Step-Vol $arg }
       'vol.mute'  { $data = Set-Mute ($arg -eq 'true') }
-      'diag'      { $v = Get-Vol; $data = @{ powershell = $PSVersionTable.PSVersion.ToString(); audioExacto = [bool]('YureiAudio' -as [type]); teclas = [bool]('YureiKeys' -as [type]); reproductores = $script:smtc; erroresAlIniciar = @($script:initErrors); volumen = $v; ultimoErrorDeAudio = $script:audioError } }
+      'diag'      { $v = Get-Vol; $data = @{ powershell = $PSVersionTable.PSVersion.ToString(); proceso64bits = [Environment]::Is64BitProcess; arquitectura = "$env:PROCESSOR_ARCHITECTURE/$env:PROCESSOR_ARCHITEW6432"; comoSeAbreElAudio = $(if ('YureiAudio' -as [type]) { [YureiAudio]::Via } else { $null }); audioExacto = [bool]('YureiAudio' -as [type]); teclas = [bool]('YureiKeys' -as [type]); reproductores = $script:smtc; erroresAlIniciar = @($script:initErrors); volumen = $v; ultimoErrorDeAudio = $script:audioError } }
       'media.get' { $data = Get-Media }
       'media.cover' { $data = Get-Cover }
       'keys.combo' { $data = Press-Combo $arg }
