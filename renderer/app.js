@@ -1091,6 +1091,7 @@ $('upd').onclick = async (e) => {
   const r = await window.yurei.updateInstall();
   if (!r.ok) showReply(`⚠ ${r.error}`);
 };
+Island.onFace = () => toggleConversation();
 window.yurei.on('update', showUpdate);
 window.yurei.updateGet().then((r) => r.ok && showUpdate(r.data));
 

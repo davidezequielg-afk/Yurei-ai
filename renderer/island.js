@@ -248,6 +248,8 @@ const Island = (() => {
   }, { passive: true });
 
   $('bar').addEventListener('click', (e) => {
+    // tocar la carita = hablar con Yurei (sin abrir nada); el resto de la barra abre o cierra el panel
+    if (e.target.closest('#ring') && !st.view && Island.onFace) { Island.onFace(); return; }
     if (e.target.closest('button') && e.target.closest('button').id !== 'chev') return;
     if (e.target.closest('#chev')) return;
     if (st.view && st.view !== 'notice') { setView(''); st.hot = false; } else open();
