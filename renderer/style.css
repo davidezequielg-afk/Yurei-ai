@@ -108,3 +108,12 @@ button.ghost:hover, .ctrl button:hover, #gear:hover { color: var(--ink); }
 .week { display: flex; align-items: flex-end; gap: 3px; height: 18px; margin-top: 6px; }
 .week i { display: block; width: 6px; border-radius: 2px; background: color-mix(in srgb, var(--accent) 45%, transparent); }
 .week i.now { background: var(--accent); }
+
+/* barras de desplazamiento finas y del color del tema (en vez de las blancas del sistema) */
+:root[data-mode=dark] { color-scheme: dark; }
+:root[data-mode=light] { color-scheme: light; }
+::-webkit-scrollbar { width: 10px; height: 10px; }
+::-webkit-scrollbar-track, ::-webkit-scrollbar-corner { background: transparent; }
+::-webkit-scrollbar-button { display: none; }
+::-webkit-scrollbar-thumb { background: color-mix(in srgb, var(--ink, #fff) 24%, transparent); border: 3px solid transparent; background-clip: content-box; border-radius: 8px; }
+::-webkit-scrollbar-thumb:hover { background: color-mix(in srgb, var(--ink, #fff) 42%, transparent); background-clip: content-box; }
