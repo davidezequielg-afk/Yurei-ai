@@ -39,7 +39,8 @@ const Island = (() => {
   const BASE_H = 36;
 
   function collapsedWidth() {
-    let w = st.time24 ? 124 : 140;
+    // carita + hora, con 14 px de margen a cada lado y 12 entre ellas (se mide la hora real: cambia con el formato)
+    let w = 14 + 18 + 12 + Math.ceil($('clock').getBoundingClientRect().width || (st.time24 ? 40 : 62)) + 14 + (el.classList.contains('has-update') ? 11 : 0);
     if (st.music?.active) w += (st.music.viz ? 56 : 0) + (st.music.art ? 34 : 0); // el visualizador va junto a la carita
     if (st.timer) w = Math.max(w, 170);
     if (st.phase) w = Math.max(w, 220);
@@ -286,7 +287,8 @@ const Island = (() => {
       ? d.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', hour12: false })
       : d.toLocaleTimeString([], { hour: 'numeric', minute: '2-digit', hour12: true }).replace(/\s?([ap])\.?\s?m\.?/i, (_m, x) => ` ${x.toUpperCase()}M`);
   }
-  setInterval(tickClock, 1000);
+  const tickAndFit = () => { const n = $('clock').textContent.length; tickClock(); if ($('clock').textContent.length !== n) refresh(); };
+  setInterval(tickAndFit, 1000);
   tickClock();
 
   /* ---------- arranque: sube desde arriba, se pega al borde y se estira ---------- */
