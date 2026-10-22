@@ -284,7 +284,7 @@ const Island = (() => {
     const d = new Date();
     $('clock').textContent = st.time24
       ? d.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', hour12: false })
-      : d.toLocaleTimeString([], { hour: 'numeric', minute: '2-digit', hour12: true }).replace(/\s?([ap])\.?\s?m\.?/i, ' $1M');
+      : d.toLocaleTimeString([], { hour: 'numeric', minute: '2-digit', hour12: true }).replace(/\s?([ap])\.?\s?m\.?/i, (_m, x) => ` ${x.toUpperCase()}M`);
   }
   setInterval(tickClock, 1000);
   tickClock();

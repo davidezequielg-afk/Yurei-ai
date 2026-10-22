@@ -8,6 +8,7 @@
 #island::before { content: ""; position: absolute; inset: 0; border-radius: inherit; background: var(--bg); transition: background .3s ease; z-index: 0; }
 #island.hot::before { background: var(--bg-exp, var(--bg)); }
 #island > * { position: relative; z-index: 1; }
+#island > .flare { position: absolute; z-index: 0; } /* los bordes cóncavos no ocupan lugar: si no, empujan la barra hacia abajo */
 
 /* bordes cóncavos que unen la píldora con el borde de la pantalla */
 .flare { position: absolute; top: 0; width: 13px; height: 13px; background: var(--bg); opacity: 0; transition: opacity .3s ease, background .3s ease; z-index: 0; pointer-events: none; }
